@@ -609,14 +609,17 @@ int main(int argc, char *argv[])
     snd_rawmidi_t *midi = NULL;
     snd_ctl_elem_id_t *vol_id;
     snd_ctl_elem_id_t *sw_id;
-    char card_hw[32];
-    int err;
+    char card_hw[32] = "";
     int ret = ERR_OK;
+
     int bVolumeControlIsCreated = BOOL_FALSE;
     int bSwitchControlIsCreated = BOOL_FALSE;
+    int iExitCode = EXIT_ERROR_GENERIC;
 
     ret = parse_args(argc, argv);
     if (ERR_CODE_IS_ERROR(ret)) {
+        log_error("Cannot parse command line arguments: exit error %d", ret);
+        iExitCode = ret;
         print_usage(argv[0]);
         goto cleanup;
     }
@@ -636,85 +639,113 @@ int main(int argc, char *argv[])
     if (config.card_num < 0) {
         config.card_num = find_card_by_name(config.card_name);
         if (config.card_num < 0) {
-            log_error("Card '%s' not found", config.card_name);
-            ret = EXIT_ERROR_CARD_NOT_FOUND;
+            log_error(
+                "Cannot find a card with '%s' in its name",
+                config.card_name
+            );
+            iExitCode = EXIT_ERROR_CANNOT_FIND_CARD;
             goto cleanup;
         }
     }
-    log_info("Using card %d", config.card_num);
+    log_info("Using card '%d'", config.card_num);
 
-    /* Open control device */
+    /* Open card */
     snprintf(card_hw, sizeof(card_hw), "hw:%d", config.card_num);
-    err = snd_ctl_open(&ctl, card_hw, 0);
-    if (err < 0) {
-        log_error("Cannot open control %s: %s", card_hw, snd_strerror(err));
+    ret = snd_ctl_open(&ctl, card_hw, 0);
+    if (ERR_CODE_IS_ERROR(ret)) {
+        log_error("Cannot open card '%s': %s", card_hw, snd_strerror(ret));
+        iExitCode = EXIT_ERROR_CANNOT_OPEN_CARD;
         goto cleanup;
     }
+    log_info("Opened card '%s'", card_hw);
 
     /* Uninstall mode: remove our controls and exit immediately */
     if (BOOL_IS_TRUE(gbUninstallMixerControlsAndExit)) {
-        ret = uninstall_controls(ctl) < 0 ? 1 : 0;
+        ret = uninstall_controls(ctl);
+        iExitCode = EXIT_OK;
+        if (ERR_CODE_IS_ERROR(ret)) {
+            log_error("Cannot uninstall control");
+            iExitCode = EXIT_ERROR_CANNOT_UNINSTALL;
+        }
         goto cleanup;
     }
 
     /* Find MIDI port */
     if (config.midi_port[0] == '\0') {
-        if (find_midi_port(config.card_num, config.midi_port,
-                           sizeof(config.midi_port)) < 0) {
-            log_error("No MIDI port found for card %d", config.card_num);
+        ret = find_midi_port(
+            config.card_num,
+            config.midi_port,
+            sizeof(config.midi_port)
+        );
+        if (ERR_CODE_IS_ERROR(ret)) {
+            log_error("Cannot find a MIDI port for card '%d'", config.card_num);
+            iExitCode = EXIT_ERROR_CANNOT_FIND_MIDI_PORT;
             goto cleanup;
         }
     }
-    log_info("Using MIDI port %s", config.midi_port);
+    log_info("Using MIDI port '%s'", config.midi_port);
 
-    /* Open MIDI output */
-    err = snd_rawmidi_open(NULL, &midi, config.midi_port, 0);
-    if (err < 0) {
-        log_error("Cannot open MIDI %s: %s", config.midi_port, snd_strerror(err));
+    /* Open MIDI port */
+    ret = snd_rawmidi_open(NULL, &midi, config.midi_port, 0);
+    if (ERR_CODE_IS_ERROR(ret)) {
+        log_error(
+            "Cannot open MIDI port '%s': %s",
+            config.midi_port,
+            snd_strerror(ret)
+        );
+        iExitCode = EXIT_ERROR_CANNOT_OPEN_MIDI_PORT;
         goto cleanup;
     }
 
     /* Create controls: volume first, then switch */
-    err = add_elem(ctl, vol_id, CONTROL_NAME, 0);
-    if (err < 0)
+    ret = add_elem(ctl, vol_id, CONTROL_NAME, 0);
+    if (ERR_CODE_IS_ERROR(ret)) {
+        log_error("Cannot add volume control '%s'", CONTROL_NAME);
+        iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
         goto cleanup;
+    }
     bVolumeControlIsCreated = BOOL_TRUE;
-    err = add_elem(ctl, sw_id, SWITCH_NAME, 1);
-    if (err < 0)
+
+    ret = add_elem(ctl, sw_id, SWITCH_NAME, 1);
+    if (ERR_CODE_IS_ERROR(ret)) {
+        log_error("Cannot add switch control '%s'", SWITCH_NAME);
+        iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
         goto cleanup;
+    }
     bSwitchControlIsCreated = BOOL_TRUE;
 
-    log_info("RME ADI-2 control bridge started");
+    /* Run the monitoring loop */
     log_info(
-        "Device ID: 0x%02X, Output: %s",
+        "Start control loop for device ID '0x%02X' and output '%s'",
         config.device_id,
         config.output_param == RME_PARAM_LINE ? "line" : "phones"
     );
-
-    /* Run monitoring loop; a negative result means the card went away */
-    err = monitor_loop(ctl, vol_id, sw_id, midi);
-
-    log_info("Shutting down...");
-    ret = (ERR_CODE_IS_OK(err) ? EXIT_OK : EXIT_ERROR_GENERIC);
+    ret = monitor_loop(ctl, vol_id, sw_id, midi);
+    log_info("Control loop exited with return code '%d'", ret);
+    iExitCode = (ERR_CODE_IS_OK(ret) ? EXIT_OK : EXIT_ERROR_GENERIC);
 
 cleanup:
-    /* Remove controls before closing */
+    /* Remove controls and close objects to prevent leaks */
+    log_verbose("Clean service up ...");
     if (ctl && BOOL_IS_TRUE(bSwitchControlIsCreated)) {
-        log_verbose("Removing switch control '%s'", SWITCH_NAME);
         snd_ctl_elem_remove(ctl, sw_id);
+        log_verbose("Removed switch control '%s'", SWITCH_NAME);
     }
     if (ctl && BOOL_IS_TRUE(bVolumeControlIsCreated)) {
-        log_verbose("Removing volume control '%s'", CONTROL_NAME);
         snd_ctl_elem_remove(ctl, vol_id);
+        log_verbose("Removed volume control '%s'", CONTROL_NAME);
     }
-
     if (midi) {
         snd_rawmidi_close(midi);
+        log_verbose("Closed raw MIDI object");
     }
-
     if (ctl) {
         snd_ctl_close(ctl);
+        log_verbose("Closed ALSA sound object");
     }
+    log_verbose("Clean service up ... done");
 
-    return ret;
+    /* Log exit code and return it */
+    log_info("Exiting with code '%d'", iExitCode);
+    return iExitCode;
 }

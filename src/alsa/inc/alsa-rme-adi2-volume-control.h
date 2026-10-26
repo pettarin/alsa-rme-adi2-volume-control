@@ -39,12 +39,16 @@
 #define ERR_CODE_IS_ERROR(x)    (! ERR_CODE_IS_OK(x))
 
 /* Exit codes for the whole service (0 OK, >1 error) */
-#define EXIT_OK                         0
-#define EXIT_ERROR_GENERIC              1
-#define EXIT_ERROR_USAGE_BAD_OPTION     2
-#define EXIT_ERROR_USAGE_BAD_VALUE      3
-#define EXIT_ERROR_CARD_NOT_FOUND       4
-
+#define EXIT_OK                             0
+#define EXIT_ERROR_GENERIC                  1
+#define EXIT_ERROR_USAGE_BAD_OPTION         2
+#define EXIT_ERROR_USAGE_BAD_VALUE          3
+#define EXIT_ERROR_CANNOT_FIND_CARD         4
+#define EXIT_ERROR_CANNOT_OPEN_CARD         5
+#define EXIT_ERROR_CANNOT_UNINSTALL         6
+#define EXIT_ERROR_CANNOT_FIND_MIDI_PORT    7
+#define EXIT_ERROR_CANNOT_OPEN_MIDI_PORT    8
+#define EXIT_ERROR_CANNOT_ADD_CONTROL       9
 
 /* The simple mixer name seen by amixer/MPD/Volumio is
    the common prefix "ADI2" of the two elements */
