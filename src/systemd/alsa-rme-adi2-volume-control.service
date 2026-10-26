@@ -9,6 +9,8 @@ Before=mpd.service
 [Service]
 Type=simple
 # TODO update the command line with the appropriate parameters
+# for example:
+# ExecStart=/usr/local/bin/alsa-rme-adi-2-volume-control --verbose --card ADI-2 --device 0x73 --output line --min-db -60.0 --max-db 0.0
 ExecStart=/usr/local/bin/alsa-rme-adi-2-volume-control
 Restart=on-failure
 RestartSec=5

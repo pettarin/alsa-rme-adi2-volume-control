@@ -3,11 +3,12 @@
 # IDEs
 .vscode/
 .idea/
+*.bak
 *.swp
 *.swo
 *~
 
-# C-related files
+# C
 *.o
 *.so
 CMakeCache.txt

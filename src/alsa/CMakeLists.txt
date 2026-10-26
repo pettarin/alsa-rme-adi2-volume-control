@@ -1,5 +1,8 @@
+# This file is part of the alsa-rme-adi2-volume-control project
+
 cmake_minimum_required(VERSION 3.24)
 project(alsa-rme-adi2-volume-control C)
+include_directories(inc/)
 
 # Configure CMake properties
 set(CMAKE_C_STANDARD 99)

@@ -40,6 +40,62 @@ make
 
 The executable is written to `src/alsa/bin/alsa-rme-adi2-volume-control`.
 
+To test it, run a command similar to the following:
+
+```bash
+bin/alsa-rme-adi-2-volume-control --verbose --card ADI-2 --device 0x73 --output line --min-db -60.0 --max-db 0.0
+Found card 1: ADI-2/4 Pro SE (52102163)
+Using card 1
+Using MIDI port hw:1,0,0
+Created control 'ADI2 Playback Volume' numid=9
+Created control 'ADI2 Playback Switch' numid=10
+RME ADI-2 control bridge started
+Device ID: 0x73, Output: line
+Mute off -> SysEx: F0 00 20 0D 73 02 1B 60 00 F7
+-30.0 dB -> SysEx: F0 00 20 0D 73 02 1B 1D 54 F7
+Volume: -30.0 dB
+Monitoring controls 'ADI2 Playback Volume' and 'ADI2 Playback Switch' for changes...
+```
+
+and, on a different shell, run `alsamixer` and
+change the volume of the `ADI2` control.
+
+You should observe log messages similar to the following ones,
+and the volume of the selected output (line 1/2 in the example)
+change on your RME ADI-2 device:
+
+```bash
+bin/alsa-rme-adi-2-volume-control --verbose --card ADI-2 --device 0x73 --output line --min-db -60.0 --max-db 0.0
+...
+
+# changing the ADI2 control to 80%
+Mute off -> SysEx: F0 00 20 0D 73 02 1B 60 00 F7
+-12.0 dB -> SysEx: F0 00 20 0D 73 02 1B 1F 08 F7
+Volume: -12.0 dB
+
+# changing the ADI2 control to 85%, 90%, 95% and 100%
+Mute off -> SysEx: F0 00 20 0D 73 02 1B 60 00 F7
+-8.9 dB -> SysEx: F0 00 20 0D 73 02 1B 1F 28 F7
+Volume: -8.9 dB
+Mute off -> SysEx: F0 00 20 0D 73 02 1B 60 00 F7
+-5.9 dB -> SysEx: F0 00 20 0D 73 02 1B 1F 46 F7
+Volume: -5.9 dB
+Mute off -> SysEx: F0 00 20 0D 73 02 1B 60 00 F7
+-2.9 dB -> SysEx: F0 00 20 0D 73 02 1B 1F 64 F7
+Volume: -2.9 dB
+Mute off -> SysEx: F0 00 20 0D 73 02 1B 60 00 F7
+0.0 dB -> SysEx: F0 00 20 0D 73 02 1B 00 00 F7
+Volume: 0.0 dB
+
+# mute
+Mute on -> SysEx: F0 00 20 0D 73 02 1B 60 01 F7
+
+# unmute
+Mute off -> SysEx: F0 00 20 0D 73 02 1B 60 00 F7
+0.0 dB -> SysEx: F0 00 20 0D 73 02 1B 00 00 F7
+Volume: 0.0 dB
+```
+
 #### Install
 
 > [!NOTE]
