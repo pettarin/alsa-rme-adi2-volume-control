@@ -15,6 +15,7 @@ CMakeFiles
 Makefile
 alsa-rme-adi2-volume-control
 cmake_install.cmake
+install_manifest.txt
 
 # Claude Code
 .claude/
