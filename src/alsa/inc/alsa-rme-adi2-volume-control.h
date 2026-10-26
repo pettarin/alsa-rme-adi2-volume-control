@@ -60,10 +60,10 @@
 
 /* Volume ranges for the logical ALSA mixer and the actual ADI-2 device */
 #define VOL_MIN             0           /* Min volume for the logical ALSA mixer, mapped to VOL_MIN_DB on the actual ADI-2 device */
-#define VOL_MAX             600         /* Max volume for the logical ALSA mixer, mapped to VOL_MAX_DB on the actual ADI-2 device */
-#define VOL_DEFAULT         300         /* Default volume for the logical ALSA mixer: 50% */
-#define VOL_MIN_DB          (-70.0)     /* Min level in dB on the actual ADI-2 device mapped from VOL_MIN of the logical ALSA mixer */
-#define VOL_MAX_DB          (-15.0)     /* Max level in dB on the actual ADI-2 device mapped from VOL_MAX of the logical ALSA mixer */
+#define VOL_MAX             100         /* Max volume for the logical ALSA mixer, mapped to VOL_MAX_DB on the actual ADI-2 device */
+#define VOL_DEFAULT         50          /* Default volume for the logical ALSA mixer: 50% */
+#define VOL_MIN_DB          (-60.0)     /* Min level in dB on the actual ADI-2 device mapped from VOL_MIN of the logical ALSA mixer */
+#define VOL_MAX_DB          (-10.0)     /* Max level in dB on the actual ADI-2 device mapped from VOL_MAX of the logical ALSA mixer */
 
 #endif /* ALSA_RME_ADI2_VOLUME_CONTROL_H guard */
 

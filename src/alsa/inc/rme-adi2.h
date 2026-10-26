@@ -55,12 +55,18 @@
 #define RME_DEVICE_ADI24_PRO_SE         0x73
 
 /* RME output parameters */
-#define RME_PARAM_LINE              0x1B
-#define RME_PARAM_PHONES            0x4B
+#define RME_PARAM_LINE                  0x1B
+#define RME_PARAM_PHONES                0x4B
 
 /* RME mute off/on values */
-#define RME_PARAM_MUTE              0x60
-#define RME_VALUE_MUTE_OFF          0x00
-#define RME_VALUE_MUTE_ON           0x01
+#define RME_PARAM_MUTE                  0x60
+#define RME_VALUE_MUTE_OFF              0x00
+#define RME_VALUE_MUTE_ON               0x01
+
+/* RME volume min/max values */
+#define RME_VALUE_VOLUME_MIN_DB         (-93.8)
+#define RME_VALUE_VOLUME_MIN            3158        /* 3158 == -93.8 * 10 + 4096 */
+#define RME_VALUE_VOLUME_MAX_DB         (6.0)
+#define RME_VALUE_VOLUME_MAX            4156        /* 4156 == 6.0 * 10 + 4096 */
 
 #endif /* RME_ADI2_H guard */

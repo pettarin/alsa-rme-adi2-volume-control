@@ -19,15 +19,15 @@
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <signal.h>
-#include <unistd.h>
-#include <getopt.h>
-#include <poll.h>
-#include <errno.h>
-#include <alsa/asoundlib.h>
+#include <stdio.h>              /* for stderr, stdout, etc. */
+#include <stdlib.h>             /* for atof, atoi, etc. */
+#include <string.h>             /* for str* */
+#include <signal.h>             /* for sig* */
+#include <unistd.h>             /* for optarg */
+#include <getopt.h>             /* for getopt_long() */
+#include <poll.h>               /* for poll() */
+#include <errno.h>              /* for errno, EINTR */
+#include <alsa/asoundlib.h>     /* for snd* */
 
 #include "rme-adi2.h"
 #include "alsa-rme-adi2-volume-control.h"
@@ -58,15 +58,13 @@ static struct {
 };
 
 /* sigaction Signal Handler */
-static void signal_handler(int sig)
-{
+static void signal_handler(int sig) {
     (void)sig;
     gbServiceIsRunning = (sig_atomic_t)BOOL_FALSE;
 }
 
 /* Log helpers */
-static void log_info(const char *fmt, ...)
-{
+static void log_info(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     fprintf(stderr, "[INFO] ");
@@ -76,8 +74,7 @@ static void log_info(const char *fmt, ...)
     va_end(ap);
 }
 
-static void log_error(const char *fmt, ...)
-{
+static void log_error(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     fprintf(stderr, "[ERRO] ");
@@ -87,8 +84,7 @@ static void log_error(const char *fmt, ...)
     va_end(ap);
 }
 
-static void log_verbose(const char *fmt, ...)
-{
+static void log_verbose(const char *fmt, ...) {
     if (BOOL_IS_FALSE(gbLogVerbose)) {
         return;
     }
@@ -102,16 +98,24 @@ static void log_verbose(const char *fmt, ...)
 }
 
 /* Find card number by name substring */
-static int find_card_by_name(const char *name)
-{
+static int find_card_by_name(const char *name) {
     int card = -1;
     char *card_name;
 
+    log_verbose("Find card by name with query '%s'", name);
+
     while (snd_card_next(&card) >= 0 && card >= 0) {
-        if (snd_card_get_name(card, &card_name) < 0)
+        if (snd_card_get_name(card, &card_name) < 0) {
             continue;
+        }
+        log_verbose("Found card '%d' with name '%s'", card, card_name);
         if (strstr(card_name, name) != NULL) {
-            log_verbose("Found card %d: %s", card, card_name);
+            log_verbose(
+                "Card '%d' with name '%s' matches the query '%s'",
+                card,
+                card_name,
+                name
+            );
             free(card_name);
             return card;
         }
@@ -121,183 +125,90 @@ static int find_card_by_name(const char *name)
 }
 
 /* Find MIDI port for the card */
-static int find_midi_port(int card, char *port, size_t port_len)
-{
-    /* Try common MIDI port naming: hw:card,0,0 */
+static int find_midi_port(int card, char *port, size_t port_len) {
+    int iRet = ERR_OK;
+
+    /* First, try with the subdevice: hw:$card,0,0 (e.g., "hw:0,0,0").
+     * Note that char *port is both input and output argument. */
     snprintf(port, port_len, "hw:%d,0,0", card);
 
     /* Verify the port exists by trying to open it */
     snd_rawmidi_t *midi = NULL;
-    int err = snd_rawmidi_open(NULL, &midi, port, SND_RAWMIDI_NONBLOCK);
-    if (err < 0) {
-        /* Try without subdevice */
+    iRet = snd_rawmidi_open(NULL, &midi, port, SND_RAWMIDI_NONBLOCK);
+
+    if (ERR_CODE_IS_ERROR(iRet)) {
+        /* Unable to find the MIDI port with the subdevice.
+         * As a fallback, try without the subdevice:
+         * hw:$card,0 (e.g., "hw:0,0"). */
         snprintf(port, port_len, "hw:%d,0", card);
-        err = snd_rawmidi_open(NULL, &midi, port, SND_RAWMIDI_NONBLOCK);
+        iRet = snd_rawmidi_open(NULL, &midi, port, SND_RAWMIDI_NONBLOCK);
     }
-    if (err >= 0) {
-        snd_rawmidi_close(midi);
-        return 0;
+
+    if (ERR_CODE_IS_ERROR(iRet)) {
+        /* Unable to find the MIDI port, return error */
+        return ERR_ERROR_GENERIC;
     }
-    return -1;
-}
 
-/* Convert control value (0-600) to dB
- * Linear mapping: 0 = min_db, 600 = max_db
- * This gives intuitive volume control where 50% is halfway between min and max.
- */
-static double value_to_db(int value)
-{
-    /* Linear interpolation from min_db to max_db */
-    return config.min_db + (config.max_db - config.min_db) * value / VOL_MAX;
-}
-
-/* Convert dB to RME SysEx bytes */
-static void db_to_sysex_bytes(double dB, unsigned char *x, unsigned char *y)
-{
-    int raw = (int)(dB * 10) + 4096;
-
-    /* Clamp to valid RME range: -114dB to +6dB */
-    if (raw < 940)
-        raw = 940;   /* -114 dB */
-    if (raw > 4156)
-        raw = 4156;  /* +6 dB */
-
-    *x = (raw >> 7) & 0x1F;
-    *y = raw & 0x7F;
-}
-
-/* Send an absolute dB level to ADI-2 via MIDI SysEx */
-static int send_db(snd_rawmidi_t *midi, double dB)
-{
-    unsigned char x, y;
-    db_to_sysex_bytes(dB, &x, &y);
-
-    /* Example: set -10.0 dB on line 1/2 on RME ADI 2/4 PRO SE
-
-       F0 00 20 0D 73 02 1B 1F 1C F7
-       -- -------- -- -- -- ----- --
-       ^  ^        ^  ^  ^  ^     ^
-       |  |        |  |  |  |     |
-       |  |        |  |  |  |     +- SysEx end (0xF7)
-       |  |        |  |  |  +- -10 db
-       |  |        |  |  +- line 1/2 (0x1B)
-       |  |        |  +- set (0x02)
-       |  |        +- ADI 2/4 PRO SE (0x73)
-       |  +- RME ID (0x00 0x20 0x0D)
-       +- SysEx start (0xF0)
-
-    */
-    unsigned char sysex[] = {
-        0xF0,                   /* SysEx start */
-        0x00, 0x20, 0x0D,       /* RME manufacturer ID */
-        config.device_id,       /* Device ID */
-        0x02,                   /* Command: set value */
-        config.output_param,    /* Parameter: output volume */
-        x, y,                   /* Volume bytes */
-        0xF7                    /* SysEx end */
-    };
-
-    log_verbose("%.1f dB -> SysEx: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
-                dB,
-                sysex[0], sysex[1], sysex[2], sysex[3], sysex[4],
-                sysex[5], sysex[6], sysex[7], sysex[8], sysex[9]);
-
-    ssize_t written = snd_rawmidi_write(midi, sysex, sizeof(sysex));
-    if (written < 0) {
-        log_error("MIDI write failed: %s", snd_strerror(written));
-        return -1;
-    }
-    return 0;
-}
-
-/* Send control value as volume to ADI-2 */
-static int send_volume(snd_rawmidi_t *midi, int value)
-{
-    double dB = value_to_db(value);
-    int err = send_db(midi, dB);
-    if (err == 0)
-        log_info("Volume: %.1f dB", dB);
-    return err;
-}
-
-/* Send mute/unmute command to ADI-2 via MIDI SysEx */
-static int send_mute(snd_rawmidi_t *midi, unsigned char value)
-{
-    /* Example: mute line 1/2 on RME ADI 2/4 PRO SE
-
-       F0 00 20 0D 73 02 1B 60 01 F7
-       -- -------- -- -- -- -- -- --
-       ^  ^        ^  ^  ^  ^  ^  ^
-       |  |        |  |  |  |  |  |
-       |  |        |  |  |  |  |  +- SysEx end (0xF7)
-       |  |        |  |  |  |  +- mute on (0x01)
-       |  |        |  |  |  +- mute parameter (0x60)
-       |  |        |  |  +- line 1/2 (0x1B)
-       |  |        |  +- set (0x02)
-       |  |        +- ADI 2/4 PRO SE (0x73)
-       |  +- RME ID (0x00 0x20 0x0D)
-       +- SysEx start (0xF0)
-
-    */
-    unsigned char sysex[] = {
-        0xF0,                   /* SysEx start */
-        0x00, 0x20, 0x0D,       /* RME manufacturer ID */
-        config.device_id,       /* Device ID */
-        0x02,                   /* Command: set value */
-        config.output_param,    /* Parameter: output volume */
-        RME_PARAM_MUTE,         /* Parameter: mute */
-        value,                  /* 0x00 = off (unmute), 0x01 = on (mute) */
-        0xF7                    /* SysEx end */
-    };
-
-    log_verbose("Mute %s -> SysEx: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
-                (value == RME_VALUE_MUTE_ON ? "on" : "off"),
-                sysex[0], sysex[1], sysex[2], sysex[3], sysex[4],
-                sysex[5], sysex[6], sysex[7], sysex[8], sysex[9]);
-
-    ssize_t written = snd_rawmidi_write(midi, sysex, sizeof(sysex));
-    if (written < 0) {
-        log_error("MIDI write failed: %s", snd_strerror(written));
-        return -1;
-    }
-    return 0;
+    /* MIDI port found, return OK */
+    snd_rawmidi_close(midi);
+    return ERR_OK;
 }
 
 /* Remove a mixer user control by name. Returns 1 if it was removed. */
-static int remove_control_by_name(snd_ctl_t *ctl, const char *name)
-{
+static int remove_control_by_name(snd_ctl_t *ctl, const char *name) {
     snd_ctl_elem_id_t *id;
     snd_ctl_elem_id_alloca(&id);
     snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
     snd_ctl_elem_id_set_name(id, name);
-    if (snd_ctl_elem_remove(ctl, id) < 0)
-        return 0;
-    log_verbose("Removed control '%s'", name);
-    return 1;
+    if (snd_ctl_elem_remove(ctl, id) < 0) {
+        log_error("Unable to remove control with name '%s'", name);
+        return ERR_ERROR_GENERIC;
+    }
+    log_verbose("Removed control with name '%s'", name);
+    return ERR_OK;
 }
 
 /* --uninstall: remove every ADI2 control from the card and leave the
  * device alone otherwise (no MIDI is sent, nothing else is touched).
  */
-static int uninstall_controls(snd_ctl_t *ctl)
-{
-    static const char *names[] = { SWITCH_NAME, CONTROL_NAME };
-    int removed = 0;
+static int uninstall_controls(snd_ctl_t *ctl) {
+    static const char *sControlNames[] = {
+        SWITCH_NAME,
+        CONTROL_NAME
+    };
+    int iRemovedCount = 0;
+    int iRet = ERR_OK;
+    int iRetInner = ERR_OK;
 
-    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++)
-        removed += remove_control_by_name(ctl, names[i]);
+    size_t iNumberOfControls = sizeof(sControlNames) / sizeof(sControlNames[0]);
+    for (size_t i = 0; i < iNumberOfControls; i++) {
+        iRetInner = remove_control_by_name(ctl, sControlNames[i]);
+        if (ERR_CODE_IS_OK(iRetInner)) {
+            iRemovedCount += 1;
+        } else {
+            iRet = ERR_ERROR_GENERIC;
+        }
+    }
+    log_info(
+        "Removed %d out of %d ADI2 control(s) from card %d",
+        iRemovedCount,
+        iNumberOfControls,
+        config.card_num
+    );
 
-    log_info("Removed %d ADI2 control(s) from card %d", removed, config.card_num);
-    return 0;
+    return iRet;
 }
 
 /* Create a user control on the card.
- * is_switch == 0: integer playback volume (VOL_MIN..VOL_MAX)
+ * is_switch == 0: integer playback volume value in [VOL_MIN, VOL_MAX]
  * is_switch != 0: boolean playback switch (mute)
  */
-static int add_elem(snd_ctl_t *ctl, snd_ctl_elem_id_t *id,
-                    const char *name, int is_switch)
-{
+static int add_elem(
+    snd_ctl_t *ctl,
+    snd_ctl_elem_id_t *id,
+    const char *name,
+    int is_switch
+) {
     snd_ctl_elem_info_t *info;
     snd_ctl_elem_value_t *value;
     int err;
@@ -371,19 +282,160 @@ static int add_elem(snd_ctl_t *ctl, snd_ctl_elem_id_t *id,
     return 0;
 }
 
+/* Convert the given volume value (in [VOL_MIN, VOL_MAX])
+ * to a dB value (in [min_db, max_db]), with a linear mapping. */
+static double convert_volume_control_value_to_db(int value) {
+    return config.min_db + ((config.max_db - config.min_db) * value) / VOL_MAX;
+}
+
+/* Convert the given volume value in dB to the corresponding two bytes
+ * that can be sent to the RME ADI-2 device via MIDI SysEx to set that volume. */
+static void convert_db_value_to_sysex_bytes(
+    double value_db,
+    unsigned char *x,
+    unsigned char *y
+) {
+    int raw = (int)(value_db * 10) + 4096;
+
+    /* Ensure the raw value is in the allowed range */
+    if (raw < RME_VALUE_VOLUME_MIN) {
+        /* corresponding to RME_VALUE_VOLUME_MIN_DB */
+        raw = RME_VALUE_VOLUME_MIN;
+    }
+    if (raw > RME_VALUE_VOLUME_MAX) {
+        /* corresponding to RME_VALUE_VOLUME_MAX_DB */
+        raw = RME_VALUE_VOLUME_MAX;
+    }
+
+    /* assign to the two byte output arguments */
+    *x = (raw >> 7) & 0x1F;
+    *y = raw & 0x7F;
+}
+
+/* Send an absolute dB level to ADI-2 via MIDI SysEx */
+static int send_db(snd_rawmidi_t *midi, double dB) {
+    unsigned char x, y;
+    convert_db_value_to_sysex_bytes(dB, &x, &y);
+
+    /* Example: set -10.0 dB on line 1/2 on RME ADI 2/4 PRO SE
+
+       F0 00 20 0D 73 02 1B 1F 1C F7
+       -- -------- -- -- -- ----- --
+       ^  ^        ^  ^  ^  ^     ^
+       |  |        |  |  |  |     |
+       |  |        |  |  |  |     +- SysEx end (0xF7)
+       |  |        |  |  |  +- -10 db
+       |  |        |  |  +- line 1/2 (0x1B)
+       |  |        |  +- set (0x02)
+       |  |        +- ADI 2/4 PRO SE (0x73)
+       |  +- RME ID (0x00 0x20 0x0D)
+       +- SysEx start (0xF0)
+
+    */
+    unsigned char sysex[] = {
+        0xF0,                   /* SysEx start */
+        0x00, 0x20, 0x0D,       /* RME manufacturer ID */
+        config.device_id,       /* Device ID */
+        0x02,                   /* Command: set value */
+        config.output_param,    /* Parameter: output volume */
+        x, y,                   /* Volume bytes */
+        0xF7                    /* SysEx end */
+    };
+
+    log_verbose(
+        "WRITE MIDI SysEx: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X (volume: %.1f dB)",
+        sysex[0], sysex[1], sysex[2], sysex[3], sysex[4],
+        sysex[5], sysex[6], sysex[7], sysex[8], sysex[9],
+        dB
+    );
+
+    ssize_t written = snd_rawmidi_write(midi, sysex, sizeof(sysex));
+    if (written < 0) {
+        log_error("WRITE MIDI SysEx failed: %s", snd_strerror(written));
+        return ERR_ERROR_GENERIC;
+    }
+    return ERR_OK;
+}
+
+/* Send control value as volume to ADI-2 */
+static int send_volume(snd_rawmidi_t *midi, int iValue) {
+    double dValueDB = 0;
+    int iRet = ERR_OK;
+
+    log_info("SET Volume: %d", iValue);
+    dValueDB = convert_volume_control_value_to_db(iValue);
+    iRet = send_db(midi, dValueDB);
+    if (ERR_CODE_IS_OK(iRet)) {
+        log_info("SET Volume: %.1f dB", dValueDB);
+    } else {
+        log_error("SET Volume failed: error %d", iRet);
+    }
+    return iRet;
+}
+
+/* Send mute/unmute command to ADI-2 via MIDI SysEx */
+static int send_mute(snd_rawmidi_t *midi, unsigned char rme_value_mute) {
+    /* Example: mute line 1/2 on RME ADI 2/4 PRO SE
+
+       F0 00 20 0D 73 02 1B 60 01 F7
+       -- -------- -- -- -- -- -- --
+       ^  ^        ^  ^  ^  ^  ^  ^
+       |  |        |  |  |  |  |  |
+       |  |        |  |  |  |  |  +- SysEx end (0xF7)
+       |  |        |  |  |  |  +- mute on (0x01)
+       |  |        |  |  |  +- mute parameter (0x60)
+       |  |        |  |  +- line 1/2 (0x1B)
+       |  |        |  +- set (0x02)
+       |  |        +- ADI 2/4 PRO SE (0x73)
+       |  +- RME ID (0x00 0x20 0x0D)
+       +- SysEx start (0xF0)
+
+    */
+    unsigned char sysex[] = {
+        0xF0,                   /* SysEx start */
+        0x00, 0x20, 0x0D,       /* RME manufacturer ID */
+        config.device_id,       /* Device ID */
+        0x02,                   /* Command: set value */
+        config.output_param,    /* Parameter: output volume */
+        RME_PARAM_MUTE,         /* Parameter: mute */
+        rme_value_mute,         /* 0x00 = off (unmute), 0x01 = on (mute) */
+        0xF7                    /* SysEx end */
+    };
+
+    log_verbose(
+        "WRITE MIDI SysEx: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X (mute: %s)",
+        sysex[0], sysex[1], sysex[2], sysex[3], sysex[4],
+        sysex[5], sysex[6], sysex[7], sysex[8], sysex[9],
+        (rme_value_mute == RME_VALUE_MUTE_ON ? "on" : "off")
+    );
+
+    ssize_t written = snd_rawmidi_write(midi, sysex, sizeof(sysex));
+    if (written < 0) {
+        log_error("WRITE MIDI SysEx failed: %s", snd_strerror(written));
+        return ERR_ERROR_GENERIC;
+    } else {
+        log_info(
+            "SET Mute: %s",
+            (rme_value_mute == RME_VALUE_MUTE_ON ? "on" : "off")
+        );
+    }
+    return ERR_OK;
+}
+
 /* Does a control event refer to the given element? */
-static int event_matches(snd_ctl_event_t *event, snd_ctl_elem_id_t *id)
-{
+static int event_matches(snd_ctl_event_t *event, snd_ctl_elem_id_t *id) {
     unsigned int numid = snd_ctl_elem_id_get_numid(id);
-    if (numid != 0)
+    if (numid != 0) {
         return snd_ctl_event_elem_get_numid(event) == numid;
-    return snd_ctl_event_elem_get_interface(event) == snd_ctl_elem_id_get_interface(id) &&
-           strcmp(snd_ctl_event_elem_get_name(event), snd_ctl_elem_id_get_name(id)) == 0;
+    }
+    return (
+        (snd_ctl_event_elem_get_interface(event) == snd_ctl_elem_id_get_interface(id)) &&
+        (strcmp(snd_ctl_event_elem_get_name(event), snd_ctl_elem_id_get_name(id)) == 0)
+    );
 }
 
 /* Read current control value */
-static int read_control_value(snd_ctl_t *ctl, snd_ctl_elem_id_t *id)
-{
+static int read_control_value(snd_ctl_t *ctl, snd_ctl_elem_id_t *id) {
     snd_ctl_elem_value_t *value;
     snd_ctl_elem_value_alloca(&value);
     snd_ctl_elem_value_set_id(value, id);
@@ -400,8 +452,7 @@ static int read_control_value(snd_ctl_t *ctl, snd_ctl_elem_id_t *id)
 /* Read current switch value (1 = on/unmuted, 0 = off/muted).
  * On read error assume unmuted so audio is never silently lost.
  */
-static int read_switch_value(snd_ctl_t *ctl, snd_ctl_elem_id_t *id)
-{
+static int read_switch_value(snd_ctl_t *ctl, snd_ctl_elem_id_t *id) {
     snd_ctl_elem_value_t *value;
     snd_ctl_elem_value_alloca(&value);
     snd_ctl_elem_value_set_id(value, id);
@@ -416,8 +467,8 @@ static int read_switch_value(snd_ctl_t *ctl, snd_ctl_elem_id_t *id)
 }
 
 /* Push the current volume/switch state to the device */
-static void apply_state(snd_rawmidi_t *midi, int value, int on)
-{
+static void apply_state(snd_rawmidi_t *midi, int value, int on) {
+    /* NOTE: here we ignore errors from the send_() functions */
     if (on) {
         send_mute(midi, RME_VALUE_MUTE_OFF);
         send_volume(midi, value);
@@ -427,9 +478,12 @@ static void apply_state(snd_rawmidi_t *midi, int value, int on)
 }
 
 /* Main monitoring loop */
-static int monitor_loop(snd_ctl_t *ctl, snd_ctl_elem_id_t *vol_id,
-                        snd_ctl_elem_id_t *sw_id, snd_rawmidi_t *midi)
-{
+static int monitor_loop(
+    snd_ctl_t *ctl,
+    snd_ctl_elem_id_t *vol_id,
+    snd_ctl_elem_id_t *sw_id,
+    snd_rawmidi_t *midi) {
+
     int err;
     int last_value = -1;
     int last_on = -1;
@@ -452,6 +506,7 @@ static int monitor_loop(snd_ctl_t *ctl, snd_ctl_elem_id_t *vol_id,
     snd_ctl_poll_descriptors(ctl, pfd, count);
 
     /* Read and send initial state */
+    /* TODO implement a real MIDI SysEx read of mute and volume state */
     int value = read_control_value(ctl, vol_id);
     on = read_switch_value(ctl, sw_id);
     if (value >= 0) {
@@ -513,8 +568,7 @@ static int monitor_loop(snd_ctl_t *ctl, snd_ctl_elem_id_t *vol_id,
     return 0;
 }
 
-static void print_usage(const char *prog)
-{
+static void print_usage(const char *prog) {
     printf("Usage: %s [options]\n\n", prog);
     printf("Creates an ALSA mixer control (\"ADI2\": playback volume + switch)\n"
            "for RME ADI-2 hardware volume and mute.\n\n");
@@ -522,7 +576,7 @@ static void print_usage(const char *prog)
     printf("  -c, --card NAME    Sound card name to search for (default: %s)\n", DEFAULT_CARD);
     printf("  -C, --card-num N   Use card number N directly\n");
     printf("  -m, --midi PORT    MIDI port (default: auto-detect)\n");
-    printf("  -d, --device ID    RME device ID: 0x71=DAC, 0x72=Pro, 0x73=Pro SE (default: 0x%x)\n", DEFAULT_DEVICE_ID);
+    printf("  -d, --device ID    RME device ID: 0x71=ADI-2 DAC, 0x72=ADI-2 Pro, 0x73=ADI-2/4 Pro (default: 0x%x)\n", DEFAULT_DEVICE_ID);
     printf("  -o, --output TYPE  Output: line or phones (default: line)\n");
     printf("      --min-db DB    Minimum dB (0%% volume) (default: %.1f)\n", config.min_db);
     printf("      --max-db DB    Maximum dB (100%% volume) (default: %.1f)\n", config.max_db);
@@ -533,8 +587,7 @@ static void print_usage(const char *prog)
     printf("  %s --card ADI-2 --device 0x73 --output line --max-db -20\n", prog);
 }
 
-static int parse_args(int argc, char *argv[])
-{
+static int parse_args(int argc, char *argv[]) {
     static struct option long_opts[] = {
         {"card",      required_argument, 0, 'c'},
         {"card-num",  required_argument, 0, 'C'},
@@ -603,8 +656,7 @@ static int parse_args(int argc, char *argv[])
     return ERR_OK;
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     snd_ctl_t *ctl = NULL;
     snd_rawmidi_t *midi = NULL;
     snd_ctl_elem_id_t *vol_id;
@@ -661,10 +713,10 @@ int main(int argc, char *argv[])
 
     /* Uninstall mode: remove our controls and exit immediately */
     if (BOOL_IS_TRUE(gbUninstallMixerControlsAndExit)) {
-        ret = uninstall_controls(ctl);
         iExitCode = EXIT_OK;
+        ret = uninstall_controls(ctl);
         if (ERR_CODE_IS_ERROR(ret)) {
-            log_error("Cannot uninstall control");
+            log_error("Cannot uninstall controls");
             iExitCode = EXIT_ERROR_CANNOT_UNINSTALL;
         }
         goto cleanup;
