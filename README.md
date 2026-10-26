@@ -1,6 +1,6 @@
 # alsa-rme-adi2-volume-control
 
-ALSA plugin providing virtual mixers that can control
+ALSA plugin providing mixer controls to change
 the volume of devices of the RME ADI-2 family
 via their MIDI interface.
 
@@ -40,13 +40,16 @@ make
 
 The executable is written to `src/alsa/bin/alsa-rme-adi2-volume-control`.
 
-To test it, run a command similar to the following:
+#### Test
+
+To test the `alsa-rme-adi2-volume-control` executable,
+run a command similar to the following:
 
 ```bash
 bin/alsa-rme-adi-2-volume-control --verbose --card ADI-2 --device 0x73 --output line --min-db -60.0 --max-db 0.0
-Found card 1: ADI-2/4 Pro SE (52102163)
-Using card 1
-Using MIDI port hw:1,0,0
+Found card 5: ADI-2/4 Pro SE (52102163)
+Using card 5
+Using MIDI port hw:5,0,0
 Created control 'ADI2 Playback Volume' numid=9
 Created control 'ADI2 Playback Switch' numid=10
 RME ADI-2 control bridge started
@@ -95,6 +98,39 @@ Mute off -> SysEx: F0 00 20 0D 73 02 1B 60 00 F7
 0.0 dB -> SysEx: F0 00 20 0D 73 02 1B 00 00 F7
 Volume: 0.0 dB
 ```
+
+To list all the MIDI devices, run `amidi -l`.
+In the following example, only a single device
+(ADI-2/4 Pro SE) has been found on port 5 (`hw:5,0,0`):
+
+```bash
+$ amidi -l
+Dir Device    Name
+IO  hw:5,0,0  ADI-2/4 Pro SE (52102163) Port
+```
+
+Similarly, to list all ALSA hardware devices, run `aplay -l`.
+In the following example, three devices were found,
+with the ADI-2/4 Pro SE on card 5 device 0
+(`card 5: SE52102163 [ADI-2/4 Pro SE (52102163)], device 0: USB Audio [USB Audio]`):
+
+```bash
+$ aplay -l
+**** List of PLAYBACK Hardware Devices ****
+card 0: vc4hdmi0 [vc4-hdmi-0], device 0: MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+card 1: vc4hdmi1 [vc4-hdmi-1], device 0: MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+card 5: SE52102163 [ADI-2/4 Pro SE (52102163)], device 0: USB Audio [USB Audio]
+  Subdevices: 0/1
+  Subdevice #0: subdevice #0
+```
+
+> [!NOTE]
+> The above two examples were obtained on a Raspberry Pi 5
+> running Volumio 4.139, with the RME ADI-2/4 Pro SE connected to it via USB.
 
 #### Install
 
