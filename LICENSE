@@ -631,7 +631,7 @@ to attach them to the start of each source file to most effectively
 state the exclusion of warranty; and each file should have at least
 the "copyright" line and a pointer to where the full notice is found.
 
-    alsa-rme-adi2-volume-control - ALSA plugin providing virtual mixers that can control the volume of devices of the RME ADI-2 family via their MIDI interface 
+    alsa-rme-adi2-volume-control - ALSA plugin controlling the volume of a RME ADI-2 device via MIDI
     Copyright (C) 2026  Alberto Pettarin
 
     This program is free software: you can redistribute it and/or modify

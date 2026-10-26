@@ -1,3 +1,5 @@
+# This file is part of the alsa-rme-adi2-volume-control project
+#
 # Restart the alsa-rme-adi2-volume-control service
 # every time an RME ADI-2 device is connected,
 # ensuring the ALSA virtual mixer is ready to control it.

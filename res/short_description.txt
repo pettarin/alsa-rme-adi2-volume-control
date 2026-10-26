@@ -1,0 +1,1 @@
+ALSA plugin controlling the volume of a RME ADI-2 device via MIDI

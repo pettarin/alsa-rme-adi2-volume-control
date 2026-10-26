@@ -1,5 +1,7 @@
+# This file is part of the alsa-rme-adi2-volume-control project
+
 [Unit]
-Description=ALSA plugin to control the volume of a RME ADI-2 device via MIDI
+Description=ALSA plugin controlling the volume of a RME ADI-2 device via MIDI
 Documentation=https://github.com/pettarin/alsa-rme-adi-2-volume-control
 After=sound.target
 Before=mpd.service
