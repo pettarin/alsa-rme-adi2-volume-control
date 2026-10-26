@@ -1,0 +1,27 @@
+# This file is part of the alsa-rme-adi2-volume-control project
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# C-related files
+*.o
+*.so
+CMakeCache.txt
+CMakeFiles
+Makefile
+alsa-rme-adi2-volume-control
+cmake_install.cmake
+
+# Claude Code
+.claude/
+CLAUDE.md
+PLAN*.md
+
+# graft
+.ignore
+.mcp.json
+/graft/
