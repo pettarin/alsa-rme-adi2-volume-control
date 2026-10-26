@@ -33,16 +33,10 @@
 #include "alsa-rme-adi2-volume-control.h"
 
 
-/* NOTE: We intentionally do NOT use TLV.
- * Without TLV, MPD treats the control as linear percentage (0-100%),
- * and our daemon maps that linearly to the configured dB range.
- * This gives intuitive control where 50% = exactly halfway between min and max dB.
- */
-
-/* Global state */
-static volatile sig_atomic_t running = 1;
-static int verbose = 0;
-static int uninstall = 0;
+/* Global state variables */
+static volatile sig_atomic_t gbServiceIsRunning = (sig_atomic_t)BOOL_TRUE;
+static int gbLogVerbose = BOOL_FALSE;
+static int gbUninstallMixerControlsAndExit = BOOL_FALSE;
 
 /* Configuration */
 static struct {
@@ -63,16 +57,19 @@ static struct {
     .max_db = VOL_MAX_DB,
 };
 
+/* sigaction Signal Handler */
 static void signal_handler(int sig)
 {
     (void)sig;
-    running = 0;
+    gbServiceIsRunning = (sig_atomic_t)BOOL_FALSE;
 }
 
+/* Log helpers */
 static void log_info(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
+    fprintf(stderr, "[INFO] ");
     vfprintf(stdout, fmt, ap);
     fprintf(stdout, "\n");
     fflush(stdout);
@@ -83,7 +80,7 @@ static void log_error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    fprintf(stderr, "Error: ");
+    fprintf(stderr, "[ERRO] ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     fflush(stderr);
@@ -92,10 +89,12 @@ static void log_error(const char *fmt, ...)
 
 static void log_verbose(const char *fmt, ...)
 {
-    if (!verbose)
+    if (BOOL_IS_FALSE(gbLogVerbose)) {
         return;
+    }
     va_list ap;
     va_start(ap, fmt);
+    fprintf(stderr, "[DEBU] ");
     vfprintf(stdout, fmt, ap);
     fprintf(stdout, "\n");
     fflush(stdout);
@@ -464,7 +463,7 @@ static int monitor_loop(snd_ctl_t *ctl, snd_ctl_elem_id_t *vol_id,
     log_info("Monitoring controls '%s' and '%s' for changes...",
              CONTROL_NAME, SWITCH_NAME);
 
-    while (running) {
+    while (BOOL_IS_TRUE(gbServiceIsRunning)) {
         err = poll(pfd, count, -1);  /* Block until event or signal */
         if (err < 0) {
             if (errno == EINTR)
@@ -564,11 +563,11 @@ static int parse_args(int argc, char *argv[])
             break;
         case 'd':
             config.device_id = strtol(optarg, NULL, 0);
-            if (config.device_id != RME_DEVICE_ADI2_DAC &&
-                config.device_id != RME_DEVICE_ADI2_PRO &&
-                config.device_id != RME_DEVICE_ADI24_PRO_SE) {
+            if (config.device_id != RME_DEVICE_FAMILY_ADI2_DAC &&
+                config.device_id != RME_DEVICE_FAMILY_ADI2_PRO &&
+                config.device_id != RME_DEVICE_FAMILY_ADI24_PRO) {
                 log_error("Invalid device ID: 0x%02X", config.device_id);
-                return -1;
+                return EXIT_ERROR_USAGE_BAD_VALUE;
             }
             break;
         case 'o':
@@ -578,7 +577,7 @@ static int parse_args(int argc, char *argv[])
                 config.output_param = RME_PARAM_PHONES;
             } else {
                 log_error("Invalid output: %s (use 'line' or 'phones')", optarg);
-                return -1;
+                return EXIT_ERROR_USAGE_BAD_VALUE;
             }
             break;
         case 'n':
@@ -588,20 +587,20 @@ static int parse_args(int argc, char *argv[])
             config.max_db = atof(optarg);
             break;
         case 'u':
-            uninstall = 1;
+            gbUninstallMixerControlsAndExit = BOOL_TRUE;
             break;
         case 'v':
-            verbose = 1;
+            gbLogVerbose = BOOL_TRUE;
             break;
         case 'h':
             print_usage(argv[0]);
-            exit(0);
+            exit(EXIT_OK);
         default:
-            return -1;
+            return EXIT_ERROR_USAGE_BAD_OPTION;
         }
     }
 
-    return 0;
+    return ERR_OK;
 }
 
 int main(int argc, char *argv[])
@@ -612,13 +611,14 @@ int main(int argc, char *argv[])
     snd_ctl_elem_id_t *sw_id;
     char card_hw[32];
     int err;
-    int ret = 1;
-    int vol_created = 0;
-    int sw_created = 0;
+    int ret = ERR_OK;
+    int bVolumeControlIsCreated = BOOL_FALSE;
+    int bSwitchControlIsCreated = BOOL_FALSE;
 
-    if (parse_args(argc, argv) < 0) {
+    ret = parse_args(argc, argv);
+    if (ERR_CODE_IS_ERROR(ret)) {
         print_usage(argv[0]);
-        return 1;
+        goto cleanup;
     }
 
     snd_ctl_elem_id_alloca(&vol_id);
@@ -637,6 +637,7 @@ int main(int argc, char *argv[])
         config.card_num = find_card_by_name(config.card_name);
         if (config.card_num < 0) {
             log_error("Card '%s' not found", config.card_name);
+            ret = EXIT_ERROR_CARD_NOT_FOUND;
             goto cleanup;
         }
     }
@@ -650,8 +651,8 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
 
-    /* Uninstall mode: remove our controls and stop here */
-    if (uninstall) {
+    /* Uninstall mode: remove our controls and exit immediately */
+    if (BOOL_IS_TRUE(gbUninstallMixerControlsAndExit)) {
         ret = uninstall_controls(ctl) < 0 ? 1 : 0;
         goto cleanup;
     }
@@ -677,38 +678,43 @@ int main(int argc, char *argv[])
     err = add_elem(ctl, vol_id, CONTROL_NAME, 0);
     if (err < 0)
         goto cleanup;
-    vol_created = 1;
+    bVolumeControlIsCreated = BOOL_TRUE;
     err = add_elem(ctl, sw_id, SWITCH_NAME, 1);
     if (err < 0)
         goto cleanup;
-    sw_created = 1;
+    bSwitchControlIsCreated = BOOL_TRUE;
 
     log_info("RME ADI-2 control bridge started");
-    log_info("Device ID: 0x%02X, Output: %s",
-             config.device_id,
-             config.output_param == RME_PARAM_LINE ? "line" : "phones");
+    log_info(
+        "Device ID: 0x%02X, Output: %s",
+        config.device_id,
+        config.output_param == RME_PARAM_LINE ? "line" : "phones"
+    );
 
     /* Run monitoring loop; a negative result means the card went away */
     err = monitor_loop(ctl, vol_id, sw_id, midi);
 
     log_info("Shutting down...");
-    ret = (err < 0) ? 1 : 0;
+    ret = (ERR_CODE_IS_OK(err) ? EXIT_OK : EXIT_ERROR_GENERIC);
 
 cleanup:
     /* Remove controls before closing */
-    if (ctl && sw_created) {
-        log_verbose("Removing control '%s'", SWITCH_NAME);
+    if (ctl && BOOL_IS_TRUE(bSwitchControlIsCreated)) {
+        log_verbose("Removing switch control '%s'", SWITCH_NAME);
         snd_ctl_elem_remove(ctl, sw_id);
     }
-    if (ctl && vol_created) {
-        log_verbose("Removing control '%s'", CONTROL_NAME);
+    if (ctl && BOOL_IS_TRUE(bVolumeControlIsCreated)) {
+        log_verbose("Removing volume control '%s'", CONTROL_NAME);
         snd_ctl_elem_remove(ctl, vol_id);
     }
 
-    if (midi)
+    if (midi) {
         snd_rawmidi_close(midi);
-    if (ctl)
+    }
+
+    if (ctl) {
         snd_ctl_close(ctl);
+    }
 
     return ret;
 }

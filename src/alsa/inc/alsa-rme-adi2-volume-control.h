@@ -26,13 +26,33 @@
 #ifndef ALSA_RME_ADI2_VOLUME_CONTROL_H
 #define ALSA_RME_ADI2_VOLUME_CONTROL_H
 
+/* Boolean values */
+#define BOOL_FALSE          0
+#define BOOL_TRUE           1
+#define BOOL_IS_TRUE(x)     ((x) == BOOL_TRUE)
+#define BOOL_IS_FALSE(x)    (! BOOL_IS_TRUE(x))
+
+/* Error codes: 0 is OK, anything else is an error */
+#define ERR_OK                  0
+#define ERR_ERROR_GENERIC       -1
+#define ERR_CODE_IS_OK(x)       ((x) == ERR_OK)
+#define ERR_CODE_IS_ERROR(x)    (! ERR_CODE_IS_OK(x))
+
+/* Exit codes for the whole service (0 OK, >1 error) */
+#define EXIT_OK                         0
+#define EXIT_ERROR_GENERIC              1
+#define EXIT_ERROR_USAGE_BAD_OPTION     2
+#define EXIT_ERROR_USAGE_BAD_VALUE      3
+#define EXIT_ERROR_CARD_NOT_FOUND       4
+
+
 /* The simple mixer name seen by amixer/MPD/Volumio is
    the common prefix "ADI2" of the two elements */
 #define CONTROL_NAME        "ADI2 Playback Volume"
 #define SWITCH_NAME         "ADI2 Playback Switch"
 
 #define DEFAULT_CARD        "ADI-2"
-#define DEFAULT_DEVICE_ID   RME_DEVICE_ADI2_DAC
+#define DEFAULT_DEVICE_ID   RME_DEVICE_FAMILY_ADI2_DAC
 
 /* Volume ranges for the logical ALSA mixer and the actual ADI-2 device */
 #define VOL_MIN             0           /* Min volume for the logical ALSA mixer, mapped to VOL_MIN_DB on the actual ADI-2 device */

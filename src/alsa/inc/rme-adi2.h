@@ -39,16 +39,20 @@
  */
 
 /* RME device IDs */
-#define RME_DEVICE_ADI2_DAC         0x71
-#define RME_DEVICE_ADI2_DAC_EX      0x71
+#define RME_DEVICE_FAMILY_ADI2_DAC      0x71
+#define RME_DEVICE_ADI2_DAC             0x71
+#define RME_DEVICE_ADI2_DAC_EX          0x71
+#define RME_DEVICE_ADI2_DAC_FS          0x71
 
-#define RME_DEVICE_ADI2_PRO         0x72
-#define RME_DEVICE_ADI2_PRO_FS      0x72
-#define RME_DEVICE_ADI2_PRO_FS_BE   0x72
-#define RME_DEVICE_ADI2_PRO_EX      0x72
+#define RME_DEVICE_FAMILY_ADI2_PRO      0x72
+#define RME_DEVICE_ADI2_PRO             0x72
+#define RME_DEVICE_ADI2_PRO_EX          0x72
+#define RME_DEVICE_ADI2_PRO_FS          0x72
+#define RME_DEVICE_ADI2_PRO_FS_BE       0x72
 
-#define RME_DEVICE_ADI24_PRO_SE     0x73
-#define RME_DEVICE_ADI24_PRO_EX     0x73
+#define RME_DEVICE_FAMILY_ADI24_PRO     0x73
+#define RME_DEVICE_ADI24_PRO_EX         0x73
+#define RME_DEVICE_ADI24_PRO_SE         0x73
 
 /* RME output parameters */
 #define RME_PARAM_LINE              0x1B
