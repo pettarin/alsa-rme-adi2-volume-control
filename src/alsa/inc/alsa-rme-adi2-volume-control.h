@@ -54,6 +54,7 @@
 #define EXIT_ERROR_CANNOT_FIND_MIDI_PORT    7
 #define EXIT_ERROR_CANNOT_OPEN_MIDI_PORT    8
 #define EXIT_ERROR_CANNOT_ADD_CONTROL       9
+#define EXIT_ERROR_IN_MONITOR_LOOP          10
 
 /* The simple mixer name seen by amixer/MPD/Volumio is
    the common prefix "ADI2" of the two elements */
