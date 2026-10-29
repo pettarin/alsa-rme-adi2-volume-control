@@ -14,9 +14,6 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- * TODO write description here
- *
  */
 
 #ifndef RME_ADI2_H
@@ -44,32 +41,36 @@
 #define ERR_ALSA_CODE_IS_ERROR(x)   ((x) < ERR_ALSA_OK)
 
 /* Exit codes for the whole service (0 OK, >1 error) */
-#define EXIT_OK                             0
-#define EXIT_ERROR_GENERIC                  1
-#define EXIT_ERROR_USAGE_BAD_OPTION         2
-#define EXIT_ERROR_USAGE_BAD_VALUE          3
-#define EXIT_ERROR_CANNOT_FIND_CARD         4
-#define EXIT_ERROR_CANNOT_OPEN_CARD         5
-#define EXIT_ERROR_CANNOT_UNINSTALL         6
-#define EXIT_ERROR_CANNOT_FIND_MIDI_PORT    7
-#define EXIT_ERROR_CANNOT_OPEN_MIDI_PORT    8
-#define EXIT_ERROR_CANNOT_ADD_CONTROL       9
-#define EXIT_ERROR_IN_MONITOR_LOOP          10
+#define EXIT_OK                                 0
+#define EXIT_ERROR_GENERIC                      1
+#define EXIT_ERROR_USAGE_BAD_OPTION             2
+#define EXIT_ERROR_USAGE_BAD_VALUE              3
+#define EXIT_ERROR_CANNOT_FIND_CARD             4
+#define EXIT_ERROR_CANNOT_OPEN_CARD             5
+#define EXIT_ERROR_CANNOT_UNINSTALL             6
+#define EXIT_ERROR_CANNOT_FIND_MIDI_PORT        7
+#define EXIT_ERROR_CANNOT_OPEN_MIDI_PORT        8
+#define EXIT_ERROR_CANNOT_ADD_CONTROL           9
+#define EXIT_ERROR_GENERIC_IN_MONITOR_LOOP      10
 
 /* The simple mixer name seen by amixer/MPD/Volumio is
    the common prefix "ADI2" of the two elements */
 #define CONTROL_NAME        "ADI2 Playback Volume"
 #define SWITCH_NAME         "ADI2 Playback Switch"
 
-#define DEFAULT_CARD        "ADI-2"
-#define DEFAULT_DEVICE_ID   RME_DEVICE_FAMILY_ADI2_DAC
+/* Volume ranges for the ALSA user-defined control elements */
+#define VOL_MIN                         0           /* Min volume for the logical ALSA mixer, mapped to VOL_MIN_DB on the actual ADI-2 device */
+#define VOL_MAX                         100         /* Max volume for the logical ALSA mixer, mapped to VOL_MAX_DB on the actual ADI-2 device */
 
-/* Volume ranges for the logical ALSA mixer and the actual ADI-2 device */
-#define VOL_MIN             0           /* Min volume for the logical ALSA mixer, mapped to VOL_MIN_DB on the actual ADI-2 device */
-#define VOL_MAX             100         /* Max volume for the logical ALSA mixer, mapped to VOL_MAX_DB on the actual ADI-2 device */
-#define VOL_DEFAULT         50          /* Default volume for the logical ALSA mixer: 50% */
-#define VOL_MIN_DB          (-60.0)     /* Min level in dB on the actual ADI-2 device mapped from VOL_MIN of the logical ALSA mixer */
-#define VOL_MAX_DB          (-10.0)     /* Max level in dB on the actual ADI-2 device mapped from VOL_MAX of the logical ALSA mixer */
+/* CLI default values */
+#define DEFAULT_CARD_NAME               "ADI-2"
+#define DEFAULT_DEVICE_ID               RME_DEVICE_FAMILY_ADI2_DAC  /* to be removed */
+#define DEFAULT_UNINSTALL_ONLY          BOOL_FALSE
+#define DEFAULT_UNINSTALL_ON_EXIT       BOOL_TRUE
+#define DEFAULT_VOLUME_ENABLED          BOOL_TRUE   /* Default value for the mute switch: enabled (mute off) */
+#define DEFAULT_VOLUME_MAX_DB           (-10.0)     /* Max level in dB on the actual ADI-2 device mapped from VOL_MAX of the logical ALSA mixer */
+#define DEFAULT_VOLUME_MIN_DB           (-60.0)     /* Min level in dB on the actual ADI-2 device mapped from VOL_MIN of the logical ALSA mixer */
+#define DEFAULT_VOLUME_VALUE            50          /* Default volume for the logical ALSA mixer: 50% */
 
 #endif /* ALSA_RME_ADI2_VOLUME_CONTROL_H guard */
 
