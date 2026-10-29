@@ -48,8 +48,8 @@
 #define EXIT_ERROR_CANNOT_FIND_CARD             4
 #define EXIT_ERROR_CANNOT_OPEN_CARD             5
 #define EXIT_ERROR_CANNOT_UNINSTALL             6
-#define EXIT_ERROR_CANNOT_FIND_MIDI_PORT        7
-#define EXIT_ERROR_CANNOT_OPEN_MIDI_PORT        8
+#define EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE      7
+#define EXIT_ERROR_CANNOT_OPEN_MIDI_DEVICE      8
 #define EXIT_ERROR_CANNOT_ADD_CONTROL           9
 #define EXIT_ERROR_GENERIC_IN_MONITOR_LOOP      10
 
@@ -63,14 +63,25 @@
 #define VOL_MAX                         100         /* Max volume for the logical ALSA mixer, mapped to VOL_MAX_DB on the actual ADI-2 device */
 
 /* CLI default values */
-#define DEFAULT_CARD_NAME               "ADI-2"
-#define DEFAULT_DEVICE_ID               RME_DEVICE_FAMILY_ADI2_DAC  /* to be removed */
-#define DEFAULT_UNINSTALL_ONLY          BOOL_FALSE
-#define DEFAULT_UNINSTALL_ON_EXIT       BOOL_TRUE
-#define DEFAULT_VOLUME_ENABLED          BOOL_TRUE   /* Default value for the mute switch: enabled (mute off) */
-#define DEFAULT_VOLUME_MAX_DB           (-10.0)     /* Max level in dB on the actual ADI-2 device mapped from VOL_MAX of the logical ALSA mixer */
-#define DEFAULT_VOLUME_MIN_DB           (-60.0)     /* Min level in dB on the actual ADI-2 device mapped from VOL_MIN of the logical ALSA mixer */
-#define DEFAULT_VOLUME_VALUE            50          /* Default volume for the logical ALSA mixer: 50% */
+#define DEVICE_NAME_AUTODETECT              "autodetect"
+#define DEVICE_NAME_RME_ADI2_DAC            "ADI-2 DAC"
+#define DEVICE_NAME_RME_ADI2_PRO            "ADI-2 Pro"
+#define DEVICE_NAME_RME_ADI24_PRO           "ADI-2/4 Pro"
+#define MIDI_DEVICE_AUTODETECT              "autodetect"
+
+#define DEFAULT_CARD_NUMBER                 -1
+#define DEFAULT_CARD_HW                     ""
+#define DEFAULT_DEVICE_NAME                 DEVICE_NAME_AUTODETECT
+#define DEFAULT_DEVICE_ID                   -1
+#define DEFAULT_LIST_CARDS_ONLY             BOOL_FALSE
+#define DEFAULT_MIDI_DEVICE                 MIDI_DEVICE_AUTODETECT
+#define DEFAULT_PRINT_USAGE_ONLY            BOOL_FALSE
+#define DEFAULT_UNINSTALL_ONLY              BOOL_FALSE
+#define DEFAULT_UNINSTALL_ON_EXIT           BOOL_TRUE
+#define DEFAULT_VOLUME_ENABLED              BOOL_TRUE   /* Default value for the mute switch: enabled (mute off) */
+#define DEFAULT_VOLUME_MAX_DB               (-10.0)     /* Max level in dB on the actual ADI-2 device mapped from VOL_MAX of the logical ALSA mixer */
+#define DEFAULT_VOLUME_MIN_DB               (-60.0)     /* Min level in dB on the actual ADI-2 device mapped from VOL_MIN of the logical ALSA mixer */
+#define DEFAULT_VOLUME_VALUE                50          /* Default volume for the logical ALSA mixer: 50% */
 
 #endif /* ALSA_RME_ADI2_VOLUME_CONTROL_H guard */
 
