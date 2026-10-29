@@ -38,6 +38,11 @@
 #define ERR_CODE_IS_OK(x)       ((x) == ERR_OK)
 #define ERR_CODE_IS_ERROR(x)    (! ERR_CODE_IS_OK(x))
 
+/* ALSA error codes: 0 is OK, any negative value is an error */
+#define ERR_ALSA_OK                 0
+#define ERR_ALSA_CODE_IS_OK(x)      ((x) == ERR_ALSA_OK)
+#define ERR_ALSA_CODE_IS_ERROR(x)   ((x) < ERR_ALSA_OK)
+
 /* Exit codes for the whole service (0 OK, >1 error) */
 #define EXIT_OK                             0
 #define EXIT_ERROR_GENERIC                  1

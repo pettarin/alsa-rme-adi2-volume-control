@@ -36,7 +36,8 @@
 /* Global state variables */
 static volatile sig_atomic_t gbServiceIsRunning = (sig_atomic_t)BOOL_TRUE;
 static int gbLogVerbose = BOOL_FALSE;
-static int gbUninstallMixerControlsAndExit = BOOL_FALSE;
+static int gbUninstallControlsOnly = BOOL_FALSE;
+static int gbUninstallControlsOnExit = BOOL_TRUE;
 
 /* Configuration */
 static struct {
@@ -136,7 +137,7 @@ static int find_midi_port(int card, char *port, size_t port_len) {
     snd_rawmidi_t *midi = NULL;
     iRet = snd_rawmidi_open(NULL, &midi, port, SND_RAWMIDI_NONBLOCK);
 
-    if (ERR_CODE_IS_ERROR(iRet)) {
+    if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         /* Unable to find the MIDI port with the subdevice.
          * As a fallback, try without the subdevice:
          * hw:$card,0 (e.g., "hw:0,0"). */
@@ -144,7 +145,7 @@ static int find_midi_port(int card, char *port, size_t port_len) {
         iRet = snd_rawmidi_open(NULL, &midi, port, SND_RAWMIDI_NONBLOCK);
     }
 
-    if (ERR_CODE_IS_ERROR(iRet)) {
+    if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         /* Unable to find the MIDI port, return error */
         return ERR_ERROR_GENERIC;
     }
@@ -154,24 +155,30 @@ static int find_midi_port(int card, char *port, size_t port_len) {
     return ERR_OK;
 }
 
-/* Remove a mixer user control by name. Returns 1 if it was removed. */
-static int remove_control_by_name(snd_ctl_t *ctl, const char *name) {
+/* Uninstall a custom control specified by name from the given card ctl. */
+static int uninstall_custom_control_by_name(snd_ctl_t *ctl, const char *name) {
     snd_ctl_elem_id_t *id;
     snd_ctl_elem_id_alloca(&id);
     snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
     snd_ctl_elem_id_set_name(id, name);
-    if (snd_ctl_elem_remove(ctl, id) < 0) {
-        log_error("Unable to remove control with name '%s'", name);
+    int iRet = ERR_OK;
+
+    iRet = snd_ctl_elem_remove(ctl, id);
+    if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
+        log_verbose("Unable to remove control with name '%s'", name);
         return ERR_ERROR_GENERIC;
     }
+
     log_verbose("Removed control with name '%s'", name);
     return ERR_OK;
 }
 
-/* --uninstall: remove every ADI2 control from the card and leave the
- * device alone otherwise (no MIDI is sent, nothing else is touched).
- */
-static int uninstall_controls(snd_ctl_t *ctl) {
+/* Uninstall all custom controls from the given card ctl.
+ *
+ * If bIgnoreErrors is true,
+ * errors will be ignored and ERR_OK will be always returned.
+ * */
+static int uninstall_custom_controls(snd_ctl_t *ctl, int bIgnoreErrors) {
     static const char *sControlNames[] = {
         SWITCH_NAME,
         CONTROL_NAME
@@ -182,61 +189,57 @@ static int uninstall_controls(snd_ctl_t *ctl) {
 
     size_t iNumberOfControls = sizeof(sControlNames) / sizeof(sControlNames[0]);
     for (size_t i = 0; i < iNumberOfControls; i++) {
-        iRetInner = remove_control_by_name(ctl, sControlNames[i]);
+        iRetInner = uninstall_custom_control_by_name(ctl, sControlNames[i]);
         if (ERR_CODE_IS_OK(iRetInner)) {
             iRemovedCount += 1;
         } else {
             iRet = ERR_ERROR_GENERIC;
         }
     }
-    log_info(
-        "Removed %d out of %d ADI2 control(s) from card %d",
+    log_verbose(
+        "Removed %d out of %d control(s) from card %d",
         iRemovedCount,
         iNumberOfControls,
         config.card_num
     );
 
+    if (BOOL_IS_TRUE(bIgnoreErrors) && ERR_CODE_IS_ERROR(iRet)) {
+        log_verbose("The above error(s) occurred while trying to remove controls can be ignored");
+        iRet = ERR_OK;
+    }
+
     return iRet;
 }
 
-/* Create a user control on the card.
- * is_switch == 0: integer playback volume value in [VOL_MIN, VOL_MAX]
- * is_switch != 0: boolean playback switch (mute)
- */
-static int add_elem(
+/* Install a new control (identified by id and name) on the card ctl.
+ * The control is a boolean switch (mute) if bElementIsSwitch is true,
+ * otherwise it is an integer value (volume). */
+static int install_control_element(
     snd_ctl_t *ctl,
     snd_ctl_elem_id_t *id,
     const char *name,
-    int is_switch
+    int bElementIsSwitch
 ) {
-    snd_ctl_elem_info_t *info;
-    snd_ctl_elem_value_t *value;
-    int err;
-
-    snd_ctl_elem_info_alloca(&info);
+    snd_ctl_elem_info_t *info = NULL;
+    snd_ctl_elem_value_t *value = NULL;
+    int err = ERR_OK;
 
     /* Set up element ID */
+    snd_ctl_elem_info_alloca(&info);
     snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
     snd_ctl_elem_id_set_name(id, name);
-
-    /* Check if control already exists */
     snd_ctl_elem_info_set_id(info, id);
-    err = snd_ctl_elem_info(ctl, info);
-    if (err == 0) {
-        /* Control exists - try to remove it first */
-        log_verbose("Removing existing control '%s'", name);
-        snd_ctl_elem_remove(ctl, id);
-    }
 
     /* Create new control */
     snd_ctl_elem_info_set_id(info, id);
-    if (is_switch)
+    if (BOOL_IS_TRUE(bElementIsSwitch)) {
         err = snd_ctl_add_boolean_elem_set(ctl, info, 1, 1);
-    else
+    } else {
         err = snd_ctl_add_integer_elem_set(ctl, info, 1, 1, VOL_MIN, VOL_MAX, 1);
+    }
     if (err < 0) {
         log_error("Failed to create control '%s': %s", name, snd_strerror(err));
-        return err;
+        goto cleanup;
     }
 
     /* Get the assigned element number.
@@ -249,25 +252,20 @@ static int add_elem(
     err = snd_ctl_elem_info(ctl, info);
     if (err < 0) {
         log_error("Cannot look up created control '%s': %s", name, snd_strerror(err));
-        return err;
+        goto cleanup;
     }
     snd_ctl_elem_info_get_id(info, id);
     log_verbose("Created control '%s' numid=%u", name,
                 snd_ctl_elem_id_get_numid(id));
 
-    /* NOTE: We intentionally do NOT set TLV (dB scale info).
-     * Without TLV, MPD/moOde/Volumio treat the control as linear percentage,
-     * and our daemon maps linearly to the configured dB range.
-     * This gives intuitive control where 50% = halfway between min and max dB.
-     */
-
     /* Set initial value */
     snd_ctl_elem_value_alloca(&value);
     snd_ctl_elem_value_set_id(value, id);
-    if (is_switch)
+    if (BOOL_IS_TRUE(bElementIsSwitch)) {
         snd_ctl_elem_value_set_boolean(value, 0, 1);   /* start unmuted */
-    else
+    } else {
         snd_ctl_elem_value_set_integer(value, 0, VOL_DEFAULT);
+    }
     err = snd_ctl_elem_write(ctl, value);
     if (err < 0) {
         log_error("Failed to set initial value of '%s': %s", name, snd_strerror(err));
@@ -276,10 +274,24 @@ static int add_elem(
     /* Unlock the control so other processes can write to it */
     err = snd_ctl_elem_unlock(ctl, id);
     if (err < 0) {
-        log_verbose("Unlock failed (non-fatal): %s", snd_strerror(err));
+        log_verbose("Unlock failed, ignoring error: %s", snd_strerror(err));
+        err = ERR_OK;
     }
 
-    return 0;
+    err = ERR_OK;
+
+cleanup:
+    if (ERR_CODE_IS_ERROR(err)) {
+        /* NOTE: free() only in case of errors, otherwise the removal
+         *       of the controls at the end will double-free! */
+        if (value) {
+            snd_ctl_elem_value_free(value);
+        }
+        if (info) {
+            snd_ctl_elem_info_free(info);
+        }
+    }
+    return err;
 }
 
 /* Convert the given volume value (in [VOL_MIN, VOL_MAX])
@@ -491,7 +503,7 @@ static int monitor_loop(
 
     /* Subscribe to control events */
     err = snd_ctl_subscribe_events(ctl, 1);
-    if (err < 0) {
+    if (ERR_ALSA_CODE_IS_ERROR(err)) {
         log_error("Cannot subscribe to events: %s", snd_strerror(err));
         return err;
     }
@@ -579,7 +591,8 @@ static void print_usage(const char *prog) {
     printf("  -d, --device ID    RME device ID: 0x71=ADI-2 DAC, 0x72=ADI-2 Pro, 0x73=ADI-2/4 Pro (default: 0x%x)\n", DEFAULT_DEVICE_ID);
     printf("  -o, --output TYPE  Output: line or phones (default: line)\n");
     printf("      --min-db DB    Minimum dB (0%% volume) (default: %.1f)\n", config.min_db);
-    printf("      --max-db DB    Maximum dB (100%% volume) (default: %.1f)\n", config.max_db);
+    printf("      --max-db DB               Maximum dB (100%% volume) (default: %.1f)\n", config.max_db);
+    printf("      --no-uninstall-on-exit    If specified, do not uninstall ADI2 controls when the program exits\n");
     printf("  -u, --uninstall    Remove the ADI2 mixer controls from the card and exit\n");
     printf("  -v, --verbose      Verbose output\n");
     printf("  -h, --help         Show this help\n");
@@ -589,21 +602,22 @@ static void print_usage(const char *prog) {
 
 static int parse_args(int argc, char *argv[]) {
     static struct option long_opts[] = {
-        {"card",      required_argument, 0, 'c'},
-        {"card-num",  required_argument, 0, 'C'},
-        {"midi",      required_argument, 0, 'm'},
-        {"device",    required_argument, 0, 'd'},
-        {"output",    required_argument, 0, 'o'},
-        {"min-db",    required_argument, 0, 'n'},
-        {"max-db",    required_argument, 0, 'x'},
-        {"uninstall", no_argument,       0, 'u'},
-        {"verbose",   no_argument,       0, 'v'},
-        {"help",      no_argument,       0, 'h'},
+        {"card",                 required_argument, 0, 'c'},
+        {"card-num",             required_argument, 0, 'C'},
+        {"midi",                 required_argument, 0, 'm'},
+        {"device",               required_argument, 0, 'd'},
+        {"output",               required_argument, 0, 'o'},
+        {"min-db",               required_argument, 0, 'n'},
+        {"max-db",               required_argument, 0, 'x'},
+        {"no-uninstall-on-exit", no_argument,       0, 'U'},
+        {"uninstall",            no_argument,       0, 'u'},
+        {"verbose",              no_argument,       0, 'v'},
+        {"help",                 no_argument,       0, 'h'},
         {0, 0, 0, 0}
     };
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:C:m:d:o:n:x:uvh", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:C:m:d:o:n:x:uUvh", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'c':
             strncpy(config.card_name, optarg, sizeof(config.card_name) - 1);
@@ -640,7 +654,10 @@ static int parse_args(int argc, char *argv[]) {
             config.max_db = atof(optarg);
             break;
         case 'u':
-            gbUninstallMixerControlsAndExit = BOOL_TRUE;
+            gbUninstallControlsOnly = BOOL_TRUE;
+            break;
+        case 'U':
+            gbUninstallControlsOnExit = BOOL_FALSE;
             break;
         case 'v':
             gbLogVerbose = BOOL_TRUE;
@@ -662,16 +679,13 @@ int main(int argc, char *argv[]) {
     snd_ctl_elem_id_t *vol_id;
     snd_ctl_elem_id_t *sw_id;
     char card_hw[32] = "";
-    int ret = ERR_OK;
-
-    int bVolumeControlIsCreated = BOOL_FALSE;
-    int bSwitchControlIsCreated = BOOL_FALSE;
+    int iRet = ERR_OK;
     int iExitCode = EXIT_ERROR_GENERIC;
 
-    ret = parse_args(argc, argv);
-    if (ERR_CODE_IS_ERROR(ret)) {
-        log_error("Cannot parse command line arguments: exit error %d", ret);
-        iExitCode = ret;
+    iRet = parse_args(argc, argv);
+    if (ERR_CODE_IS_ERROR(iRet)) {
+        log_error("Cannot parse command line arguments: exit error %d", iRet);
+        iExitCode = iRet;
         print_usage(argv[0]);
         goto cleanup;
     }
@@ -703,33 +717,42 @@ int main(int argc, char *argv[]) {
 
     /* Open card */
     snprintf(card_hw, sizeof(card_hw), "hw:%d", config.card_num);
-    ret = snd_ctl_open(&ctl, card_hw, 0);
-    if (ERR_CODE_IS_ERROR(ret)) {
-        log_error("Cannot open card '%s': %s", card_hw, snd_strerror(ret));
+    iRet = snd_ctl_open(&ctl, card_hw, 0);
+    if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
+        log_error("Cannot open card '%s': %s", card_hw, snd_strerror(iRet));
         iExitCode = EXIT_ERROR_CANNOT_OPEN_CARD;
         goto cleanup;
     }
     log_info("Opened card '%s'", card_hw);
 
-    /* Uninstall mode: remove our controls and exit immediately */
-    if (BOOL_IS_TRUE(gbUninstallMixerControlsAndExit)) {
-        iExitCode = EXIT_OK;
-        ret = uninstall_controls(ctl);
-        if (ERR_CODE_IS_ERROR(ret)) {
-            log_error("Cannot uninstall controls");
+    /* Uninstall all controls */
+    if (BOOL_IS_TRUE(gbUninstallControlsOnly)) {
+        /* Uninstall-only mode: capture errors and exit immediately */
+        iRet = uninstall_custom_controls(ctl, BOOL_FALSE);
+        if (ERR_CODE_IS_ERROR(iRet)) {
+            log_error("Uninstall-only mode: cannot uninstall controls");
             iExitCode = EXIT_ERROR_CANNOT_UNINSTALL;
+        } else {
+            iExitCode = EXIT_OK;
         }
         goto cleanup;
+    } else {
+        /* Normal mode: ignore errors and continue */
+        iRet = uninstall_custom_controls(ctl, BOOL_TRUE);
+        if (ERR_CODE_IS_ERROR(iRet)) {
+            log_error("Normal mode: ignore errors when trying to uninstall controls");
+            iRet = ERR_OK;
+        }
     }
 
     /* Find MIDI port */
     if (config.midi_port[0] == '\0') {
-        ret = find_midi_port(
+        iRet = find_midi_port(
             config.card_num,
             config.midi_port,
             sizeof(config.midi_port)
         );
-        if (ERR_CODE_IS_ERROR(ret)) {
+        if (ERR_CODE_IS_ERROR(iRet)) {
             log_error("Cannot find a MIDI port for card '%d'", config.card_num);
             iExitCode = EXIT_ERROR_CANNOT_FIND_MIDI_PORT;
             goto cleanup;
@@ -738,33 +761,31 @@ int main(int argc, char *argv[]) {
     log_info("Using MIDI port '%s'", config.midi_port);
 
     /* Open MIDI port */
-    ret = snd_rawmidi_open(NULL, &midi, config.midi_port, 0);
-    if (ERR_CODE_IS_ERROR(ret)) {
+    iRet = snd_rawmidi_open(NULL, &midi, config.midi_port, 0);
+    if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         log_error(
             "Cannot open MIDI port '%s': %s",
             config.midi_port,
-            snd_strerror(ret)
+            snd_strerror(iRet)
         );
         iExitCode = EXIT_ERROR_CANNOT_OPEN_MIDI_PORT;
         goto cleanup;
     }
 
     /* Create controls: volume first, then switch */
-    ret = add_elem(ctl, vol_id, CONTROL_NAME, 0);
-    if (ERR_CODE_IS_ERROR(ret)) {
+    iRet = install_control_element(ctl, vol_id, CONTROL_NAME, BOOL_FALSE);
+    if (ERR_CODE_IS_ERROR(iRet)) {
         log_error("Cannot add volume control '%s'", CONTROL_NAME);
         iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
         goto cleanup;
     }
-    bVolumeControlIsCreated = BOOL_TRUE;
 
-    ret = add_elem(ctl, sw_id, SWITCH_NAME, 1);
-    if (ERR_CODE_IS_ERROR(ret)) {
+    iRet = install_control_element(ctl, sw_id, SWITCH_NAME, BOOL_TRUE);
+    if (ERR_CODE_IS_ERROR(iRet)) {
         log_error("Cannot add switch control '%s'", SWITCH_NAME);
         iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
         goto cleanup;
     }
-    bSwitchControlIsCreated = BOOL_TRUE;
 
     /* Run the monitoring loop */
     log_info(
@@ -772,20 +793,21 @@ int main(int argc, char *argv[]) {
         config.device_id,
         config.output_param == RME_PARAM_LINE ? "line" : "phones"
     );
-    ret = monitor_loop(ctl, vol_id, sw_id, midi);
-    log_info("Control loop exited with return code '%d'", ret);
-    iExitCode = (ERR_CODE_IS_OK(ret) ? EXIT_OK : EXIT_ERROR_GENERIC);
+    iRet = monitor_loop(ctl, vol_id, sw_id, midi);
+    log_info("Control loop exited with return code '%d'", iRet);
+    iExitCode = (ERR_CODE_IS_OK(iRet) ? EXIT_OK : EXIT_ERROR_GENERIC);
 
 cleanup:
     /* Remove controls and close objects to prevent leaks */
-    log_verbose("Clean service up ...");
-    if (ctl && BOOL_IS_TRUE(bSwitchControlIsCreated)) {
-        snd_ctl_elem_remove(ctl, sw_id);
-        log_verbose("Removed switch control '%s'", SWITCH_NAME);
-    }
-    if (ctl && BOOL_IS_TRUE(bVolumeControlIsCreated)) {
-        snd_ctl_elem_remove(ctl, vol_id);
-        log_verbose("Removed volume control '%s'", CONTROL_NAME);
+    log_verbose("Cleaning service up ...");
+
+    /* remove ADI2 controls */
+    if (
+        BOOL_IS_TRUE(gbUninstallControlsOnExit) &&
+        BOOL_IS_FALSE(gbUninstallControlsOnly)
+    ) {
+        /* Normal mode: ignore errors and continue */
+        uninstall_custom_controls(ctl, BOOL_TRUE);
     }
     if (midi) {
         snd_rawmidi_close(midi);
@@ -795,9 +817,10 @@ cleanup:
         snd_ctl_close(ctl);
         log_verbose("Closed ALSA sound object");
     }
-    log_verbose("Clean service up ... done");
+    log_verbose("Cleaning service up ... done");
+    log_info("Cleaned service up");
 
     /* Log exit code and return it */
-    log_info("Exiting with code '%d'", iExitCode);
+    log_info("Exit with code '%d'", iExitCode);
     return iExitCode;
 }
