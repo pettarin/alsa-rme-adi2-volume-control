@@ -24,13 +24,13 @@
 #define ALSA_RME_ADI2_VOLUME_CONTROL_H
 
 /* Boolean values */
-#define BOOL_FALSE          0
-#define BOOL_TRUE           1
-#define BOOL_IS_TRUE(x)     ((x) == BOOL_TRUE)
-#define BOOL_IS_FALSE(x)    (! BOOL_IS_TRUE(x))
+#define BOOL_FALSE                                  0
+#define BOOL_TRUE                                   1
+#define BOOL_IS_TRUE(x)                             ((x) == BOOL_TRUE)
+#define BOOL_IS_FALSE(x)                            (! BOOL_IS_TRUE(x))
 
 /* Error codes: 0 is OK, anything else is an error */
-#define ERR_OK                                      (0)
+#define ERR_OK                                      0
 #define ERR_ERROR_GENERIC                           (-1)
 #define ERR_ERROR_EVENT_POLL                        (-2)
 #define ERR_ERROR_SOUND_CARD_DISCONNECTED           (-3)
@@ -59,33 +59,41 @@
 
 /* The simple mixer name seen by amixer/MPD/Volumio is
    the common prefix "ADI2" of the two elements */
-#define CONTROL_NAME        "ADI2 Playback Volume"
-#define SWITCH_NAME         "ADI2 Playback Switch"
+#define CONTROL_NAME                                "ADI2 Playback Volume"
+#define SWITCH_NAME                                 "ADI2 Playback Switch"
+
+/* Constants used in strn* functions and struct declarations */
+#define CARD_HW_MAX_LENGTH                          32                      /* Max length, in bytes, of an ALSA hw string */
+#define CARD_NAME_MAX_LENGTH                        128                     /* Max length, in bytes, of an ALSA card name */
+#define DEVICE_NAME_MAX_LENGTH                      128                     /* Max length, in bytes, of an RME device name */
+#define MIDI_DEVICE_MAX_LENGTH                      32                      /* Max length, in bytes, of a MIDI device (hw:N,x,y) */
+#define MIDI_DEVICE_PROBE_MIN_INDEX                 0                       /* Min index for MIDI device/subdevice to probe, included */
+#define MIDI_DEVICE_PROBE_MAX_INDEX                 9                       /* Max index for MIDI device/subdevice to probe, included */
 
 /* Volume ranges for the ALSA user-defined control elements */
-#define VOL_MIN                         0           /* Min volume for the logical ALSA mixer, mapped to VOL_MIN_DB on the actual ADI-2 device */
-#define VOL_MAX                         100         /* Max volume for the logical ALSA mixer, mapped to VOL_MAX_DB on the actual ADI-2 device */
+#define VOL_MIN                                     0                       /* Min volume for the logical ALSA mixer, mapped to VOL_MIN_DB on the actual ADI-2 device */
+#define VOL_MAX                                     100                     /* Max volume for the logical ALSA mixer, mapped to VOL_MAX_DB on the actual ADI-2 device */
 
 /* CLI default values */
-#define DEVICE_NAME_AUTODETECT              "autodetect"
-#define DEVICE_NAME_RME_ADI2_DAC            "ADI-2 DAC"
-#define DEVICE_NAME_RME_ADI2_PRO            "ADI-2 Pro"
-#define DEVICE_NAME_RME_ADI24_PRO           "ADI-2/4 Pro"
-#define MIDI_DEVICE_AUTODETECT              "autodetect"
+#define DEVICE_NAME_AUTODETECT                      "autodetect"
+#define DEVICE_NAME_RME_ADI2_DAC                    "ADI-2 DAC"
+#define DEVICE_NAME_RME_ADI2_PRO                    "ADI-2 Pro"
+#define DEVICE_NAME_RME_ADI24_PRO                   "ADI-2/4 Pro"
+#define MIDI_DEVICE_AUTODETECT                      "autodetect"
 
-#define DEFAULT_CARD_NUMBER                 -1
-#define DEFAULT_CARD_HW                     ""
-#define DEFAULT_DEVICE_NAME                 DEVICE_NAME_AUTODETECT
-#define DEFAULT_DEVICE_ID                   -1
-#define DEFAULT_LIST_CARDS_ONLY             BOOL_FALSE
-#define DEFAULT_MIDI_DEVICE                 MIDI_DEVICE_AUTODETECT
-#define DEFAULT_PRINT_USAGE_ONLY            BOOL_FALSE
-#define DEFAULT_UNINSTALL_ONLY              BOOL_FALSE
-#define DEFAULT_UNINSTALL_ON_EXIT           BOOL_TRUE
-#define DEFAULT_VOLUME_ENABLED              BOOL_TRUE   /* Default value for the mute switch: enabled (mute off) */
-#define DEFAULT_VOLUME_MAX_DB               (-10.0)     /* Max level in dB on the actual ADI-2 device mapped from VOL_MAX of the logical ALSA mixer */
-#define DEFAULT_VOLUME_MIN_DB               (-60.0)     /* Min level in dB on the actual ADI-2 device mapped from VOL_MIN of the logical ALSA mixer */
-#define DEFAULT_VOLUME_VALUE                50          /* Default volume for the logical ALSA mixer: 50% */
+#define DEFAULT_CARD_NUMBER                         -1
+#define DEFAULT_CARD_HW                             ""
+#define DEFAULT_DEVICE_NAME                         DEVICE_NAME_AUTODETECT
+#define DEFAULT_DEVICE_ID                           -1
+#define DEFAULT_LIST_CARDS_ONLY                     BOOL_FALSE
+#define DEFAULT_MIDI_DEVICE                         MIDI_DEVICE_AUTODETECT
+#define DEFAULT_PRINT_USAGE_ONLY                    BOOL_FALSE
+#define DEFAULT_UNINSTALL_ONLY                      BOOL_FALSE
+#define DEFAULT_UNINSTALL_ON_EXIT                   BOOL_TRUE
+#define DEFAULT_VOLUME_ENABLED                      BOOL_TRUE               /* Default value for the mute switch: enabled (mute off) */
+#define DEFAULT_VOLUME_MAX_DB                       (-10.0)                 /* Max level in dB on the actual ADI-2 device mapped from VOL_MAX of the logical ALSA mixer */
+#define DEFAULT_VOLUME_MIN_DB                       (-60.0)                 /* Min level in dB on the actual ADI-2 device mapped from VOL_MIN of the logical ALSA mixer */
+#define DEFAULT_VOLUME_VALUE                        50                      /* Default volume for the logical ALSA mixer: 50% */
 
 #endif /* ALSA_RME_ADI2_VOLUME_CONTROL_H guard */
 

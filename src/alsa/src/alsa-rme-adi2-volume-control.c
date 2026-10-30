@@ -43,10 +43,10 @@ static volatile sig_atomic_t gbServiceIsRunning = (sig_atomic_t)BOOL_TRUE;
 /* Service configuration */
 static struct {
     int card_number;
-    char card_hw[32];
-    char device_name[64];
+    char card_hw[CARD_HW_MAX_LENGTH];
+    char device_name[DEVICE_NAME_MAX_LENGTH];
     int device_id;
-    char midi_device[32];
+    char midi_device[MIDI_DEVICE_MAX_LENGTH];
     int output_param;
     double min_db;
     double max_db;
@@ -116,10 +116,14 @@ static void log_verbose(const char *fmt, ...) {
 static void print_cards() {
     int iCard = -1;
     char *pCardName;
+
     printf("Index\tID\tName\n");
     while ((snd_card_next(&iCard) >= 0) && (iCard >= 0)) {
         if (ERR_ALSA_CODE_IS_ERROR(snd_card_get_name(iCard, &pCardName))) {
             /* ignore error and continue looping over the available cards */
+            continue;
+        }
+        if (pCardName == NULL) {
             continue;
         }
         printf("%d\thw:%d\t%s\n", iCard, iCard, pCardName);
@@ -127,24 +131,37 @@ static void print_cards() {
     }
 }
 
-/* Find the first card number matching the given name (substring);
- * return the card number if found; otherwise return -1. */
+/* Find the card number of a card whose name contains the given query string,
+ * returning it.
+ *
+ * The first (lowest card number) non-negative match is returned.
+ *
+ * If no match is found, return -1. */
 static int find_card_by_name(const char *pQuery) {
     int iCard = -1;
     char *pCardName;
 
-    log_verbose("Find ALSA card by name with query '%s'", pQuery);
+    log_verbose("Find ALSA card by name matching query '%s'", pQuery);
 
     while ((snd_card_next(&iCard) >= 0) && (iCard >= 0)) {
         if (snd_card_get_name(iCard, &pCardName) < 0) {
             continue;
         }
-        log_verbose("Found ALSA card '%d' with name '%s'", iCard, pCardName);
+        if (pCardName == NULL) {
+            continue;
+        }
+
+        log_verbose(
+            "Discovered ALSA card number '%d' with name '%s'",
+            iCard,
+            pCardName
+        );
 
         /* NOTE: matching pQuery as substring of pCardName */
-        if ((pCardName != NULL) && (strstr(pCardName, pQuery) != NULL)) {
+        if (strstr(pCardName, pQuery) != NULL) {
             log_verbose(
-                "ALSA card number '%d' with name '%s' matches the query '%s'",
+                "ALSA card number '%d' with name '%s' "
+                "matches the query '%s': returning it",
                 iCard,
                 pCardName,
                 pQuery
@@ -183,7 +200,7 @@ static int find_card_and_set_configuration(
     strncpy(
         goConfiguration.device_name,
         pDeviceName,
-        sizeof(goConfiguration.device_name)
+        DEVICE_NAME_MAX_LENGTH
     );
     log_verbose(
         "Found ALSA card number '%d' for device ID '0x%02X' (%s)",
@@ -218,22 +235,22 @@ static int find_card_and_set_configuration_rme_adi2_dac() {
 
 static int device_name_is_autodetect_or_rme_adi24_pro() {
     return (
-        (strcmp(goConfiguration.device_name, DEVICE_NAME_AUTODETECT) == 0) ||
-        (strcmp(goConfiguration.device_name, DEVICE_NAME_RME_ADI24_PRO) == 0)
+        (strncmp(goConfiguration.device_name, DEVICE_NAME_AUTODETECT, DEVICE_NAME_MAX_LENGTH) == 0) ||
+        (strncmp(goConfiguration.device_name, DEVICE_NAME_RME_ADI24_PRO, DEVICE_NAME_MAX_LENGTH) == 0)
     );
 }
 
 static int device_name_is_autodetect_or_rme_adi2_pro() {
     return (
-        (strcmp(goConfiguration.device_name, DEVICE_NAME_AUTODETECT) == 0) ||
-        (strcmp(goConfiguration.device_name, DEVICE_NAME_RME_ADI2_PRO) == 0)
+        (strncmp(goConfiguration.device_name, DEVICE_NAME_AUTODETECT, DEVICE_NAME_MAX_LENGTH) == 0) ||
+        (strncmp(goConfiguration.device_name, DEVICE_NAME_RME_ADI2_PRO, DEVICE_NAME_MAX_LENGTH) == 0)
     );
 }
 
 static int device_name_is_autodetect_or_rme_adi2_dac() {
     return (
-        (strcmp(goConfiguration.device_name, DEVICE_NAME_AUTODETECT) == 0) ||
-        (strcmp(goConfiguration.device_name, DEVICE_NAME_RME_ADI2_DAC) == 0)
+        (strncmp(goConfiguration.device_name, DEVICE_NAME_AUTODETECT, DEVICE_NAME_MAX_LENGTH) == 0) ||
+        (strncmp(goConfiguration.device_name, DEVICE_NAME_RME_ADI2_DAC, DEVICE_NAME_MAX_LENGTH) == 0)
     );
 }
 
@@ -339,7 +356,7 @@ static int ensure_device_id_and_card_number() {
     bCardFound = ensure_device_id_is_set();
     if (BOOL_IS_FALSE(bCardFound)) {
         log_error(
-            "Cannot find a card matching device name '%s'",
+            "Cannot find an ALSA card matching device name '%s'",
             goConfiguration.device_name
         );
         return ERR_ERROR_GENERIC;
@@ -348,7 +365,7 @@ static int ensure_device_id_and_card_number() {
     bCardFound = ensure_card_number_is_set();
     if (BOOL_IS_FALSE(bCardFound)) {
         log_error(
-            "Cannot find a card matching device id '0x%02X'",
+            "Cannot find an ALSA card matching device id '0x%02X'",
             goConfiguration.device_id
         );
         return ERR_ERROR_GENERIC;
@@ -361,7 +378,7 @@ static int ensure_device_id_and_card_number() {
 static void set_card_hw() {
     snprintf(
         goConfiguration.card_hw,
-        sizeof(goConfiguration.card_hw),
+        CARD_HW_MAX_LENGTH,
         "hw:%d",
         goConfiguration.card_number
     );
@@ -611,51 +628,72 @@ static int is_event_from_udce(snd_ctl_event_t *event, snd_ctl_elem_id_t *id) {
  * MIDI helpers
  * ************************************************************************* */
 
-/* TODO refactor these two functions */
-/* Find MIDI port for the card */
-static int find_midi_device_inner(int card, char *port, size_t port_len) {
+/* Check if the given pMIDIDevice can be opened:
+ * if so, return true; otherwise return false. */
+static int is_valid_midi_device(const char *pMIDIDevice) {
     int iRet = ERR_OK;
-
-    /* First, try with the subdevice: hw:$card,0,0 (e.g., "hw:0,0,0").
-     * Note that char *port is both input and output argument. */
-    snprintf(port, port_len, "hw:%d,0,0", card);
-
-    /* Verify the port exists by trying to open it */
     snd_rawmidi_t *midi = NULL;
-    iRet = snd_rawmidi_open(NULL, &midi, port, SND_RAWMIDI_NONBLOCK);
 
+    log_verbose("Check if MIDI device '%s' is valid", pMIDIDevice);
+    /* NOTE: the flag SND_RAWMIDI_NONBLOCK prevents interfering
+     *       with other processes that might be using the MIDI device
+     *       being probed. */
+    iRet = snd_rawmidi_open(NULL, &midi, pMIDIDevice, SND_RAWMIDI_NONBLOCK);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
-        /* Unable to find the MIDI port with the subdevice.
-         * As a fallback, try without the subdevice:
-         * hw:$card,0 (e.g., "hw:0,0"). */
-        snprintf(port, port_len, "hw:%d,0", card);
-        iRet = snd_rawmidi_open(NULL, &midi, port, SND_RAWMIDI_NONBLOCK);
+        log_verbose("MIDI device '%s' is NOT valid", pMIDIDevice);
+        return BOOL_FALSE;
     }
 
-    if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
-        /* Unable to find the MIDI port, return error */
+    snd_rawmidi_close(midi);
+    log_verbose("MIDI device '%s' is valid", pMIDIDevice);
+    return BOOL_TRUE;
+}
+
+static int ensure_midi_device() {
+    if (strncmp(goConfiguration.midi_device, MIDI_DEVICE_AUTODETECT, MIDI_DEVICE_MAX_LENGTH) != 0) {
+        log_verbose(
+            "Check if MIDI device '%s' for card number '%d' is valid",
+            goConfiguration.midi_device,
+            goConfiguration.card_number
+        );
+
+        if (BOOL_IS_TRUE(is_valid_midi_device(goConfiguration.midi_device))) {
+            return ERR_OK;
+        }
+
         return ERR_ERROR_GENERIC;
     }
 
-    /* MIDI port found, return OK */
-    snd_rawmidi_close(midi);
-    return ERR_OK;
-}
+    log_verbose(
+        "Autodetect MIDI device for card number '%d'",
+        goConfiguration.card_number
+    );
 
-static int find_midi_device() {
-    int iRet = ERR_OK;
-    if (strcmp(goConfiguration.midi_device, MIDI_DEVICE_AUTODETECT) == 0) {
-        log_verbose(
-            "Autodetect MIDI device for card number '%d'",
-            goConfiguration.card_number
-        );
-        iRet = find_midi_device_inner(
-            goConfiguration.card_number,
-            goConfiguration.midi_device,
-            sizeof(goConfiguration.midi_device)
-        );
+    /* first, try with hw:X,i,j */
+    for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
+        for (int j = MIDI_DEVICE_PROBE_MIN_INDEX; j <= MIDI_DEVICE_PROBE_MAX_INDEX; j++) {
+            snprintf(goConfiguration.midi_device, MIDI_DEVICE_MAX_LENGTH, "hw:%d,%d,%d", goConfiguration.card_number, i, j);
+            if (BOOL_IS_TRUE(is_valid_midi_device(goConfiguration.midi_device))) {
+                return ERR_OK;
+            }
+        }
     }
-    return iRet;
+
+    /* second, try with just hw:X,i */
+    for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
+        snprintf(goConfiguration.midi_device, MIDI_DEVICE_MAX_LENGTH, "hw:%d,%d", goConfiguration.card_number, i);
+        if (BOOL_IS_TRUE(is_valid_midi_device(goConfiguration.midi_device))) {
+            return ERR_OK;
+        }
+    }
+
+    /* third, try with just hw:X */
+    snprintf(goConfiguration.midi_device, MIDI_DEVICE_MAX_LENGTH, "hw:%d", goConfiguration.card_number);
+    if (BOOL_IS_TRUE(is_valid_midi_device(goConfiguration.midi_device))) {
+        return ERR_OK;
+    }
+
+    return ERR_ERROR_GENERIC;
 }
 
 /* Convert the given volume value (in [VOL_MIN, VOL_MAX])
@@ -856,7 +894,7 @@ static int monitor_loop(
     int iVolume = DEFAULT_VOLUME_VALUE;
     int bEnabledLast = bEnabled;
     int iVolumeLast = iVolume;
-    unsigned short revents = 0;
+    unsigned short usRevents = 0;
 
     /* Subscribe to control events */
     iRet = snd_ctl_subscribe_events(ctl, 1);
@@ -906,8 +944,8 @@ static int monitor_loop(
         }
 
         /* Check poll result */
-        snd_ctl_poll_descriptors_revents(ctl, pfd, iCount, &revents);
-        if (revents & (POLLERR | POLLHUP | POLLNVAL)) {
+        snd_ctl_poll_descriptors_revents(ctl, pfd, iCount, &usRevents);
+        if (usRevents & (POLLERR | POLLHUP | POLLNVAL)) {
             /* The ALSA card was disconnected and/or powered off:
              * error out so that the service terminates
              * the current execution.
@@ -916,7 +954,7 @@ static int monitor_loop(
             log_error("The ALSA card was disconnected");
             return ERR_ERROR_SOUND_CARD_DISCONNECTED;
         }
-        if (!(revents & POLLIN)) {
+        if (!(usRevents & POLLIN)) {
             /* no data to be read:
              * evaluates the loop condition again  */
             continue;
@@ -972,7 +1010,7 @@ static int monitor_loop(
  * CLI Helpers
  * ************************************************************************* */
 
-/* return true if the given deviceID is supported */
+/* Return true if the given deviceID is supported, and false otherwise. */
 static int validate_device_id(int deviceID) {
     /* it suffices to check the ..._FAMILIY_... codes */
     return (
@@ -982,13 +1020,24 @@ static int validate_device_id(int deviceID) {
     ) ? BOOL_TRUE : BOOL_FALSE;
 }
 
-/* Return true if the given pDeviceName is supported */
-static int validate_device_name(const char* pDeviceName) {
+/* Return true if the given pDeviceName is supported, and false otherwise. */
+static int validate_device_name(const char* pDeviceName, size_t cbDeviceName) {
     return (
-        (strcmp(pDeviceName, DEVICE_NAME_AUTODETECT) == 0) ||
-        (strcmp(pDeviceName, DEVICE_NAME_RME_ADI2_DAC) == 0) ||
-        (strcmp(pDeviceName, DEVICE_NAME_RME_ADI2_PRO) == 0) ||
-        (strcmp(pDeviceName, DEVICE_NAME_RME_ADI24_PRO) == 0)
+        (strncmp(pDeviceName, DEVICE_NAME_AUTODETECT, cbDeviceName) == 0) ||
+        (strncmp(pDeviceName, DEVICE_NAME_RME_ADI2_DAC, cbDeviceName) == 0) ||
+        (strncmp(pDeviceName, DEVICE_NAME_RME_ADI2_PRO, cbDeviceName) == 0) ||
+        (strncmp(pDeviceName, DEVICE_NAME_RME_ADI24_PRO, cbDeviceName) == 0)
+    ) ? BOOL_TRUE : BOOL_FALSE;
+}
+
+/* Return true if the given pMIDIDevice is supported, and false otherwise. */
+static int validate_midi_device(const char* pMIDIDevice, size_t cbMIDIDevice) {
+    /* NOTE: not checking if pMIDIDevice is in the form "hw:X[,Y[,Z]]"
+     *       since the value might be provided by the user and
+     *       it is not clear that that form is the only one accepted by ALSA. */
+    return (
+        (strncmp(pMIDIDevice, MIDI_DEVICE_AUTODETECT, cbMIDIDevice) == 0) ||
+        ((strnlen(pMIDIDevice, cbMIDIDevice) > 0))
     ) ? BOOL_TRUE : BOOL_FALSE;
 }
 
@@ -1006,7 +1055,7 @@ static void print_usage(const char *prog) {
             DEVICE_NAME_RME_ADI24_PRO,
             DEFAULT_DEVICE_NAME
     );
-    printf("  -D, --device-id STRING      RME device ID: 0x%02X (%s), 0x%02X (%s), 0x%02X (%s); if specified, overrides --device-name\n",
+    printf("  -D, --device-id STRING      RME device ID: '0x%02X' (%s), '0x%02X' (%s), '0x%02X' (%s); if specified, overrides the device ID detected by --device-name\n",
             RME_DEVICE_FAMILY_ADI2_DAC,
             DEVICE_NAME_RME_ADI2_DAC,
             RME_DEVICE_FAMILY_ADI2_PRO,
@@ -1016,7 +1065,7 @@ static void print_usage(const char *prog) {
     );
     printf("  -h, --help                  Show this help\n");
     printf("      --list-cards            List all ALSA cards and exit\n");
-    printf("  -M, --midi-device STRING    Use the specified MIDI device: 'autodetect' or 'hw:N,x,y' or 'hw:N,x'\n");
+    printf("  -M, --midi-device STRING    Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'\n");
     printf("      --no-uninstall-on-exit  If specified, do not uninstall ADI2 controls when the program exits\n");
     printf("      --uninstall             Remove the ADI2 mixer controls from the card and exit\n");
     printf("  -v, --verbose               Verbose output\n");
@@ -1056,9 +1105,9 @@ static int parse_args(int argc, char *argv[]) {
             goConfiguration.card_number = atoi(optarg);
             break;
         case 'd':
-            strncpy(goConfiguration.device_name, optarg, sizeof(goConfiguration.device_name) - 1);
-            if (BOOL_IS_FALSE(validate_device_name(goConfiguration.device_name))) {
-                log_error("Invalid device name: %s", goConfiguration.device_name);
+            strncpy(goConfiguration.device_name, optarg, DEVICE_NAME_MAX_LENGTH - 1);
+            if (BOOL_IS_FALSE(validate_device_name(goConfiguration.device_name, DEVICE_NAME_MAX_LENGTH))) {
+                log_error("Invalid device name: '%s'", goConfiguration.device_name);
                 return EXIT_ERROR_USAGE_BAD_VALUE;
             }
             break;
@@ -1073,9 +1122,14 @@ static int parse_args(int argc, char *argv[]) {
             goConfiguration.bPrintUsageOnly = BOOL_TRUE;
             break;
         case 'M':
-            strncpy(goConfiguration.midi_device, optarg, sizeof(goConfiguration.midi_device) - 1);
+            strncpy(goConfiguration.midi_device, optarg, MIDI_DEVICE_MAX_LENGTH - 1);
+            if (BOOL_IS_FALSE(validate_midi_device(goConfiguration.midi_device, MIDI_DEVICE_MAX_LENGTH))) {
+                log_error("Invalid midi device: '%s'", goConfiguration.midi_device);
+                return EXIT_ERROR_USAGE_BAD_VALUE;
+            }
             break;
         case 'o':
+            /* TODO remove this */
             if (strcmp(optarg, "line") == 0) {
                 goConfiguration.output_param = RME_PARAM_LINE;
             } else if (strcmp(optarg, "phones") == 0) {
@@ -1157,7 +1211,8 @@ int main(int argc, char *argv[]) {
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
 
-    /* Find card number and device ID, if not set by the user */
+    /* Ensure that the device ID and card number are set,
+     * possibly autodetecting them if not set by the user. */
     iRet = ensure_device_id_and_card_number();
     if (ERR_CODE_IS_ERROR(iRet)) {
         iExitCode = EXIT_ERROR_CANNOT_FIND_CARD;
@@ -1195,11 +1250,12 @@ int main(int argc, char *argv[]) {
      * survived a previous execution of the service. */
     iRet = uninstall_all_alsa_udce_s(ctl, BOOL_TRUE);
 
-    /* Find MIDI port */
-    iRet = find_midi_device();
+    /* Ensure that the MIDI device is set,
+     * possibly autodetecting it if not set by the user. */
+    iRet = ensure_midi_device();
     if (ERR_CODE_IS_ERROR(iRet)) {
         log_error(
-            "Cannot find a MIDI device for ALSA card number '%d'",
+            "Cannot find a valid MIDI device for ALSA card number '%d'",
             goConfiguration.card_number
         );
         iExitCode = EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE;
@@ -1207,7 +1263,7 @@ int main(int argc, char *argv[]) {
     }
     log_info("Using MIDI device '%s'", goConfiguration.midi_device);
 
-    /* Open MIDI port */
+    /* Open the MIDI device with flag 0 (default, blocking) */
     iRet = snd_rawmidi_open(NULL, &midi, goConfiguration.midi_device, 0);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         log_error(
