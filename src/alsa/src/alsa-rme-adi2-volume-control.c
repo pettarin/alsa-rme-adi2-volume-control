@@ -1171,6 +1171,18 @@ static int validate_midi_device(const char* szMIDIDevice, size_t cbMIDIDevice) {
     ) ? BOOL_TRUE : BOOL_FALSE;
 }
 
+/* Return true if the */
+static int validate_volume_db(double dValueDB) {
+    return (
+        (dValueDB >= RME_VALUE_VOLUME_MIN_DB) &&
+        (dValueDB <= RME_VALUE_VOLUME_MAX_DB)
+    ) ? BOOL_TRUE : BOOL_FALSE;
+}
+
+static int validate_volume_db_min_and_max(double dMinValueDB, double dMaxValueDB) {
+    return (dMinValueDB < dMaxValueDB) ? BOOL_TRUE : BOOL_FALSE;
+}
+
 static void print_usage(const char *prog) {
     printf("Usage: %s [options]\n", prog);
     printf("\n");
@@ -1253,11 +1265,29 @@ static int parse_args(int argc, char *argv[]) {
             break;
         case 'l':
             gpstConfiguration.dLine12MinDB = atof(optarg);
-            /* TODO validate */
+            if (BOOL_IS_FALSE(validate_volume_db(gpstConfiguration.dLine12MinDB))) {
+                log_error(
+                    "Invalid value '%0.1f' for --line12-min-db: "
+                    "it must be between '%0.1f' dB and '%0.1f' dB",
+                    gpstConfiguration.dLine12MinDB,
+                    RME_VALUE_VOLUME_MIN_DB,
+                    RME_VALUE_VOLUME_MAX_DB
+                );
+                return EXIT_ERROR_USAGE_BAD_VALUE;
+            }
             break;
         case 'L':
             gpstConfiguration.dLine12MaxDB = atof(optarg);
-            /* TODO validate */
+            if (BOOL_IS_FALSE(validate_volume_db(gpstConfiguration.dLine12MaxDB))) {
+                log_error(
+                    "Invalid value '%0.1f' for --line12-max-db: "
+                    "it must be between '%0.1f' dB and '%0.1f' dB",
+                    gpstConfiguration.dLine12MaxDB,
+                    RME_VALUE_VOLUME_MIN_DB,
+                    RME_VALUE_VOLUME_MAX_DB
+                );
+                return EXIT_ERROR_USAGE_BAD_VALUE;
+            }
             break;
         case 'M':
             strncpy(gpstConfiguration.szMIDIDevice, optarg, MIDI_DEVICE_MAX_LENGTH - 1);
@@ -1268,11 +1298,29 @@ static int parse_args(int argc, char *argv[]) {
             break;
         case 'p':
             gpstConfiguration.dPhones34MinDB = atof(optarg);
-            /* TODO validate */
+            if (BOOL_IS_FALSE(validate_volume_db(gpstConfiguration.dPhones34MinDB))) {
+                log_error(
+                    "Invalid value '%0.1f' for --phones34-min-db: "
+                    "it must be between '%0.1f' dB and '%0.1f' dB",
+                    gpstConfiguration.dPhones34MinDB,
+                    RME_VALUE_VOLUME_MIN_DB,
+                    RME_VALUE_VOLUME_MAX_DB
+                );
+                return EXIT_ERROR_USAGE_BAD_VALUE;
+            }
             break;
         case 'P':
             gpstConfiguration.dPhones34MaxDB = atof(optarg);
-            /* TODO validate */
+            if (BOOL_IS_FALSE(validate_volume_db(gpstConfiguration.dPhones34MaxDB))) {
+                log_error(
+                    "Invalid value '%0.1f' for --phones34-max-db: "
+                    "it must be between '%0.1f' dB and '%0.1f' dB",
+                    gpstConfiguration.dPhones34MaxDB,
+                    RME_VALUE_VOLUME_MIN_DB,
+                    RME_VALUE_VOLUME_MAX_DB
+                );
+                return EXIT_ERROR_USAGE_BAD_VALUE;
+            }
             break;
         case 'u':
             gpstConfiguration.bUninstall = BOOL_TRUE;
@@ -1289,6 +1337,28 @@ static int parse_args(int argc, char *argv[]) {
         default:
             return EXIT_ERROR_USAGE_BAD_OPTION;
         }
+    }
+
+    if (BOOL_IS_FALSE(validate_volume_db_min_and_max(gpstConfiguration.dLine12MinDB, gpstConfiguration.dLine12MaxDB))) {
+        log_error(
+            "The value of --line12-min-db must be smaller than "
+            "the value of --line12-max-db. "
+            "Got instead: '%0.1f' >= '%0.1f' .",
+            gpstConfiguration.dLine12MinDB,
+            gpstConfiguration.dLine12MaxDB
+        );
+        return EXIT_ERROR_USAGE_BAD_VALUE;
+    }
+
+    if (BOOL_IS_FALSE(validate_volume_db_min_and_max(gpstConfiguration.dPhones34MinDB, gpstConfiguration.dPhones34MaxDB))) {
+        log_error(
+            "The value of --phones34-min-db must be smaller than "
+            "the value of --phones34-max-db. "
+            "Got instead: '%0.1f' >= '%0.1f' .",
+            gpstConfiguration.dPhones34MinDB,
+            gpstConfiguration.dPhones34MaxDB
+        );
+        return EXIT_ERROR_USAGE_BAD_VALUE;
     }
 
     return ERR_OK;
