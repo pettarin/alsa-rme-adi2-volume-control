@@ -100,6 +100,8 @@
 #define DEFAULT_DEVICE_ID                           DEVICE_ID_NOT_SET
 #define DEFAULT_DEVICE_NAME                         DEVICE_NAME_AUTODETECT
 #define DEFAULT_LIST_CARDS_ONLY                     BOOL_FALSE
+#define DEFAULT_LIST_DEVICE_IDS_ONLY                BOOL_FALSE
+#define DEFAULT_LIST_DEVICE_NAMES_ONLY              BOOL_FALSE
 #define DEFAULT_MIDI_DEVICE                         MIDI_DEVICE_AUTODETECT
 #define DEFAULT_PRINT_USAGE_ONLY                    BOOL_FALSE
 #define DEFAULT_UNINSTALL_ONLY                      BOOL_FALSE
@@ -119,6 +121,12 @@ typedef struct {
     char szOptionName[64];
     double dValueDB;
 } OptionMinMaxDB;
+
+typedef struct {
+    char szDeviceName[64];
+    unsigned char chDeviceID;
+} DeviceIDWithName;
+
 
 #endif /* ALSA_RME_ADI2_VOLUME_CONTROL_H guard */
 

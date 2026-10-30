@@ -52,6 +52,8 @@ static struct {
     double dPhones34MinDB;
     double dPhones34MaxDB;
     int bListCards;
+    int bListDeviceIDs;
+    int bListDeviceNames;
     int bPrintUsageOnly;
     int bUninstall;
     int bUninstallOnExit;
@@ -66,6 +68,8 @@ static struct {
     .dPhones34MinDB = DEFAULT_PHONES34_VOLUME_MIN_DB,
     .dPhones34MaxDB = DEFAULT_PHONES34_VOLUME_MAX_DB,
     .bListCards = DEFAULT_LIST_CARDS_ONLY,
+    .bListDeviceIDs = DEFAULT_LIST_DEVICE_IDS_ONLY,
+    .bListDeviceNames = DEFAULT_LIST_DEVICE_NAMES_ONLY,
     .bPrintUsageOnly = DEFAULT_PRINT_USAGE_ONLY,
     .bUninstall = DEFAULT_UNINSTALL_ONLY,
     .bUninstallOnExit = DEFAULT_UNINSTALL_ON_EXIT,
@@ -431,8 +435,8 @@ static int uninstall_all_alsa_udce_s(
     int iRet = ERR_OK;
     int iRetInner = ERR_OK;
 
-    size_t iNumberOfControls = sizeof(szUDCENames) / sizeof(szUDCENames[0]);
-    for (size_t i = 0; i < iNumberOfControls; i++) {
+    size_t cCount = sizeof(szUDCENames) / sizeof(szUDCENames[0]);
+    for (size_t i = 0; i < cCount; i++) {
         iRetInner = uninstall_alsa_udce_by_name(ctl, szUDCENames[i]);
         if (ERR_CODE_IS_OK(iRetInner)) {
             iRemovedCount += 1;
@@ -443,7 +447,7 @@ static int uninstall_all_alsa_udce_s(
     log_verbose(
         "Removed %d out of %d user-defined control element(s)",
         iRemovedCount,
-        iNumberOfControls
+        cCount
     );
 
     if (BOOL_IS_TRUE(bIgnoreErrors) && ERR_CODE_IS_ERROR(iRet)) {
@@ -815,9 +819,9 @@ static int send_db(
         dValueDB
     );
 
-    ssize_t written = snd_rawmidi_write(midi, pchSysEx, sizeof(pchSysEx));
-    if (written < 0) {
-        log_error("WRITE MIDI SysEx failed: %s", snd_strerror(written));
+    ssize_t cbWritten = snd_rawmidi_write(midi, pchSysEx, sizeof(pchSysEx));
+    if (cbWritten < 0) {
+        log_error("WRITE MIDI SysEx failed: %s", snd_strerror(cbWritten));
         return ERR_ERROR_GENERIC;
     }
     return ERR_OK;
@@ -884,9 +888,9 @@ static int send_mute(
         (chRMEValueMute == RME_VALUE_MUTE_ON ? "on" : "off")
     );
 
-    ssize_t written = snd_rawmidi_write(midi, pchSysEx, sizeof(pchSysEx));
-    if (written < 0) {
-        log_error("WRITE MIDI SysEx failed: %s", snd_strerror(written));
+    ssize_t cbWritten = snd_rawmidi_write(midi, pchSysEx, sizeof(pchSysEx));
+    if (cbWritten < 0) {
+        log_error("WRITE MIDI SysEx failed: %s", snd_strerror(cbWritten));
         return ERR_ERROR_GENERIC;
     } else {
         log_info(
@@ -1201,8 +1205,9 @@ static int validate_min_max_db_values() {
         {"--phones34-min-db", gpstConfiguration.dPhones34MinDB},
         {"--phones34-max-db", gpstConfiguration.dPhones34MaxDB},
     };
+    size_t cCount = sizeof(pstPairs) / sizeof(pstPairs[0]);
 
-    for (size_t i = 0; i < sizeof(pstPairs) / sizeof(pstPairs[0]); i++) {
+    for (size_t i = 0; i < cCount; i++) {
         if (BOOL_IS_TRUE(
             (pstPairs[i].dValueDB < RME_VALUE_VOLUME_MIN_DB) ||
             (pstPairs[i].dValueDB > RME_VALUE_VOLUME_MAX_DB)
@@ -1219,7 +1224,7 @@ static int validate_min_max_db_values() {
         }
     }
 
-    for (size_t i = 0; i < sizeof(pstPairs) / sizeof(pstPairs[0]); i += 2) {
+    for (size_t i = 0; i < cCount; i += 2) {
         if (BOOL_IS_TRUE(
             (pstPairs[i].dValueDB >= pstPairs[i + 1].dValueDB)
         )) {
@@ -1239,32 +1244,50 @@ static int validate_min_max_db_values() {
     return BOOL_TRUE;
 }
 
+static void print_device_names() {
+    static const char *szDeviceNames[] = {
+        DEVICE_NAME_AUTODETECT,
+        DEVICE_NAME_RME_ADI2_DAC,
+        DEVICE_NAME_RME_ADI2_PRO,
+        DEVICE_NAME_RME_ADI24_PRO
+    };
+    size_t cCount = sizeof(szDeviceNames) / sizeof(szDeviceNames[0]);
+
+    printf("RME Product Family (Device Name)\n");
+    for (size_t i = 0; i < cCount; i++) {
+        printf("- '%s'\n", szDeviceNames[i]);
+    }
+}
+
+static void print_device_ids() {
+    DeviceIDWithName pszDeviceIDs[] = {
+        {DEVICE_NAME_RME_ADI2_DAC, RME_DEVICE_FAMILY_ADI2_DAC},
+        {DEVICE_NAME_RME_ADI2_PRO, RME_DEVICE_FAMILY_ADI2_PRO},
+        {DEVICE_NAME_RME_ADI24_PRO, RME_DEVICE_FAMILY_ADI24_PRO}
+    };
+    size_t cCount = sizeof(pszDeviceIDs) / sizeof(pszDeviceIDs[0]);
+
+    printf("ID\tRME Product Family\n");
+    for (size_t i = 0; i < cCount; i++) {
+        printf("0x%02X\t%s\n", pszDeviceIDs[i].chDeviceID, pszDeviceIDs[i].szDeviceName);
+    }
+}
+
 static void print_usage(const char *prog) {
     printf("Usage: %s [options]\n", prog);
     printf("\n");
     printf("Creates ALSA mute and volume controls for RME ADI-2 devices.\n");
     printf("\n");
     printf("Options:\n");
-    printf("  -C, --card-number INTEGER   Use the ALSA card with the given index; if specified, overrides the card detected by --device-name\n");
-    printf("  -d, --device-name STRING    RME device name: '%s', '%s', '%s', '%s' (default: '%s')\n",
-            DEVICE_NAME_AUTODETECT,
-            DEVICE_NAME_RME_ADI2_DAC,
-            DEVICE_NAME_RME_ADI2_PRO,
-            DEVICE_NAME_RME_ADI24_PRO,
-            DEFAULT_DEVICE_NAME
-    );
-    printf("  -D, --device-id STRING      RME device ID: '0x%02X' (%s), '0x%02X' (%s), '0x%02X' (%s); if specified, overrides the device ID detected by --device-name\n",
-            RME_DEVICE_FAMILY_ADI2_DAC,
-            DEVICE_NAME_RME_ADI2_DAC,
-            RME_DEVICE_FAMILY_ADI2_PRO,
-            DEVICE_NAME_RME_ADI2_PRO,
-            RME_DEVICE_FAMILY_ADI24_PRO,
-            DEVICE_NAME_RME_ADI24_PRO
-    );
+    printf("  -C, --card-number INTEGER   Use the ALSA card with the given index; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones\n");
+    printf("  -d, --device-name STRING    RME device name (default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
+    printf("  -D, --device-id STRING      RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones\n");
     printf("  -h, --help                  Show this help\n");
     printf("  -l, --line12-min-db DB      Minimum dB value for line output 1/2, corresponding to   0%% volume (default: %.1f dB)\n", gpstConfiguration.dLine12MinDB);
     printf("  -L, --line12-max-db DB      Maximum dB value for line output 1/2, corresponding to 100%% volume (default: %.1f dB)\n", gpstConfiguration.dLine12MaxDB);
     printf("      --list-cards            List all ALSA cards and exit\n");
+    printf("      --list-device-ids       List all supported device IDs\n");
+    printf("      --list-device-names     List all supported device names\n");
     printf("  -M, --midi-device STRING    Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'\n");
     printf("      --no-uninstall-on-exit  If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
     printf("  -p, --phones34-min-db DB    Minimum dB value for phones output 3/4, corresponding to   0%% volume (default: %.1f dB)\n", gpstConfiguration.dPhones34MinDB);
@@ -1286,7 +1309,9 @@ static int parse_args(int argc, char *argv[]) {
         {"help",                     no_argument,       0, 'h'},
         {"line12-min-db",            required_argument, 0, 'l'},
         {"line12-max-db",            required_argument, 0, 'L'},
-        {"list-cards",               no_argument,       0, 'Z'},    /* the short form is not public */
+        {"list-cards",               no_argument,       0, 'X'},    /* the short form is not public */
+        {"list-device-ids",          no_argument,       0, 'Y'},    /* the short form is not public */
+        {"list-device-names",        no_argument,       0, 'Z'},    /* the short form is not public */
         {"midi-device",              required_argument, 0, 'M'},
         {"no-uninstall-on-exit",     no_argument,       0, 'U'},    /* the short form is not public */
         {"phones34-min-db",          required_argument, 0, 'p'},
@@ -1298,7 +1323,7 @@ static int parse_args(int argc, char *argv[]) {
 
     int opt = 0;
     int bDeviceIDWasSet = BOOL_FALSE;
-    while ((opt = getopt_long(argc, argv, "C:d:D:hl:L:ZM:Up:P:uv", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "C:d:D:hl:L:XYZM:Up:P:uv", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'C':
             gpstConfiguration.iCardNumber = atoi(optarg);
@@ -1337,8 +1362,14 @@ static int parse_args(int argc, char *argv[]) {
         case 'v':
             gbLogVerbose = BOOL_TRUE;
             break;
-        case 'Z':
+        case 'X':
             gpstConfiguration.bListCards = BOOL_TRUE;
+            break;
+        case 'Y':
+            gpstConfiguration.bListDeviceIDs = BOOL_TRUE;
+            break;
+        case 'Z':
+            gpstConfiguration.bListDeviceNames = BOOL_TRUE;
             break;
         default:
             return EXIT_ERROR_USAGE_BAD_OPTION;
@@ -1399,6 +1430,22 @@ int main(int argc, char *argv[]) {
     if (BOOL_IS_TRUE(gpstConfiguration.bListCards)) {
         gbLogVerbose = BOOL_FALSE;
         print_cards();
+        iExitCode = EXIT_OK;
+        goto cleanup;
+    }
+
+    /* Print the list of device IDs and exit */
+    if (BOOL_IS_TRUE(gpstConfiguration.bListDeviceIDs)) {
+        gbLogVerbose = BOOL_FALSE;
+        print_device_ids();
+        iExitCode = EXIT_OK;
+        goto cleanup;
+    }
+
+    /* Print the list of device names and exit */
+    if (BOOL_IS_TRUE(gpstConfiguration.bListDeviceNames)) {
+        gbLogVerbose = BOOL_FALSE;
+        print_device_names();
         iExitCode = EXIT_OK;
         goto cleanup;
     }
