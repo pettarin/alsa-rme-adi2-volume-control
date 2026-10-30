@@ -34,13 +34,13 @@
  * Global state variables
  * ************************************************************************* */
 
-/* enable verbose log */
+/* Flag for verbose log */
 static int gbLogVerbose = BOOL_FALSE;
 
-/* flag tracking whether the service is running or not */
+/* Flag tracking whether the service is running or not */
 static volatile sig_atomic_t gbServiceIsRunning = (sig_atomic_t)BOOL_TRUE;
 
-/* service configuration */
+/* Service configuration */
 static struct {
     int card_number;
     char card_hw[32];
@@ -112,54 +112,65 @@ static void log_verbose(const char *fmt, ...) {
  * ALSA card helpers
  * ************************************************************************* */
 
-/* Print cards */
+/* Print the list of cards as a table with colums (Index, ID, Name). */
 static void print_cards() {
-    int card = -1;
-    char *card_name;
+    int iCard = -1;
+    char *pCardName;
     printf("Index\tID\tName\n");
-    while ((snd_card_next(&card) >= 0) && (card >= 0)) {
-        if (ERR_ALSA_CODE_IS_ERROR(snd_card_get_name(card, &card_name))) {
+    while ((snd_card_next(&iCard) >= 0) && (iCard >= 0)) {
+        if (ERR_ALSA_CODE_IS_ERROR(snd_card_get_name(iCard, &pCardName))) {
             /* ignore error and continue looping over the available cards */
             continue;
         }
-        printf("%d\thw:%d\t%s\n", card, card, card_name);
-        free(card_name);
+        printf("%d\thw:%d\t%s\n", iCard, iCard, pCardName);
+        free(pCardName);
     }
 }
 
 /* Find the first card number matching the given name (substring);
  * return the card number if found; otherwise return -1. */
-static int find_card_by_name(const char *pName) {
-    int card = -1;
-    char *card_name;
+static int find_card_by_name(const char *pQuery) {
+    int iCard = -1;
+    char *pCardName;
 
-    log_verbose("Find ALSA card by name with query '%s'", pName);
+    log_verbose("Find ALSA card by name with query '%s'", pQuery);
 
-    while (snd_card_next(&card) >= 0 && card >= 0) {
-        if (snd_card_get_name(card, &card_name) < 0) {
+    while ((snd_card_next(&iCard) >= 0) && (iCard >= 0)) {
+        if (snd_card_get_name(iCard, &pCardName) < 0) {
             continue;
         }
-        log_verbose("Found ALSA card '%d' with name '%s'", card, card_name);
+        log_verbose("Found ALSA card '%d' with name '%s'", iCard, pCardName);
 
-        /* NOTE: substring matching */
-        if (strstr(card_name, pName) != NULL) {
+        /* NOTE: matching pQuery as substring of pCardName */
+        if ((pCardName != NULL) && (strstr(pCardName, pQuery) != NULL)) {
             log_verbose(
-                "Card '%d' with name '%s' matches the query '%s'",
-                card,
-                card_name,
-                pName
+                "ALSA card number '%d' with name '%s' matches the query '%s'",
+                iCard,
+                pCardName,
+                pQuery
             );
-            free(card_name);
-            return card;
+            free(pCardName);
+            return iCard;
         }
-        free(card_name);
+
+        /* no match: free pCardName and continue looping */
+        free(pCardName);
     }
+
+    /* no match found: log and return -1 to signal failure */
+    log_verbose(
+        "No ALSA card found whose name matches the query '%s'",
+        pQuery
+    );
     return -1;
 }
 
 /* Find the first card corresponding to the given device name and ID:
  * return true if found, otherwise return false. */
-static int find_card_and_set_configuration(const char* pDeviceName, int iDeviceID) {
+static int find_card_and_set_configuration(
+    const char* pDeviceName,
+    int iDeviceID
+) {
     int iCardNumber = find_card_by_name(pDeviceName);
     if (iCardNumber < 0) {
         /* card not found */
@@ -175,7 +186,7 @@ static int find_card_and_set_configuration(const char* pDeviceName, int iDeviceI
         sizeof(goConfiguration.device_name)
     );
     log_verbose(
-        "Found card number '%d' for device ID '0x%02X' (%s)",
+        "Found ALSA card number '%d' for device ID '0x%02X' (%s)",
         iCardNumber,
         iDeviceID,
         pDeviceName
@@ -183,6 +194,7 @@ static int find_card_and_set_configuration(const char* pDeviceName, int iDeviceI
     return BOOL_TRUE;
 }
 
+/* Partials for the various ADI-2 product families. */
 static int find_card_and_set_configuration_rme_adi24_pro() {
     return find_card_and_set_configuration(
         DEVICE_NAME_RME_ADI24_PRO,
@@ -225,74 +237,121 @@ static int device_name_is_autodetect_or_rme_adi2_dac() {
     );
 }
 
-static int find_card_number_and_device_id() {
-    int bCardFound = BOOL_FALSE;
-
-    /* Find (card number and) device ID if not set by the user */
-    if (goConfiguration.device_id < 0) {
+/* Determine the device ID if the user did not specify it explicitly,
+ * searching for a matching card using the device name.
+ *
+ * If the device name is "autodetect",
+ * try all supported ADI-2 product families, in the appropriate order.
+ *
+ * The first matching card found (lowest card number) is set and used.
+ *
+ * Return true if a matching card is found; otherwise return false. */
+static int ensure_device_id_is_set() {
+    if (goConfiguration.device_id >= 0) {
         log_verbose(
-            "Find card number and device ID from device name '%s'",
-            goConfiguration.device_name
-        );
-        bCardFound = BOOL_FALSE;
-        if (
-            BOOL_IS_FALSE(bCardFound) &&
-            BOOL_IS_TRUE(device_name_is_autodetect_or_rme_adi24_pro())
-        ) {
-            bCardFound = find_card_and_set_configuration_rme_adi24_pro();
-        }
-        if (
-            BOOL_IS_FALSE(bCardFound) &&
-            BOOL_IS_TRUE(device_name_is_autodetect_or_rme_adi2_pro())
-        ) {
-            bCardFound = find_card_and_set_configuration_rme_adi2_pro();
-        }
-        if (
-            BOOL_IS_FALSE(bCardFound) &&
-            BOOL_IS_TRUE(device_name_is_autodetect_or_rme_adi2_dac())
-        ) {
-            bCardFound = find_card_and_set_configuration_rme_adi2_dac();
-        }
-        if (BOOL_IS_FALSE(bCardFound)) {
-            log_error(
-                "Cannot find a card matching device name '%s'",
-                goConfiguration.device_name
-            );
-            return ERR_ERROR_GENERIC;
-        }
-    }
-
-    /* Find card number if not set by the user or detected above */
-    if (goConfiguration.card_number < 0) {
-        log_verbose(
-            "Find card number from device ID '0x%02X'",
+            "Device ID '0x%02X' explicitly specified by the user",
             goConfiguration.device_id
         );
-        bCardFound = BOOL_FALSE;
-        switch (goConfiguration.device_id) {
-            case RME_DEVICE_FAMILY_ADI24_PRO:
-                bCardFound = find_card_and_set_configuration_rme_adi24_pro();
-                break;
-            case RME_DEVICE_FAMILY_ADI2_PRO:
-                bCardFound = find_card_and_set_configuration_rme_adi2_pro();
-                break;
-            case RME_DEVICE_FAMILY_ADI2_DAC:
-                bCardFound = find_card_and_set_configuration_rme_adi2_pro();
-                break;
-            default:
-                log_verbose(
-                    "goConfiguration.device_id has unsupported value '%d'",
-                    goConfiguration.device_id
-                );
-                break;
-        }
-        if (BOOL_IS_FALSE(bCardFound)) {
-            log_error(
-                "Cannot find a card matching device id '0x%02X'",
+        return BOOL_TRUE;
+    }
+
+    log_verbose(
+        "Find ALSA card number and device ID from device name '%s'",
+        goConfiguration.device_name
+    );
+
+    if (
+        BOOL_IS_TRUE(device_name_is_autodetect_or_rme_adi24_pro()) &&
+        BOOL_IS_TRUE((find_card_and_set_configuration_rme_adi24_pro()))
+    ) {
+        return BOOL_TRUE;
+    }
+
+    if (
+        BOOL_IS_TRUE(device_name_is_autodetect_or_rme_adi2_pro()) &&
+        BOOL_IS_TRUE((find_card_and_set_configuration_rme_adi2_pro()))
+    ) {
+        return BOOL_TRUE;
+    }
+
+    if (
+        BOOL_IS_TRUE(device_name_is_autodetect_or_rme_adi2_dac()) &&
+        BOOL_IS_TRUE((find_card_and_set_configuration_rme_adi2_dac()))
+    ) {
+        return BOOL_TRUE;
+    }
+
+    return BOOL_FALSE;
+}
+
+/* Determine the card number if the user did not specify it explicitly,
+ * searching for a card whose name matches the device ID.
+ *
+ * Return true if a matching card is found; otherwise return false. */
+static int ensure_card_number_is_set() {
+    int bCardFound = BOOL_FALSE;
+
+    if (goConfiguration.card_number >= 0) {
+        log_verbose(
+            "ALSA card number '%d' explicitly specified by the user "
+            "or already determined",
+            goConfiguration.card_number
+        );
+        return BOOL_TRUE;
+    }
+
+    switch (goConfiguration.device_id) {
+        case RME_DEVICE_FAMILY_ADI24_PRO:
+            bCardFound = find_card_and_set_configuration_rme_adi24_pro();
+            break;
+        case RME_DEVICE_FAMILY_ADI2_PRO:
+            bCardFound = find_card_and_set_configuration_rme_adi2_pro();
+            break;
+        case RME_DEVICE_FAMILY_ADI2_DAC:
+            bCardFound = find_card_and_set_configuration_rme_adi2_pro();
+            break;
+        default:
+            log_verbose(
+                "goConfiguration.device_id has unsupported value '%d'",
                 goConfiguration.device_id
             );
-            return ERR_ERROR_GENERIC;
-        }
+            break;
+    }
+
+    return bCardFound;
+}
+
+/* Determine the device ID and card number
+ * if the user did not specify them.
+ *
+ * See the two helper functions:
+ *
+ * - ensure_device_id_is_set()
+ * - ensure_card_number_is_set()
+ *
+ * for the details of the probing.
+ *
+ * Return ERR_OK if both the device ID and the card number
+ * could be determined, otherwise return an error. */
+static int ensure_device_id_and_card_number() {
+    int bCardFound = BOOL_FALSE;
+
+    bCardFound = ensure_device_id_is_set();
+    if (BOOL_IS_FALSE(bCardFound)) {
+        log_error(
+            "Cannot find a card matching device name '%s'",
+            goConfiguration.device_name
+        );
+        return ERR_ERROR_GENERIC;
+    }
+
+    bCardFound = ensure_card_number_is_set();
+    if (BOOL_IS_FALSE(bCardFound)) {
+        log_error(
+            "Cannot find a card matching device id '0x%02X'",
+            goConfiguration.device_id
+        );
+        return ERR_ERROR_GENERIC;
     }
 
     return ERR_OK;
@@ -534,9 +593,8 @@ static int read_alsa_udce_boolean_value(
     return iRet;
 }
 
-/* TODO refactor this function */
-/* Does a control event refer to the given element? */
-static int event_matches(snd_ctl_event_t *event, snd_ctl_elem_id_t *id) {
+/* Check if an event is generated by the given control element */
+static int is_event_from_udce(snd_ctl_event_t *event, snd_ctl_elem_id_t *id) {
     unsigned int numid = snd_ctl_elem_id_get_numid(id);
 
     if (numid != 0) {
@@ -755,13 +813,24 @@ static void monitor_loop_signal_handler(int sig) {
 
 /* Apply the current state (volume, mute) to the MIDI device */
 static void apply_state(snd_rawmidi_t *midi, int iVolume, int bEnabled) {
-    /* if the validation of the values fails, return immediately without changing the state */
+    /* If the validation of the values fails,
+     * return immediately without changing the state */
+    /* NOTE: for unknown reasons, sometimes the first time
+     *       the volume value is read, it returns an invalid value */
     if ((iVolume < VOL_MIN) || (iVolume > VOL_MAX)) {
-        log_verbose("Invalid value '%d' for the volume, ignoring it", iVolume);
+        log_verbose(
+            "Invalid value '%d' for the volume, ignoring it",
+            iVolume
+        );
         return;
     }
+    /* Check explicitly != BOOL_TRUE, BOOL_FALSE instead of using
+     * BOOL_IS_* macros, to ensure only the canonical values are read */
     if ((bEnabled != BOOL_TRUE) && (bEnabled != BOOL_FALSE)) {
-        log_verbose("Invalid value '%d' for the mute switch, ignoring it", bEnabled);
+        log_verbose(
+            "Invalid value '%d' for the mute switch, ignoring it",
+            bEnabled
+        );
         return;
     }
 
@@ -781,27 +850,29 @@ static int monitor_loop(
     snd_ctl_elem_id_t *sw_id,
     snd_rawmidi_t *midi
 ) {
-    int bEnabled = DEFAULT_VOLUME_ENABLED;
-    int bEnabledLast = bEnabled;
+    int iCount = 0;
     int iRet = ERR_OK;
+    int bEnabled = DEFAULT_VOLUME_ENABLED;
     int iVolume = DEFAULT_VOLUME_VALUE;
+    int bEnabledLast = bEnabled;
     int iVolumeLast = iVolume;
+    unsigned short revents = 0;
 
     /* Subscribe to control events */
     iRet = snd_ctl_subscribe_events(ctl, 1);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         log_error("Cannot subscribe to events: %s", snd_strerror(iRet));
-        return iRet;
+        return ERR_ERROR_GENERIC;
     }
 
     /* Get poll descriptors */
-    int count = snd_ctl_poll_descriptors_count(ctl);
-    if (count <= 0) {
-        log_error("Invalid poll descriptor count: %d", count);
+    iCount = snd_ctl_poll_descriptors_count(ctl);
+    if (iCount <= 0) {
+        log_error("Invalid poll descriptor count: %d", iCount);
         return ERR_ERROR_GENERIC;
     }
-    struct pollfd pfd[count];
-    snd_ctl_poll_descriptors(ctl, pfd, count);
+    struct pollfd pfd[iCount];
+    snd_ctl_poll_descriptors(ctl, pfd, iCount);
 
     /* Send initial state */
     /* TODO implement a real MIDI SysEx read of mute and volume state */
@@ -810,48 +881,68 @@ static int monitor_loop(
     bEnabledLast = bEnabled;
 
     log_info(
-        "Monitoring ALSA user-defined control elements '%s' and '%s' for changes...",
+        "Monitoring ALSA user-defined control elements "
+        "'%s' and '%s' for changes...",
         CONTROL_NAME,
         SWITCH_NAME
     );
 
+    /* gbServiceIsRunning can be set to false by the signal handler,
+     * interrupting the monitor loop */
     while (BOOL_IS_TRUE(gbServiceIsRunning)) {
-        iRet = poll(pfd, count, -1);  /* Block until event or signal */
+
+        /* Wait for the next event or signal */
+        iRet = poll(pfd, iCount, -1);
         if (iRet < 0) {
+            /* poll returned an error: inspect errno */
             if (errno == EINTR) {
+                /* system call poll interrupted by a signal:
+                 * evaluates the loop condition again  */
                 continue;
             }
-            log_error("Poll error: %s", strerror(errno));
-            break;
+            /* in all other cases (EFAULT, EINVAL, ENOMEM), error out */
+            log_error("Event poll error: %s", strerror(errno));
+            return ERR_ERROR_EVENT_POLL;
         }
 
         /* Check poll result */
-        unsigned short revents;
-        snd_ctl_poll_descriptors_revents(ctl, pfd, count, &revents);
+        snd_ctl_poll_descriptors_revents(ctl, pfd, iCount, &revents);
         if (revents & (POLLERR | POLLHUP | POLLNVAL)) {
-            /* The card went away (device unplugged or powered off).
-             * Exit so the descriptors are released, the kernel can free the
-             * card slot, and systemd can restart us when the device returns.
-             */
-            log_error("Sound card disconnected");
-            return -1;
+            /* The ALSA card was disconnected and/or powered off:
+             * error out so that the service terminates
+             * the current execution.
+             * If run by systemd, a new execution can be attempted,
+             * in case the ALSA card returns available later. */
+            log_error("The ALSA card was disconnected");
+            return ERR_ERROR_SOUND_CARD_DISCONNECTED;
         }
-        if (!(revents & POLLIN))
+        if (!(revents & POLLIN)) {
+            /* no data to be read:
+             * evaluates the loop condition again  */
             continue;
+        }
 
         /* Read events */
         snd_ctl_event_t *event;
         snd_ctl_event_alloca(&event);
 
         while (snd_ctl_read(ctl, event) > 0) {
-            if (snd_ctl_event_get_type(event) != SND_CTL_EVENT_ELEM)
+            /* Check if the event is from a control element */
+            if (snd_ctl_event_get_type(event) != SND_CTL_EVENT_ELEM) {
+                /* evaluate next event */
                 continue;
+            }
 
-            /* Check if it's one of our controls */
-            if (!event_matches(event, vol_id) && !event_matches(event, sw_id))
+            /* Check if the event belongs to one of the UDCEs */
+            if (
+                BOOL_IS_FALSE(is_event_from_udce(event, vol_id)) &&
+                BOOL_IS_FALSE(is_event_from_udce(event, sw_id))
+            ) {
+                /* evaluate next event */
                 continue;
+            }
 
-            /* Read new state */
+            /* Read state */
             iRet = read_alsa_udce_integer_value(ctl, vol_id, &iVolume);
             if (ERR_CODE_IS_ERROR(iRet)) {
                 log_error("Unable to read the value of the volume");
@@ -862,16 +953,16 @@ static int monitor_loop(
                 log_error("Unable to read the value of the mute switch");
                 return iRet;
             }
+
+            /* If the state changed, apply it */
             if ((iVolume != iVolumeLast) || (bEnabled != bEnabledLast)) {
                 apply_state(midi, iVolume, bEnabled);
                 iVolumeLast = iVolume;
                 bEnabledLast = bEnabled;
             }
+        } /* end of inner while (snd_clt_read(ctl, event) > 0) */
 
-            /* Process one event per poll, then check running flag */
-            break;
-        }
-    }
+    } /* end of outer while (BOOL_IS_TRUE(gbServiceIsRunning)) */
 
     return ERR_OK;
 }
@@ -1057,7 +1148,8 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
-    /* Set up signal handlers (no SA_RESTART so poll() returns EINTR) */
+    /* Set up signal handlers, without setting SA_RESTART
+     * so that poll() returns EINTR when interrupted. */
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = monitor_loop_signal_handler;
@@ -1066,13 +1158,13 @@ int main(int argc, char *argv[]) {
     sigaction(SIGTERM, &sa, NULL);
 
     /* Find card number and device ID, if not set by the user */
-    iRet = find_card_number_and_device_id();
+    iRet = ensure_device_id_and_card_number();
     if (ERR_CODE_IS_ERROR(iRet)) {
         iExitCode = EXIT_ERROR_CANNOT_FIND_CARD;
         goto cleanup;
     }
     log_info("Using device ID '0x%02X'", goConfiguration.device_id);
-    log_info("Using card '%d'", goConfiguration.card_number);
+    log_info("Using ALSA card '%d'", goConfiguration.card_number);
 
     /* Set the card hw from the card number */
     set_card_hw();
@@ -1081,14 +1173,14 @@ int main(int argc, char *argv[]) {
     iRet = snd_ctl_open(&ctl, goConfiguration.card_hw, 0);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         log_error(
-            "Cannot open card '%s': %s",
+            "Cannot open ALSA card '%s': %s",
             goConfiguration.card_hw,
             snd_strerror(iRet)
         );
         iExitCode = EXIT_ERROR_CANNOT_OPEN_CARD;
         goto cleanup;
     }
-    log_verbose("Opened card '%s'", goConfiguration.card_hw);
+    log_verbose("Opened ALSA card '%s'", goConfiguration.card_hw);
 
     if (BOOL_IS_TRUE(goConfiguration.bUninstall)) {
         /* Uninstall mode: go to the service clean-up immediately */
@@ -1107,7 +1199,7 @@ int main(int argc, char *argv[]) {
     iRet = find_midi_device();
     if (ERR_CODE_IS_ERROR(iRet)) {
         log_error(
-            "Cannot find a MIDI device for card number '%d'",
+            "Cannot find a MIDI device for ALSA card number '%d'",
             goConfiguration.card_number
         );
         iExitCode = EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE;
@@ -1153,7 +1245,17 @@ int main(int argc, char *argv[]) {
     iRet = monitor_loop(ctl, vol_id, sw_id, midi);
     log_info("Control loop exited with return code '%d'", iRet);
     if (ERR_CODE_IS_ERROR(iRet)) {
-        iExitCode = EXIT_ERROR_GENERIC_IN_MONITOR_LOOP;
+        switch (iRet) {
+            case ERR_ERROR_EVENT_POLL:
+                iExitCode = EXIT_ERROR_EVENT_POLL;
+                break;
+            case ERR_ERROR_SOUND_CARD_DISCONNECTED:
+                iExitCode = EXIT_ERROR_SOUND_CARD_DISCONNECTED;
+                break;
+            default:
+                iExitCode = EXIT_ERROR_GENERIC_IN_MONITOR_LOOP;
+                break;
+        }
         goto cleanup;
     }
 

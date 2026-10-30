@@ -30,28 +30,32 @@
 #define BOOL_IS_FALSE(x)    (! BOOL_IS_TRUE(x))
 
 /* Error codes: 0 is OK, anything else is an error */
-#define ERR_OK                  0
-#define ERR_ERROR_GENERIC       -1
-#define ERR_CODE_IS_OK(x)       ((x) == ERR_OK)
-#define ERR_CODE_IS_ERROR(x)    (! ERR_CODE_IS_OK(x))
+#define ERR_OK                                      (0)
+#define ERR_ERROR_GENERIC                           (-1)
+#define ERR_ERROR_EVENT_POLL                        (-2)
+#define ERR_ERROR_SOUND_CARD_DISCONNECTED           (-3)
+#define ERR_CODE_IS_OK(x)                           ((x) == ERR_OK)
+#define ERR_CODE_IS_ERROR(x)                        (! ERR_CODE_IS_OK(x))
 
 /* ALSA error codes: 0 is OK, any negative value is an error */
-#define ERR_ALSA_OK                 0
-#define ERR_ALSA_CODE_IS_OK(x)      ((x) == ERR_ALSA_OK)
-#define ERR_ALSA_CODE_IS_ERROR(x)   ((x) < ERR_ALSA_OK)
+#define ERR_ALSA_OK                                 0
+#define ERR_ALSA_CODE_IS_OK(x)                      ((x) == ERR_ALSA_OK)
+#define ERR_ALSA_CODE_IS_ERROR(x)                   ((x) < ERR_ALSA_OK)
 
 /* Exit codes for the whole service (0 OK, >1 error) */
-#define EXIT_OK                                 0
-#define EXIT_ERROR_GENERIC                      1
-#define EXIT_ERROR_USAGE_BAD_OPTION             2
-#define EXIT_ERROR_USAGE_BAD_VALUE              3
-#define EXIT_ERROR_CANNOT_FIND_CARD             4
-#define EXIT_ERROR_CANNOT_OPEN_CARD             5
-#define EXIT_ERROR_CANNOT_UNINSTALL             6
-#define EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE      7
-#define EXIT_ERROR_CANNOT_OPEN_MIDI_DEVICE      8
-#define EXIT_ERROR_CANNOT_ADD_CONTROL           9
-#define EXIT_ERROR_GENERIC_IN_MONITOR_LOOP      10
+#define EXIT_OK                                     0
+#define EXIT_ERROR_GENERIC                          1
+#define EXIT_ERROR_USAGE_BAD_OPTION                 2
+#define EXIT_ERROR_USAGE_BAD_VALUE                  3
+#define EXIT_ERROR_CANNOT_FIND_CARD                 4
+#define EXIT_ERROR_CANNOT_OPEN_CARD                 5
+#define EXIT_ERROR_CANNOT_UNINSTALL                 6
+#define EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE          7
+#define EXIT_ERROR_CANNOT_OPEN_MIDI_DEVICE          8
+#define EXIT_ERROR_CANNOT_ADD_CONTROL               9
+#define EXIT_ERROR_GENERIC_IN_MONITOR_LOOP          10
+#define EXIT_ERROR_EVENT_POLL                       11
+#define EXIT_ERROR_SOUND_CARD_DISCONNECTED          12
 
 /* The simple mixer name seen by amixer/MPD/Volumio is
    the common prefix "ADI2" of the two elements */
