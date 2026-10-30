@@ -86,16 +86,19 @@
 #define VOL_MAX                                     100                     /* Max volume for the ALSA user-defined control elements */
 
 /* CLI default values */
+#define CARD_HW_NOT_SET                             ""
+#define CARD_NUMBER_NOT_SET                         (-1)
+#define DEVICE_ID_NOT_SET                           (-1)
 #define DEVICE_NAME_AUTODETECT                      "autodetect"
 #define DEVICE_NAME_RME_ADI2_DAC                    "ADI-2 DAC"
 #define DEVICE_NAME_RME_ADI2_PRO                    "ADI-2 Pro"
 #define DEVICE_NAME_RME_ADI24_PRO                   "ADI-2/4 Pro"
 #define MIDI_DEVICE_AUTODETECT                      "autodetect"
 
-#define DEFAULT_CARD_NUMBER                         -1
-#define DEFAULT_CARD_HW                             ""
+#define DEFAULT_CARD_HW                             CARD_HW_NOT_SET
+#define DEFAULT_CARD_NUMBER                         CARD_NUMBER_NOT_SET
+#define DEFAULT_DEVICE_ID                           DEVICE_ID_NOT_SET
 #define DEFAULT_DEVICE_NAME                         DEVICE_NAME_AUTODETECT
-#define DEFAULT_DEVICE_ID                           -1
 #define DEFAULT_LIST_CARDS_ONLY                     BOOL_FALSE
 #define DEFAULT_MIDI_DEVICE                         MIDI_DEVICE_AUTODETECT
 #define DEFAULT_PRINT_USAGE_ONLY                    BOOL_FALSE
@@ -111,6 +114,11 @@
 #define DEFAULT_PHONES34_VOLUME_MIN_DB              (-60.0)                 /* Default min volume, in dB, for phones 3/4 output */
 #define DEFAULT_PHONES34_VOLUME_SWITCH_ENABLED      BOOL_TRUE               /* Default value of the phones 3/4 output switch: true (mute off) or false (mute on) */
 #define DEFAULT_PHONES34_VOLUME_VALUE               50                      /* Default statup volume for phones 3/4 output (50 == 50% of [0, 100]) */
+
+typedef struct {
+    char szOptionName[64];
+    double dValueDB;
+} OptionMinMaxDB;
 
 #endif /* ALSA_RME_ADI2_VOLUME_CONTROL_H guard */
 

@@ -42,10 +42,10 @@ static volatile sig_atomic_t gbServiceIsRunning = (sig_atomic_t)BOOL_TRUE;
 
 /* Service configuration */
 static struct {
-    int iCardNumber;
     char szCardHw[CARD_HW_MAX_LENGTH];
     char szMIDIDevice[MIDI_DEVICE_MAX_LENGTH];
     char szDeviceName[DEVICE_NAME_MAX_LENGTH];
+    int iCardNumber;
     int iDeviceID;
     double dLine12MinDB;
     double dLine12MaxDB;
@@ -56,10 +56,10 @@ static struct {
     int bUninstall;
     int bUninstallOnExit;
 } gpstConfiguration = {
-    .iCardNumber = DEFAULT_CARD_NUMBER,
     .szCardHw = DEFAULT_CARD_HW,
     .szMIDIDevice = DEFAULT_MIDI_DEVICE,
     .szDeviceName = DEFAULT_DEVICE_NAME,
+    .iCardNumber = DEFAULT_CARD_NUMBER,
     .iDeviceID = DEFAULT_DEVICE_ID,
     .dLine12MinDB = DEFAULT_LINE12_VOLUME_MIN_DB,
     .dLine12MaxDB = DEFAULT_LINE12_VOLUME_MAX_DB,
@@ -187,7 +187,7 @@ static int find_card_by_name(const char *szQuery) {
 /* Find the first card corresponding to the given device name and ID:
  * return true if found, otherwise return false. */
 static int find_card_and_set_configuration(
-    const char* szDeviceName,
+    const char *szDeviceName,
     int iDeviceID
 ) {
     int iCardNumber = find_card_by_name(szDeviceName);
@@ -1140,47 +1140,103 @@ static int monitor_loop(
  * CLI Helpers
  * ************************************************************************* */
 
-/* Return true if the given deviceID is supported, and false otherwise. */
-static int validate_device_id(int deviceID) {
-    /* it suffices to check the ..._FAMILIY_... codes */
-    return (
-        (deviceID == RME_DEVICE_FAMILY_ADI2_DAC) ||
-        (deviceID == RME_DEVICE_FAMILY_ADI2_PRO) ||
-        (deviceID == RME_DEVICE_FAMILY_ADI24_PRO)
-    ) ? BOOL_TRUE : BOOL_FALSE;
+/* Return true if the device ID in the configuration is supported
+ * (or was not set), and false otherwise. */
+static int validate_device_id(int bDeviceIDWasSet) {
+    int iDeviceID = gpstConfiguration.iDeviceID;
+    if (BOOL_IS_TRUE(
+        ((BOOL_IS_FALSE(bDeviceIDWasSet)) && (iDeviceID == DEVICE_ID_NOT_SET)) ||
+        (iDeviceID == RME_DEVICE_FAMILY_ADI2_DAC) ||
+        (iDeviceID == RME_DEVICE_FAMILY_ADI2_PRO) ||
+        (iDeviceID == RME_DEVICE_FAMILY_ADI24_PRO)
+    )) {
+        return BOOL_TRUE;
+    }
+    log_error("Invalid device ID: '0x%02X'", iDeviceID);
+    return BOOL_FALSE;
 }
 
-/* Return true if the given szDeviceName is supported, and false otherwise. */
-static int validate_device_name(const char* szDeviceName, size_t cbDeviceName) {
-    return (
+/* Return true if the device name in the configuration is supported
+ * (or it was not set), and false otherwise. */
+static int validate_device_name() {
+    const char *szDeviceName = gpstConfiguration.szDeviceName;
+    size_t cbDeviceName = sizeof(gpstConfiguration.szDeviceName);
+    if (BOOL_IS_TRUE(
         (strncmp(szDeviceName, DEVICE_NAME_AUTODETECT, cbDeviceName) == 0) ||
         (strncmp(szDeviceName, DEVICE_NAME_RME_ADI2_DAC, cbDeviceName) == 0) ||
         (strncmp(szDeviceName, DEVICE_NAME_RME_ADI2_PRO, cbDeviceName) == 0) ||
         (strncmp(szDeviceName, DEVICE_NAME_RME_ADI24_PRO, cbDeviceName) == 0)
-    ) ? BOOL_TRUE : BOOL_FALSE;
+    )) {
+        return BOOL_TRUE;
+    }
+    log_error("Invalid device name: '%s'", gpstConfiguration.szDeviceName);
+    return BOOL_FALSE;
 }
 
-/* Return true if the given szMIDIDevice is supported, and false otherwise. */
-static int validate_midi_device(const char* szMIDIDevice, size_t cbMIDIDevice) {
+/* Return true if the MIDI device in the configuration is supported
+ * (or it was not set), and false otherwise. */
+static int validate_midi_device() {
     /* NOTE: not checking if szMIDIDevice is in the form "hw:X[,Y[,Z]]"
      *       since the value might be provided by the user and
      *       it is not clear that that form is the only one accepted by ALSA. */
-    return (
+    const char *szMIDIDevice = gpstConfiguration.szMIDIDevice;
+    size_t cbMIDIDevice = sizeof(gpstConfiguration.szMIDIDevice);
+    if (BOOL_IS_TRUE(
         (strncmp(szMIDIDevice, MIDI_DEVICE_AUTODETECT, cbMIDIDevice) == 0) ||
         ((strnlen(szMIDIDevice, cbMIDIDevice) > 0))
-    ) ? BOOL_TRUE : BOOL_FALSE;
+    )) {
+        return BOOL_TRUE;
+    }
+    log_error("Invalid midi device: '%s'", gpstConfiguration.szMIDIDevice);
+    return BOOL_FALSE;
 }
 
-/* Return true if the */
-static int validate_volume_db(double dValueDB) {
-    return (
-        (dValueDB >= RME_VALUE_VOLUME_MIN_DB) &&
-        (dValueDB <= RME_VALUE_VOLUME_MAX_DB)
-    ) ? BOOL_TRUE : BOOL_FALSE;
-}
+/* Return true if the line12/phones34 min/max DB values
+ * in the configuration are supported (or they were not set),
+ * and false otherwise. */
+static int validate_min_max_db_values() {
+    OptionMinMaxDB pstPairs[] = {
+        {"--line12-min-db", gpstConfiguration.dLine12MinDB},
+        {"--line12-max-db", gpstConfiguration.dLine12MaxDB},
+        {"--phones34-min-db", gpstConfiguration.dPhones34MinDB},
+        {"--phones34-max-db", gpstConfiguration.dPhones34MaxDB},
+    };
 
-static int validate_volume_db_min_and_max(double dMinValueDB, double dMaxValueDB) {
-    return (dMinValueDB < dMaxValueDB) ? BOOL_TRUE : BOOL_FALSE;
+    for (size_t i = 0; i < sizeof(pstPairs) / sizeof(pstPairs[0]); i++) {
+        if (BOOL_IS_TRUE(
+            (pstPairs[i].dValueDB < RME_VALUE_VOLUME_MIN_DB) ||
+            (pstPairs[i].dValueDB > RME_VALUE_VOLUME_MAX_DB)
+        )) {
+            log_error(
+                "Invalid value '%0.1f' for option '%s': "
+                "it must be between '%0.1f' dB and '%0.1f' dB",
+                pstPairs[i].dValueDB,
+                pstPairs[i].szOptionName,
+                RME_VALUE_VOLUME_MIN_DB,
+                RME_VALUE_VOLUME_MAX_DB
+            );
+            return BOOL_FALSE;
+        }
+    }
+
+    for (size_t i = 0; i < sizeof(pstPairs) / sizeof(pstPairs[0]); i += 2) {
+        if (BOOL_IS_TRUE(
+            (pstPairs[i].dValueDB >= pstPairs[i + 1].dValueDB)
+        )) {
+            log_error(
+                "The value of option '%s' must be smaller than "
+                "the value of option '%s'. "
+                "Got instead: '%0.1f' >= '%0.1f'.",
+                pstPairs[i].szOptionName,
+                pstPairs[i + 1].szOptionName,
+                pstPairs[i].dValueDB,
+                pstPairs[i + 1].dValueDB
+            );
+            return BOOL_FALSE;
+        }
+    }
+
+    return BOOL_TRUE;
 }
 
 static void print_usage(const char *prog) {
@@ -1206,13 +1262,13 @@ static void print_usage(const char *prog) {
             DEVICE_NAME_RME_ADI24_PRO
     );
     printf("  -h, --help                  Show this help\n");
-    printf("  -l, --line12-min-db DB      Minimum dB value for line 1/2 output, corresponding to   0%% volume (default: %.1f)\n", gpstConfiguration.dLine12MinDB);
-    printf("  -L, --line12-max-db DB      Maximum dB value for line 1/2 output, corresponding to 100%% volume (default: %.1f)\n", gpstConfiguration.dLine12MaxDB);
+    printf("  -l, --line12-min-db DB      Minimum dB value for line output 1/2, corresponding to   0%% volume (default: %.1f dB)\n", gpstConfiguration.dLine12MinDB);
+    printf("  -L, --line12-max-db DB      Maximum dB value for line output 1/2, corresponding to 100%% volume (default: %.1f dB)\n", gpstConfiguration.dLine12MaxDB);
     printf("      --list-cards            List all ALSA cards and exit\n");
     printf("  -M, --midi-device STRING    Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'\n");
     printf("      --no-uninstall-on-exit  If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
-    printf("  -p, --phones34-min-db DB    Minimum dB value for phones 3/4 output, corresponding to   0%% volume (default: %.1f)\n", gpstConfiguration.dPhones34MinDB);
-    printf("  -P, --phones34-max-db DB    Maximum dB value for phones 3/4 output, corresponding to 100%% volume (default: %.1f)\n", gpstConfiguration.dPhones34MaxDB);
+    printf("  -p, --phones34-min-db DB    Minimum dB value for phones output 3/4, corresponding to   0%% volume (default: %.1f dB)\n", gpstConfiguration.dPhones34MinDB);
+    printf("  -P, --phones34-max-db DB    Maximum dB value for phones output 3/4, corresponding to 100%% volume (default: %.1f dB)\n", gpstConfiguration.dPhones34MaxDB);
     printf("      --uninstall             Uninstall ALSA user-defined control elements and exit\n");
     printf("  -v, --verbose               Enable verbose output\n");
     printf("\n");
@@ -1241,6 +1297,7 @@ static int parse_args(int argc, char *argv[]) {
     };
 
     int opt = 0;
+    int bDeviceIDWasSet = BOOL_FALSE;
     while ((opt = getopt_long(argc, argv, "C:d:D:hl:L:ZM:Up:P:uv", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'C':
@@ -1248,79 +1305,28 @@ static int parse_args(int argc, char *argv[]) {
             break;
         case 'd':
             strncpy(gpstConfiguration.szDeviceName, optarg, DEVICE_NAME_MAX_LENGTH - 1);
-            if (BOOL_IS_FALSE(validate_device_name(gpstConfiguration.szDeviceName, DEVICE_NAME_MAX_LENGTH))) {
-                log_error("Invalid device name: '%s'", gpstConfiguration.szDeviceName);
-                return EXIT_ERROR_USAGE_BAD_VALUE;
-            }
             break;
         case 'D':
             gpstConfiguration.iDeviceID = (int)strtol(optarg, NULL, 0);
-            if (BOOL_IS_FALSE(validate_device_id(gpstConfiguration.iDeviceID))) {
-                log_error("Invalid device ID: 0x%02X", gpstConfiguration.iDeviceID);
-                return EXIT_ERROR_USAGE_BAD_VALUE;
-            }
+            bDeviceIDWasSet = BOOL_TRUE;
             break;
         case 'h':
             gpstConfiguration.bPrintUsageOnly = BOOL_TRUE;
             break;
         case 'l':
             gpstConfiguration.dLine12MinDB = atof(optarg);
-            if (BOOL_IS_FALSE(validate_volume_db(gpstConfiguration.dLine12MinDB))) {
-                log_error(
-                    "Invalid value '%0.1f' for --line12-min-db: "
-                    "it must be between '%0.1f' dB and '%0.1f' dB",
-                    gpstConfiguration.dLine12MinDB,
-                    RME_VALUE_VOLUME_MIN_DB,
-                    RME_VALUE_VOLUME_MAX_DB
-                );
-                return EXIT_ERROR_USAGE_BAD_VALUE;
-            }
             break;
         case 'L':
             gpstConfiguration.dLine12MaxDB = atof(optarg);
-            if (BOOL_IS_FALSE(validate_volume_db(gpstConfiguration.dLine12MaxDB))) {
-                log_error(
-                    "Invalid value '%0.1f' for --line12-max-db: "
-                    "it must be between '%0.1f' dB and '%0.1f' dB",
-                    gpstConfiguration.dLine12MaxDB,
-                    RME_VALUE_VOLUME_MIN_DB,
-                    RME_VALUE_VOLUME_MAX_DB
-                );
-                return EXIT_ERROR_USAGE_BAD_VALUE;
-            }
             break;
         case 'M':
             strncpy(gpstConfiguration.szMIDIDevice, optarg, MIDI_DEVICE_MAX_LENGTH - 1);
-            if (BOOL_IS_FALSE(validate_midi_device(gpstConfiguration.szMIDIDevice, MIDI_DEVICE_MAX_LENGTH))) {
-                log_error("Invalid midi device: '%s'", gpstConfiguration.szMIDIDevice);
-                return EXIT_ERROR_USAGE_BAD_VALUE;
-            }
             break;
         case 'p':
             gpstConfiguration.dPhones34MinDB = atof(optarg);
-            if (BOOL_IS_FALSE(validate_volume_db(gpstConfiguration.dPhones34MinDB))) {
-                log_error(
-                    "Invalid value '%0.1f' for --phones34-min-db: "
-                    "it must be between '%0.1f' dB and '%0.1f' dB",
-                    gpstConfiguration.dPhones34MinDB,
-                    RME_VALUE_VOLUME_MIN_DB,
-                    RME_VALUE_VOLUME_MAX_DB
-                );
-                return EXIT_ERROR_USAGE_BAD_VALUE;
-            }
             break;
         case 'P':
             gpstConfiguration.dPhones34MaxDB = atof(optarg);
-            if (BOOL_IS_FALSE(validate_volume_db(gpstConfiguration.dPhones34MaxDB))) {
-                log_error(
-                    "Invalid value '%0.1f' for --phones34-max-db: "
-                    "it must be between '%0.1f' dB and '%0.1f' dB",
-                    gpstConfiguration.dPhones34MaxDB,
-                    RME_VALUE_VOLUME_MIN_DB,
-                    RME_VALUE_VOLUME_MAX_DB
-                );
-                return EXIT_ERROR_USAGE_BAD_VALUE;
-            }
             break;
         case 'u':
             gpstConfiguration.bUninstall = BOOL_TRUE;
@@ -1339,25 +1345,19 @@ static int parse_args(int argc, char *argv[]) {
         }
     }
 
-    if (BOOL_IS_FALSE(validate_volume_db_min_and_max(gpstConfiguration.dLine12MinDB, gpstConfiguration.dLine12MaxDB))) {
-        log_error(
-            "The value of --line12-min-db must be smaller than "
-            "the value of --line12-max-db. "
-            "Got instead: '%0.1f' >= '%0.1f' .",
-            gpstConfiguration.dLine12MinDB,
-            gpstConfiguration.dLine12MaxDB
-        );
+    if (BOOL_IS_FALSE(validate_device_name())) {
         return EXIT_ERROR_USAGE_BAD_VALUE;
     }
 
-    if (BOOL_IS_FALSE(validate_volume_db_min_and_max(gpstConfiguration.dPhones34MinDB, gpstConfiguration.dPhones34MaxDB))) {
-        log_error(
-            "The value of --phones34-min-db must be smaller than "
-            "the value of --phones34-max-db. "
-            "Got instead: '%0.1f' >= '%0.1f' .",
-            gpstConfiguration.dPhones34MinDB,
-            gpstConfiguration.dPhones34MaxDB
-        );
+    if (BOOL_IS_FALSE(validate_device_id(bDeviceIDWasSet))) {
+        return EXIT_ERROR_USAGE_BAD_VALUE;
+    }
+
+    if (BOOL_IS_FALSE(validate_midi_device())) {
+        return EXIT_ERROR_USAGE_BAD_VALUE;
+    }
+
+    if (BOOL_IS_FALSE(validate_min_max_db_values())) {
         return EXIT_ERROR_USAGE_BAD_VALUE;
     }
 
