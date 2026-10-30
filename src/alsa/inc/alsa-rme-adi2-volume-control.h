@@ -57,10 +57,21 @@
 #define EXIT_ERROR_EVENT_POLL                       11
 #define EXIT_ERROR_SOUND_CARD_DISCONNECTED          12
 
-/* The simple mixer name seen by amixer/MPD/Volumio is
-   the common prefix "ADI2" of the two elements */
-#define CONTROL_NAME                                "ADI2 Playback Volume"
-#define SWITCH_NAME                                 "ADI2 Playback Switch"
+/* ALSA User-defined control elements.
+ *
+ * The names must be "prefix Volume" and "prefix Switch"
+ * for ALSA to recognize them as
+ * a single volume+mute switch combination named "prefix",
+ * e.g. in how they appear in the alsamixer TUI. */
+#define UDCE_LINE12_VOLUME_NAME                     "Line Output 1/2 Volume"
+#define UDCE_LINE12_SWITCH_NAME                     "Line Output 1/2 Switch"
+#define UDCE_PHONES12_VOLUME_NAME                   "Phones Output 1/2 Volume"  /* not used, line 1/2 controls their volume as well */
+#define UDCE_PHONES12_SWITCH_NAME                   "Phones Output 1/2 Switch"  /* not used, line 1/2 controls their volume as well */
+#define UDCE_PHONES34_VOLUME_NAME                   "Phones Output 3/4 Volume"
+#define UDCE_PHONES34_SWITCH_NAME                   "Phones Output 3/4 Switch"
+#define UDCE_LINE12                                 0
+#define UDCE_PHONES12                               1                           /* not used, line 1/2 controls their volume as well */
+#define UDCE_PHONES34                               2
 
 /* Constants used in strn* functions and struct declarations */
 #define CARD_HW_MAX_LENGTH                          32                      /* Max length, in bytes, of an ALSA hw string */
@@ -71,8 +82,8 @@
 #define MIDI_DEVICE_PROBE_MAX_INDEX                 9                       /* Max index for MIDI device/subdevice to probe, included */
 
 /* Volume ranges for the ALSA user-defined control elements */
-#define VOL_MIN                                     0                       /* Min volume for the logical ALSA mixer, mapped to VOL_MIN_DB on the actual ADI-2 device */
-#define VOL_MAX                                     100                     /* Max volume for the logical ALSA mixer, mapped to VOL_MAX_DB on the actual ADI-2 device */
+#define VOL_MIN                                     0                       /* Min volume for the ALSA user-defined control elements */
+#define VOL_MAX                                     100                     /* Max volume for the ALSA user-defined control elements */
 
 /* CLI default values */
 #define DEVICE_NAME_AUTODETECT                      "autodetect"
@@ -90,10 +101,16 @@
 #define DEFAULT_PRINT_USAGE_ONLY                    BOOL_FALSE
 #define DEFAULT_UNINSTALL_ONLY                      BOOL_FALSE
 #define DEFAULT_UNINSTALL_ON_EXIT                   BOOL_TRUE
-#define DEFAULT_VOLUME_ENABLED                      BOOL_TRUE               /* Default value for the mute switch: enabled (mute off) */
-#define DEFAULT_VOLUME_MAX_DB                       (-10.0)                 /* Max level in dB on the actual ADI-2 device mapped from VOL_MAX of the logical ALSA mixer */
-#define DEFAULT_VOLUME_MIN_DB                       (-60.0)                 /* Min level in dB on the actual ADI-2 device mapped from VOL_MIN of the logical ALSA mixer */
-#define DEFAULT_VOLUME_VALUE                        50                      /* Default volume for the logical ALSA mixer: 50% */
+
+#define DEFAULT_LINE12_VOLUME_MAX_DB                (-10.0)                 /* Default max volume, in dB, for line 1/2 output */
+#define DEFAULT_LINE12_VOLUME_MIN_DB                (-60.0)                 /* Default min volume, in dB, for line 1/2 output */
+#define DEFAULT_LINE12_VOLUME_SWITCH_ENABLED        BOOL_TRUE               /* Default value of the line 1/2 output switch: true (mute off) or false (mute on) */
+#define DEFAULT_LINE12_VOLUME_VALUE                 50                      /* Default statup volume for line 1/2 output (50 == 50% of [0, 100]) */
+
+#define DEFAULT_PHONES34_VOLUME_MAX_DB              (-10.0)                 /* Default max volume, in dB, for phones 3/4 output */
+#define DEFAULT_PHONES34_VOLUME_MIN_DB              (-60.0)                 /* Default min volume, in dB, for phones 3/4 output */
+#define DEFAULT_PHONES34_VOLUME_SWITCH_ENABLED      BOOL_TRUE               /* Default value of the phones 3/4 output switch: true (mute off) or false (mute on) */
+#define DEFAULT_PHONES34_VOLUME_VALUE               50                      /* Default statup volume for phones 3/4 output (50 == 50% of [0, 100]) */
 
 #endif /* ALSA_RME_ADI2_VOLUME_CONTROL_H guard */
 

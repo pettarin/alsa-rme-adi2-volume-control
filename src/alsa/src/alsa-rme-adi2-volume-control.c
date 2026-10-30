@@ -42,27 +42,29 @@ static volatile sig_atomic_t gbServiceIsRunning = (sig_atomic_t)BOOL_TRUE;
 
 /* Service configuration */
 static struct {
-    int card_number;
-    char card_hw[CARD_HW_MAX_LENGTH];
-    char device_name[DEVICE_NAME_MAX_LENGTH];
-    int device_id;
-    char midi_device[MIDI_DEVICE_MAX_LENGTH];
-    int output_param;
-    double min_db;
-    double max_db;
+    int iCardNumber;
+    char szCardHw[CARD_HW_MAX_LENGTH];
+    char szMIDIDevice[MIDI_DEVICE_MAX_LENGTH];
+    char szDeviceName[DEVICE_NAME_MAX_LENGTH];
+    int iDeviceID;
+    double dLine12MinDB;
+    double dLine12MaxDB;
+    double dPhones34MinDB;
+    double dPhones34MaxDB;
     int bListCards;
     int bPrintUsageOnly;
     int bUninstall;
     int bUninstallOnExit;
-} goConfiguration = {
-    .card_number = DEFAULT_CARD_NUMBER,
-    .card_hw = DEFAULT_CARD_HW,
-    .device_name = DEFAULT_DEVICE_NAME,
-    .device_id = DEFAULT_DEVICE_ID,
-    .midi_device = DEFAULT_MIDI_DEVICE,
-    .output_param = RME_PARAM_LINE,
-    .min_db = DEFAULT_VOLUME_MIN_DB,
-    .max_db = DEFAULT_VOLUME_MAX_DB,
+} gpstConfiguration = {
+    .iCardNumber = DEFAULT_CARD_NUMBER,
+    .szCardHw = DEFAULT_CARD_HW,
+    .szMIDIDevice = DEFAULT_MIDI_DEVICE,
+    .szDeviceName = DEFAULT_DEVICE_NAME,
+    .iDeviceID = DEFAULT_DEVICE_ID,
+    .dLine12MinDB = DEFAULT_LINE12_VOLUME_MIN_DB,
+    .dLine12MaxDB = DEFAULT_LINE12_VOLUME_MAX_DB,
+    .dPhones34MinDB = DEFAULT_PHONES34_VOLUME_MIN_DB,
+    .dPhones34MaxDB = DEFAULT_PHONES34_VOLUME_MAX_DB,
     .bListCards = DEFAULT_LIST_CARDS_ONLY,
     .bPrintUsageOnly = DEFAULT_PRINT_USAGE_ONLY,
     .bUninstall = DEFAULT_UNINSTALL_ONLY,
@@ -115,19 +117,19 @@ static void log_verbose(const char *fmt, ...) {
 /* Print the list of cards as a table with colums (Index, ID, Name). */
 static void print_cards() {
     int iCard = -1;
-    char *pCardName;
+    char *szCardName;
 
     printf("Index\tID\tName\n");
     while ((snd_card_next(&iCard) >= 0) && (iCard >= 0)) {
-        if (ERR_ALSA_CODE_IS_ERROR(snd_card_get_name(iCard, &pCardName))) {
+        if (ERR_ALSA_CODE_IS_ERROR(snd_card_get_name(iCard, &szCardName))) {
             /* ignore error and continue looping over the available cards */
             continue;
         }
-        if (pCardName == NULL) {
+        if (szCardName == NULL) {
             continue;
         }
-        printf("%d\thw:%d\t%s\n", iCard, iCard, pCardName);
-        free(pCardName);
+        printf("%d\thw:%d\t%s\n", iCard, iCard, szCardName);
+        free(szCardName);
     }
 }
 
@@ -137,47 +139,47 @@ static void print_cards() {
  * The first (lowest card number) non-negative match is returned.
  *
  * If no match is found, return -1. */
-static int find_card_by_name(const char *pQuery) {
+static int find_card_by_name(const char *szQuery) {
     int iCard = -1;
-    char *pCardName;
+    char *szCardName;
 
-    log_verbose("Find ALSA card by name matching query '%s'", pQuery);
+    log_verbose("Find ALSA card by name matching query '%s'", szQuery);
 
     while ((snd_card_next(&iCard) >= 0) && (iCard >= 0)) {
-        if (snd_card_get_name(iCard, &pCardName) < 0) {
+        if (snd_card_get_name(iCard, &szCardName) < 0) {
             continue;
         }
-        if (pCardName == NULL) {
+        if (szCardName == NULL) {
             continue;
         }
 
         log_verbose(
             "Discovered ALSA card number '%d' with name '%s'",
             iCard,
-            pCardName
+            szCardName
         );
 
-        /* NOTE: matching pQuery as substring of pCardName */
-        if (strstr(pCardName, pQuery) != NULL) {
+        /* NOTE: matching szQuery as substring of szCardName */
+        if (strstr(szCardName, szQuery) != NULL) {
             log_verbose(
                 "ALSA card number '%d' with name '%s' "
                 "matches the query '%s': returning it",
                 iCard,
-                pCardName,
-                pQuery
+                szCardName,
+                szQuery
             );
-            free(pCardName);
+            free(szCardName);
             return iCard;
         }
 
-        /* no match: free pCardName and continue looping */
-        free(pCardName);
+        /* no match: free szCardName and continue looping */
+        free(szCardName);
     }
 
     /* no match found: log and return -1 to signal failure */
     log_verbose(
         "No ALSA card found whose name matches the query '%s'",
-        pQuery
+        szQuery
     );
     return -1;
 }
@@ -185,28 +187,28 @@ static int find_card_by_name(const char *pQuery) {
 /* Find the first card corresponding to the given device name and ID:
  * return true if found, otherwise return false. */
 static int find_card_and_set_configuration(
-    const char* pDeviceName,
+    const char* szDeviceName,
     int iDeviceID
 ) {
-    int iCardNumber = find_card_by_name(pDeviceName);
+    int iCardNumber = find_card_by_name(szDeviceName);
     if (iCardNumber < 0) {
         /* card not found */
         return BOOL_FALSE;
     }
 
     /* card found */
-    goConfiguration.device_id = iDeviceID;
-    goConfiguration.card_number = iCardNumber;
+    gpstConfiguration.iDeviceID = iDeviceID;
+    gpstConfiguration.iCardNumber = iCardNumber;
     strncpy(
-        goConfiguration.device_name,
-        pDeviceName,
+        gpstConfiguration.szDeviceName,
+        szDeviceName,
         DEVICE_NAME_MAX_LENGTH
     );
     log_verbose(
         "Found ALSA card number '%d' for device ID '0x%02X' (%s)",
         iCardNumber,
         iDeviceID,
-        pDeviceName
+        szDeviceName
     );
     return BOOL_TRUE;
 }
@@ -235,22 +237,22 @@ static int find_card_and_set_configuration_rme_adi2_dac() {
 
 static int device_name_is_autodetect_or_rme_adi24_pro() {
     return (
-        (strncmp(goConfiguration.device_name, DEVICE_NAME_AUTODETECT, DEVICE_NAME_MAX_LENGTH) == 0) ||
-        (strncmp(goConfiguration.device_name, DEVICE_NAME_RME_ADI24_PRO, DEVICE_NAME_MAX_LENGTH) == 0)
+        (strncmp(gpstConfiguration.szDeviceName, DEVICE_NAME_AUTODETECT, DEVICE_NAME_MAX_LENGTH) == 0) ||
+        (strncmp(gpstConfiguration.szDeviceName, DEVICE_NAME_RME_ADI24_PRO, DEVICE_NAME_MAX_LENGTH) == 0)
     );
 }
 
 static int device_name_is_autodetect_or_rme_adi2_pro() {
     return (
-        (strncmp(goConfiguration.device_name, DEVICE_NAME_AUTODETECT, DEVICE_NAME_MAX_LENGTH) == 0) ||
-        (strncmp(goConfiguration.device_name, DEVICE_NAME_RME_ADI2_PRO, DEVICE_NAME_MAX_LENGTH) == 0)
+        (strncmp(gpstConfiguration.szDeviceName, DEVICE_NAME_AUTODETECT, DEVICE_NAME_MAX_LENGTH) == 0) ||
+        (strncmp(gpstConfiguration.szDeviceName, DEVICE_NAME_RME_ADI2_PRO, DEVICE_NAME_MAX_LENGTH) == 0)
     );
 }
 
 static int device_name_is_autodetect_or_rme_adi2_dac() {
     return (
-        (strncmp(goConfiguration.device_name, DEVICE_NAME_AUTODETECT, DEVICE_NAME_MAX_LENGTH) == 0) ||
-        (strncmp(goConfiguration.device_name, DEVICE_NAME_RME_ADI2_DAC, DEVICE_NAME_MAX_LENGTH) == 0)
+        (strncmp(gpstConfiguration.szDeviceName, DEVICE_NAME_AUTODETECT, DEVICE_NAME_MAX_LENGTH) == 0) ||
+        (strncmp(gpstConfiguration.szDeviceName, DEVICE_NAME_RME_ADI2_DAC, DEVICE_NAME_MAX_LENGTH) == 0)
     );
 }
 
@@ -264,17 +266,17 @@ static int device_name_is_autodetect_or_rme_adi2_dac() {
  *
  * Return true if a matching card is found; otherwise return false. */
 static int ensure_device_id_is_set() {
-    if (goConfiguration.device_id >= 0) {
+    if (gpstConfiguration.iDeviceID >= 0) {
         log_verbose(
             "Device ID '0x%02X' explicitly specified by the user",
-            goConfiguration.device_id
+            gpstConfiguration.iDeviceID
         );
         return BOOL_TRUE;
     }
 
     log_verbose(
         "Find ALSA card number and device ID from device name '%s'",
-        goConfiguration.device_name
+        gpstConfiguration.szDeviceName
     );
 
     if (
@@ -308,16 +310,16 @@ static int ensure_device_id_is_set() {
 static int ensure_card_number_is_set() {
     int bCardFound = BOOL_FALSE;
 
-    if (goConfiguration.card_number >= 0) {
+    if (gpstConfiguration.iCardNumber >= 0) {
         log_verbose(
             "ALSA card number '%d' explicitly specified by the user "
             "or already determined",
-            goConfiguration.card_number
+            gpstConfiguration.iCardNumber
         );
         return BOOL_TRUE;
     }
 
-    switch (goConfiguration.device_id) {
+    switch (gpstConfiguration.iDeviceID) {
         case RME_DEVICE_FAMILY_ADI24_PRO:
             bCardFound = find_card_and_set_configuration_rme_adi24_pro();
             break;
@@ -329,8 +331,8 @@ static int ensure_card_number_is_set() {
             break;
         default:
             log_verbose(
-                "goConfiguration.device_id has unsupported value '%d'",
-                goConfiguration.device_id
+                "gpstConfiguration.iDeviceID has unsupported value '%d'",
+                gpstConfiguration.iDeviceID
             );
             break;
     }
@@ -357,7 +359,7 @@ static int ensure_device_id_and_card_number() {
     if (BOOL_IS_FALSE(bCardFound)) {
         log_error(
             "Cannot find an ALSA card matching device name '%s'",
-            goConfiguration.device_name
+            gpstConfiguration.szDeviceName
         );
         return ERR_ERROR_GENERIC;
     }
@@ -366,7 +368,7 @@ static int ensure_device_id_and_card_number() {
     if (BOOL_IS_FALSE(bCardFound)) {
         log_error(
             "Cannot find an ALSA card matching device id '0x%02X'",
-            goConfiguration.device_id
+            gpstConfiguration.iDeviceID
         );
         return ERR_ERROR_GENERIC;
     }
@@ -374,13 +376,13 @@ static int ensure_device_id_and_card_number() {
     return ERR_OK;
 }
 
-/* Set the card hw from the card number */
-static void set_card_hw() {
+/* Set the card hw string from the card number */
+static void set_card_hw_string() {
     snprintf(
-        goConfiguration.card_hw,
+        gpstConfiguration.szCardHw,
         CARD_HW_MAX_LENGTH,
         "hw:%d",
-        goConfiguration.card_number
+        gpstConfiguration.iCardNumber
     );
 }
 
@@ -392,21 +394,21 @@ static void set_card_hw() {
  * specified by name from the given card ctl. */
 static int uninstall_alsa_udce_by_name(
     snd_ctl_t *ctl,
-    const char *name
+    const char *szName
 ) {
     snd_ctl_elem_id_t *id;
     snd_ctl_elem_id_alloca(&id);
     snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
-    snd_ctl_elem_id_set_name(id, name);
+    snd_ctl_elem_id_set_name(id, szName);
     int iRet = ERR_OK;
 
     iRet = snd_ctl_elem_remove(ctl, id);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
-        log_verbose("Unable to remove control with name '%s'", name);
+        log_verbose("Unable to remove control with name '%s'", szName);
         return ERR_ERROR_GENERIC;
     }
 
-    log_verbose("Removed control with name '%s'", name);
+    log_verbose("Removed control with name '%s'", szName);
     return ERR_OK;
 }
 
@@ -419,17 +421,19 @@ static int uninstall_all_alsa_udce_s(
     snd_ctl_t *ctl,
     int bIgnoreErrors
 ) {
-    static const char *sControlNames[] = {
-        SWITCH_NAME,
-        CONTROL_NAME
+    static const char *szUDCENames[] = {
+        UDCE_LINE12_SWITCH_NAME,
+        UDCE_LINE12_VOLUME_NAME,
+        UDCE_PHONES34_SWITCH_NAME,
+        UDCE_PHONES34_VOLUME_NAME
     };
     int iRemovedCount = 0;
     int iRet = ERR_OK;
     int iRetInner = ERR_OK;
 
-    size_t iNumberOfControls = sizeof(sControlNames) / sizeof(sControlNames[0]);
+    size_t iNumberOfControls = sizeof(szUDCENames) / sizeof(szUDCENames[0]);
     for (size_t i = 0; i < iNumberOfControls; i++) {
-        iRetInner = uninstall_alsa_udce_by_name(ctl, sControlNames[i]);
+        iRetInner = uninstall_alsa_udce_by_name(ctl, szUDCENames[i]);
         if (ERR_CODE_IS_OK(iRetInner)) {
             iRemovedCount += 1;
         } else {
@@ -453,13 +457,13 @@ static int uninstall_all_alsa_udce_s(
     return iRet;
 }
 
-/* Install a new control (identified by id and name) on the card ctl.
+/* Install a new control (identified by id and szName) on the card ctl.
  * The control is a boolean switch (mute) if bElementIsSwitch is true,
  * otherwise it is an integer value (volume). */
 static int install_control_element(
     snd_ctl_t *ctl,
     snd_ctl_elem_id_t *id,
-    const char *name,
+    const char *szName,
     int bElementIsSwitch
 ) {
     snd_ctl_elem_info_t *info = NULL;
@@ -469,7 +473,7 @@ static int install_control_element(
     /* Set up element ID */
     snd_ctl_elem_info_alloca(&info);
     snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
-    snd_ctl_elem_id_set_name(id, name);
+    snd_ctl_elem_id_set_name(id, szName);
     snd_ctl_elem_info_set_id(info, id);
 
     /* Create new control */
@@ -480,7 +484,11 @@ static int install_control_element(
         iRet = snd_ctl_add_integer_elem_set(ctl, info, 1, 1, VOL_MIN, VOL_MAX, 1);
     }
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
-        log_error("Failed to create control '%s': %s", name, snd_strerror(iRet));
+        log_error(
+            "Failed to create control '%s': %s",
+            szName,
+            snd_strerror(iRet)
+        );
         goto cleanup;
     }
     snd_ctl_elem_id_set_numid(id, 0);
@@ -488,16 +496,16 @@ static int install_control_element(
     iRet = snd_ctl_elem_info(ctl, info);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         log_error(
-            "Cannot look up created control '%s': %s",
-            name,
+            "Cannot find the created control '%s': %s",
+            szName,
             snd_strerror(iRet)
         );
         goto cleanup;
     }
     snd_ctl_elem_info_get_id(info, id);
     log_verbose(
-        "Created control element '%s' with numid '%u'",
-        name,
+        "Created the control element '%s' with numid '%u'",
+        szName,
         snd_ctl_elem_id_get_numid(id)
     );
 
@@ -505,15 +513,15 @@ static int install_control_element(
     snd_ctl_elem_value_alloca(&value);
     snd_ctl_elem_value_set_id(value, id);
     if (BOOL_IS_TRUE(bElementIsSwitch)) {
-        snd_ctl_elem_value_set_boolean(value, 0, DEFAULT_VOLUME_ENABLED);
+        snd_ctl_elem_value_set_boolean(value, 0, DEFAULT_LINE12_VOLUME_SWITCH_ENABLED);
     } else {
-        snd_ctl_elem_value_set_integer(value, 0, DEFAULT_VOLUME_VALUE);
+        snd_ctl_elem_value_set_integer(value, 0, DEFAULT_LINE12_VOLUME_VALUE);
     }
     iRet = snd_ctl_elem_write(ctl, value);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         log_error(
             "Failed to set initial value of '%s': %s",
-            name,
+            szName,
             snd_strerror(iRet)
         );
         goto cleanup;
@@ -522,7 +530,11 @@ static int install_control_element(
     /* Unlock the control so other processes can write to it */
     iRet = snd_ctl_elem_unlock(ctl, id);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
-        log_error("Unlock of '%s' failed: %s", name, snd_strerror(iRet));
+        log_error(
+            "Unlock of '%s' failed: %s",
+            szName,
+            snd_strerror(iRet)
+        );
         goto cleanup;
     }
 
@@ -577,7 +589,9 @@ static int read_alsa_udce_integer_value(
     snd_ctl_elem_value_t *value = NULL;
     iRet = read_alsa_udce_value(ctl, id, &value);
     if (ERR_CODE_IS_ERROR(iRet)) {
-        log_error("Unable to read ALSA user-defined control element value (integer)");
+        log_error(
+            "Unable to read ALSA user-defined control element value (integer)"
+        );
         return iRet;
     }
 
@@ -599,7 +613,9 @@ static int read_alsa_udce_boolean_value(
     snd_ctl_elem_value_t *value = NULL;
     iRet = read_alsa_udce_value(ctl, id, &value);
     if (ERR_CODE_IS_ERROR(iRet)) {
-        log_error("Unable to read ALSA user-defined control element value (boolean)");
+        log_error(
+            "Unable to read ALSA user-defined control element value (boolean)"
+        );
         return iRet;
     }
 
@@ -612,15 +628,16 @@ static int read_alsa_udce_boolean_value(
 
 /* Check if an event is generated by the given control element */
 static int is_event_from_udce(snd_ctl_event_t *event, snd_ctl_elem_id_t *id) {
-    unsigned int numid = snd_ctl_elem_id_get_numid(id);
+    unsigned int uNumID = snd_ctl_elem_id_get_numid(id);
 
-    if (numid != 0) {
-        return snd_ctl_event_elem_get_numid(event) == numid;
+    if (uNumID != 0) {
+        return (snd_ctl_event_elem_get_numid(event) == uNumID) ? BOOL_TRUE : BOOL_FALSE;
     }
+
     return (
         (snd_ctl_event_elem_get_interface(event) == snd_ctl_elem_id_get_interface(id)) &&
         (strcmp(snd_ctl_event_elem_get_name(event), snd_ctl_elem_id_get_name(id)) == 0)
-    );
+    ) ? BOOL_TRUE : BOOL_FALSE;
 }
 
 
@@ -628,36 +645,42 @@ static int is_event_from_udce(snd_ctl_event_t *event, snd_ctl_elem_id_t *id) {
  * MIDI helpers
  * ************************************************************************* */
 
-/* Check if the given pMIDIDevice can be opened:
+/* Check if the given szMIDIDevice can be opened:
  * if so, return true; otherwise return false. */
-static int is_valid_midi_device(const char *pMIDIDevice) {
+static int is_valid_midi_device(const char *szMIDIDevice) {
     int iRet = ERR_OK;
     snd_rawmidi_t *midi = NULL;
 
-    log_verbose("Check if MIDI device '%s' is valid", pMIDIDevice);
+    log_verbose("Check if MIDI device '%s' is valid", szMIDIDevice);
     /* NOTE: the flag SND_RAWMIDI_NONBLOCK prevents interfering
      *       with other processes that might be using the MIDI device
      *       being probed. */
-    iRet = snd_rawmidi_open(NULL, &midi, pMIDIDevice, SND_RAWMIDI_NONBLOCK);
+    iRet = snd_rawmidi_open(NULL, &midi, szMIDIDevice, SND_RAWMIDI_NONBLOCK);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
-        log_verbose("MIDI device '%s' is NOT valid", pMIDIDevice);
+        log_verbose("MIDI device '%s' is NOT valid", szMIDIDevice);
         return BOOL_FALSE;
     }
 
     snd_rawmidi_close(midi);
-    log_verbose("MIDI device '%s' is valid", pMIDIDevice);
+    log_verbose("MIDI device '%s' is valid", szMIDIDevice);
     return BOOL_TRUE;
 }
 
 static int ensure_midi_device() {
-    if (strncmp(goConfiguration.midi_device, MIDI_DEVICE_AUTODETECT, MIDI_DEVICE_MAX_LENGTH) != 0) {
+    if (
+        strncmp(
+            gpstConfiguration.szMIDIDevice,
+            MIDI_DEVICE_AUTODETECT,
+            MIDI_DEVICE_MAX_LENGTH
+        ) != 0
+    ) {
         log_verbose(
             "Check if MIDI device '%s' for card number '%d' is valid",
-            goConfiguration.midi_device,
-            goConfiguration.card_number
+            gpstConfiguration.szMIDIDevice,
+            gpstConfiguration.iCardNumber
         );
 
-        if (BOOL_IS_TRUE(is_valid_midi_device(goConfiguration.midi_device))) {
+        if (BOOL_IS_TRUE(is_valid_midi_device(gpstConfiguration.szMIDIDevice))) {
             return ERR_OK;
         }
 
@@ -666,14 +689,21 @@ static int ensure_midi_device() {
 
     log_verbose(
         "Autodetect MIDI device for card number '%d'",
-        goConfiguration.card_number
+        gpstConfiguration.iCardNumber
     );
 
     /* first, try with hw:X,i,j */
     for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
         for (int j = MIDI_DEVICE_PROBE_MIN_INDEX; j <= MIDI_DEVICE_PROBE_MAX_INDEX; j++) {
-            snprintf(goConfiguration.midi_device, MIDI_DEVICE_MAX_LENGTH, "hw:%d,%d,%d", goConfiguration.card_number, i, j);
-            if (BOOL_IS_TRUE(is_valid_midi_device(goConfiguration.midi_device))) {
+            snprintf(
+                gpstConfiguration.szMIDIDevice,
+                MIDI_DEVICE_MAX_LENGTH,
+                "hw:%d,%d,%d",
+                gpstConfiguration.iCardNumber,
+                i,
+                j
+            );
+            if (BOOL_IS_TRUE(is_valid_midi_device(gpstConfiguration.szMIDIDevice))) {
                 return ERR_OK;
             }
         }
@@ -681,15 +711,26 @@ static int ensure_midi_device() {
 
     /* second, try with just hw:X,i */
     for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
-        snprintf(goConfiguration.midi_device, MIDI_DEVICE_MAX_LENGTH, "hw:%d,%d", goConfiguration.card_number, i);
-        if (BOOL_IS_TRUE(is_valid_midi_device(goConfiguration.midi_device))) {
+        snprintf(
+            gpstConfiguration.szMIDIDevice,
+            MIDI_DEVICE_MAX_LENGTH,
+            "hw:%d,%d",
+            gpstConfiguration.iCardNumber,
+            i
+        );
+        if (BOOL_IS_TRUE(is_valid_midi_device(gpstConfiguration.szMIDIDevice))) {
             return ERR_OK;
         }
     }
 
     /* third, try with just hw:X */
-    snprintf(goConfiguration.midi_device, MIDI_DEVICE_MAX_LENGTH, "hw:%d", goConfiguration.card_number);
-    if (BOOL_IS_TRUE(is_valid_midi_device(goConfiguration.midi_device))) {
+    snprintf(
+        gpstConfiguration.szMIDIDevice,
+        MIDI_DEVICE_MAX_LENGTH,
+        "hw:%d",
+        gpstConfiguration.iCardNumber
+    );
+    if (BOOL_IS_TRUE(is_valid_midi_device(gpstConfiguration.szMIDIDevice))) {
         return ERR_OK;
     }
 
@@ -697,40 +738,50 @@ static int ensure_midi_device() {
 }
 
 /* Convert the given volume value (in [VOL_MIN, VOL_MAX])
- * to a dB value (in [min_db, max_db]), with a linear mapping. */
-static double convert_volume_control_value_to_db(int iVolume) {
-    return goConfiguration.min_db +
-        ((goConfiguration.max_db - goConfiguration.min_db) * iVolume) / VOL_MAX;
+ * to a dB value (in [dLine12MinDB, dLine12MaxDB]), with a linear mapping. */
+static double convert_volume_control_value_to_db(
+    int iOutputID,
+    int iVolume
+) {
+    if (iOutputID == UDCE_LINE12) {
+        return gpstConfiguration.dLine12MinDB + ((gpstConfiguration.dLine12MaxDB - gpstConfiguration.dLine12MinDB) * iVolume) / VOL_MAX;
+    }
+    return gpstConfiguration.dPhones34MinDB + ((gpstConfiguration.dPhones34MaxDB - gpstConfiguration.dPhones34MinDB) * iVolume) / VOL_MAX;
 }
 
 /* Convert the given volume value in dB to the corresponding two bytes
  * that can be sent to the RME ADI-2 device via MIDI SysEx to set that volume. */
 static void convert_db_value_to_sysex_bytes(
     double dValueDB,
-    unsigned char *x,
-    unsigned char *y
+    unsigned char *pchHigh,
+    unsigned char *pchLow
 ) {
     int raw = (int)(dValueDB * 10) + 4096;
 
     /* Ensure the raw value is in the allowed range */
     if (raw < RME_VALUE_VOLUME_MIN) {
-        /* corresponding to RME_VALUE_VOLUME_MIN_DB */
+        /* corresponding to RME_VALUE_VOLUME_dLine12MinDB */
         raw = RME_VALUE_VOLUME_MIN;
     }
     if (raw > RME_VALUE_VOLUME_MAX) {
-        /* corresponding to RME_VALUE_VOLUME_MAX_DB */
+        /* corresponding to RME_VALUE_VOLUME_dLine12MaxDB */
         raw = RME_VALUE_VOLUME_MAX;
     }
 
     /* assign to the two byte output arguments */
-    *x = (raw >> 7) & 0x1F;
-    *y = raw & 0x7F;
+    *pchHigh = (raw >> 7) & 0x1F;
+    *pchLow = raw & 0x7F;
 }
 
 /* Send an absolute dB level to ADI-2 via MIDI SysEx */
-static int send_db(snd_rawmidi_t *midi, double dValueDB) {
-    unsigned char x, y;
-    convert_db_value_to_sysex_bytes(dValueDB, &x, &y);
+static int send_db(
+    snd_rawmidi_t *midi,
+    unsigned char chOutput,
+    double dValueDB
+) {
+    unsigned char chHigh = 0;
+    unsigned char chLow = 0;
+    convert_db_value_to_sysex_bytes(dValueDB, &chHigh, &chLow);
 
     /* Example: set -10.0 dB on line 1/2 on RME ADI 2/4 PRO SE
 
@@ -747,24 +798,24 @@ static int send_db(snd_rawmidi_t *midi, double dValueDB) {
        +- SysEx start (0xF0)
 
     */
-    unsigned char sysex[] = {
+    unsigned char pchSysEx[] = {
         0xF0,                           /* SysEx start */
         0x00, 0x20, 0x0D,               /* RME manufacturer ID */
-        goConfiguration.device_id,      /* Device ID */
+        gpstConfiguration.iDeviceID,      /* Device ID */
         0x02,                           /* Command: set value */
-        goConfiguration.output_param,   /* Parameter: output volume */
-        x, y,                           /* Volume bytes */
+        chOutput,                       /* Parameter: output volume */
+        chHigh, chLow,                  /* Volume bytes */
         0xF7                            /* SysEx end */
     };
 
     log_verbose(
         "WRITE MIDI SysEx: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X (volume: %.1f dB)",
-        sysex[0], sysex[1], sysex[2], sysex[3], sysex[4],
-        sysex[5], sysex[6], sysex[7], sysex[8], sysex[9],
+        pchSysEx[0], pchSysEx[1], pchSysEx[2], pchSysEx[3], pchSysEx[4],
+        pchSysEx[5], pchSysEx[6], pchSysEx[7], pchSysEx[8], pchSysEx[9],
         dValueDB
     );
 
-    ssize_t written = snd_rawmidi_write(midi, sysex, sizeof(sysex));
+    ssize_t written = snd_rawmidi_write(midi, pchSysEx, sizeof(pchSysEx));
     if (written < 0) {
         log_error("WRITE MIDI SysEx failed: %s", snd_strerror(written));
         return ERR_ERROR_GENERIC;
@@ -773,13 +824,18 @@ static int send_db(snd_rawmidi_t *midi, double dValueDB) {
 }
 
 /* Send control value as volume to ADI-2 */
-static int send_volume(snd_rawmidi_t *midi, int iValue) {
+static int send_volume(
+    snd_rawmidi_t *midi,
+    int iOutputID,
+    unsigned char chOutput,
+    int iValue
+) {
     double dValueDB = 0;
     int iRet = ERR_OK;
 
     log_info("SET Volume: %d", iValue);
-    dValueDB = convert_volume_control_value_to_db(iValue);
-    iRet = send_db(midi, dValueDB);
+    dValueDB = convert_volume_control_value_to_db(iOutputID, iValue);
+    iRet = send_db(midi, chOutput, dValueDB);
     if (ERR_CODE_IS_OK(iRet)) {
         log_info("SET Volume: %.1f dB", dValueDB);
     } else {
@@ -789,7 +845,11 @@ static int send_volume(snd_rawmidi_t *midi, int iValue) {
 }
 
 /* Send mute/unmute command to ADI-2 via MIDI SysEx */
-static int send_mute(snd_rawmidi_t *midi, unsigned char chRMEValueMute) {
+static int send_mute(
+    snd_rawmidi_t *midi,
+    unsigned char chOutput,
+    unsigned char chRMEValueMute
+) {
     /* Example: mute line 1/2 on RME ADI 2/4 PRO SE
 
        F0 00 20 0D 73 02 1B 60 01 F7
@@ -806,12 +866,12 @@ static int send_mute(snd_rawmidi_t *midi, unsigned char chRMEValueMute) {
        +- SysEx start (0xF0)
 
     */
-    unsigned char sysex[] = {
+    unsigned char pchSysEx[] = {
         0xF0,                           /* SysEx start */
         0x00, 0x20, 0x0D,               /* RME manufacturer ID */
-        goConfiguration.device_id,      /* Device ID */
+        gpstConfiguration.iDeviceID,      /* Device ID */
         0x02,                           /* Command: set value */
-        goConfiguration.output_param,   /* Parameter: output volume */
+        chOutput,                       /* Parameter: output volume */
         RME_PARAM_MUTE,                 /* Parameter: mute */
         chRMEValueMute,                 /* 0x00 = off (unmute), 0x01 = on (mute) */
         0xF7                            /* SysEx end */
@@ -819,12 +879,12 @@ static int send_mute(snd_rawmidi_t *midi, unsigned char chRMEValueMute) {
 
     log_verbose(
         "WRITE MIDI SysEx: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X (mute: %s)",
-        sysex[0], sysex[1], sysex[2], sysex[3], sysex[4],
-        sysex[5], sysex[6], sysex[7], sysex[8], sysex[9],
+        pchSysEx[0], pchSysEx[1], pchSysEx[2], pchSysEx[3], pchSysEx[4],
+        pchSysEx[5], pchSysEx[6], pchSysEx[7], pchSysEx[8], pchSysEx[9],
         (chRMEValueMute == RME_VALUE_MUTE_ON ? "on" : "off")
     );
 
-    ssize_t written = snd_rawmidi_write(midi, sysex, sizeof(sysex));
+    ssize_t written = snd_rawmidi_write(midi, pchSysEx, sizeof(pchSysEx));
     if (written < 0) {
         log_error("WRITE MIDI SysEx failed: %s", snd_strerror(written));
         return ERR_ERROR_GENERIC;
@@ -843,14 +903,21 @@ static int send_mute(snd_rawmidi_t *midi, unsigned char chRMEValueMute) {
  * ************************************************************************* */
 
 /* Signal handler for the monitor loop */
-static void monitor_loop_signal_handler(int sig) {
-    (void)sig;
+static void monitor_loop_signal_handler(int iSignal) {
+    (void)iSignal;
     gbServiceIsRunning = (sig_atomic_t)BOOL_FALSE;
 }
 
 
 /* Apply the current state (volume, mute) to the MIDI device */
-static void apply_state(snd_rawmidi_t *midi, int iVolume, int bEnabled) {
+static void apply_state(
+    snd_rawmidi_t *midi,
+    int iOutputID,
+    int iVolume,
+    int bSwitch
+) {
+    unsigned char chOutput = 0;
+
     /* If the validation of the values fails,
      * return immediately without changing the state */
     /* NOTE: for unknown reasons, sometimes the first time
@@ -862,39 +929,68 @@ static void apply_state(snd_rawmidi_t *midi, int iVolume, int bEnabled) {
         );
         return;
     }
+
     /* Check explicitly != BOOL_TRUE, BOOL_FALSE instead of using
      * BOOL_IS_* macros, to ensure only the canonical values are read */
-    if ((bEnabled != BOOL_TRUE) && (bEnabled != BOOL_FALSE)) {
+    if ((bSwitch != BOOL_TRUE) && (bSwitch != BOOL_FALSE)) {
         log_verbose(
-            "Invalid value '%d' for the mute switch, ignoring it",
-            bEnabled
+            "Invalid value '%d' for the switch, ignoring it",
+            bSwitch
         );
         return;
     }
 
+    switch (iOutputID) {
+        case UDCE_LINE12:
+            chOutput = RME_PARAM_LINE;
+            break;
+        case UDCE_PHONES34:
+            chOutput = RME_PARAM_PHONES;
+            break;
+        default:
+            log_verbose(
+                "Invalid value '%d' for the output ID, ignoring it",
+                iOutputID
+            );
+            return;
+    }
+
     /* NOTE: here we ignore errors from the send_() functions */
-    if (BOOL_IS_TRUE(bEnabled)) {
-        send_mute(midi, RME_VALUE_MUTE_OFF);
-        send_volume(midi, iVolume);
+    if (BOOL_IS_TRUE(bSwitch)) {
+        send_mute(midi, chOutput, RME_VALUE_MUTE_OFF);
+        send_volume(midi, iOutputID, chOutput, iVolume);
     } else {
-        send_mute(midi, RME_VALUE_MUTE_ON);
+        send_mute(midi, chOutput, RME_VALUE_MUTE_ON);
     }
 }
 
 /* Monitor loop (main service loop) */
 static int monitor_loop(
     snd_ctl_t *ctl,
-    snd_ctl_elem_id_t *vol_id,
-    snd_ctl_elem_id_t *sw_id,
+    snd_ctl_elem_id_t *pLine12VolumeID,
+    snd_ctl_elem_id_t *pLine12SwitchID,
+    snd_ctl_elem_id_t *pPhones34VolumeID,
+    snd_ctl_elem_id_t *pPhones34SwitchID,
     snd_rawmidi_t *midi
 ) {
     int iCount = 0;
     int iRet = ERR_OK;
-    int bEnabled = DEFAULT_VOLUME_ENABLED;
-    int iVolume = DEFAULT_VOLUME_VALUE;
-    int bEnabledLast = bEnabled;
-    int iVolumeLast = iVolume;
     unsigned short usRevents = 0;
+
+    int bEventFromLine12 = BOOL_FALSE;
+    int bEventFromPhones34 = BOOL_FALSE;
+
+    /* line 1/2 output */
+    int bLine12Switch = DEFAULT_LINE12_VOLUME_SWITCH_ENABLED;
+    int iLine12Volume = DEFAULT_LINE12_VOLUME_VALUE;
+    int bLine12SwitchLast = bLine12Switch;
+    int iLine12VolumeLast = iLine12Volume;
+
+    /* phones 3/4 output */
+    int bPhones34Switch = DEFAULT_PHONES34_VOLUME_SWITCH_ENABLED;
+    int iPhones34Volume = DEFAULT_PHONES34_VOLUME_VALUE;
+    int bPhones34SwitchLast = bPhones34Switch;
+    int iPhones34VolumeLast = iPhones34Volume;
 
     /* Subscribe to control events */
     iRet = snd_ctl_subscribe_events(ctl, 1);
@@ -914,15 +1010,21 @@ static int monitor_loop(
 
     /* Send initial state */
     /* TODO implement a real MIDI SysEx read of mute and volume state */
-    apply_state(midi, iVolume, bEnabled);
-    iVolumeLast = iVolume;
-    bEnabledLast = bEnabled;
+    apply_state(midi, UDCE_LINE12, iLine12Volume, bLine12Switch);
+    iLine12VolumeLast = iLine12Volume;
+    bLine12SwitchLast = bLine12Switch;
+
+    apply_state(midi, UDCE_PHONES34, iPhones34Volume, bPhones34Switch);
+    iPhones34VolumeLast = iPhones34Volume;
+    bPhones34SwitchLast = bPhones34Switch;
 
     log_info(
         "Monitoring ALSA user-defined control elements "
-        "'%s' and '%s' for changes...",
-        CONTROL_NAME,
-        SWITCH_NAME
+        "'%s', '%s', '%s', '%s' for changes...",
+        UDCE_LINE12_VOLUME_NAME,
+        UDCE_LINE12_SWITCH_NAME,
+        UDCE_PHONES34_VOLUME_NAME,
+        UDCE_PHONES34_SWITCH_NAME
     );
 
     /* gbServiceIsRunning can be set to false by the signal handler,
@@ -972,32 +1074,60 @@ static int monitor_loop(
             }
 
             /* Check if the event belongs to one of the UDCEs */
-            if (
-                BOOL_IS_FALSE(is_event_from_udce(event, vol_id)) &&
-                BOOL_IS_FALSE(is_event_from_udce(event, sw_id))
-            ) {
+            bEventFromLine12 = (
+                BOOL_IS_TRUE(is_event_from_udce(event, pLine12VolumeID)) ||
+                BOOL_IS_TRUE(is_event_from_udce(event, pLine12SwitchID))
+            );
+            bEventFromPhones34 = (
+                BOOL_IS_TRUE(is_event_from_udce(event, pPhones34VolumeID)) ||
+                BOOL_IS_TRUE(is_event_from_udce(event, pPhones34SwitchID))
+            );
+            if (BOOL_IS_FALSE(bEventFromLine12) && BOOL_IS_FALSE(bEventFromPhones34)) {
                 /* evaluate next event */
                 continue;
             }
 
+            /* TODO refactor */
             /* Read state */
-            iRet = read_alsa_udce_integer_value(ctl, vol_id, &iVolume);
-            if (ERR_CODE_IS_ERROR(iRet)) {
-                log_error("Unable to read the value of the volume");
-                return iRet;
+            if (BOOL_IS_TRUE(bEventFromLine12)) {
+                iRet = read_alsa_udce_integer_value(ctl, pLine12VolumeID, &iLine12Volume);
+                if (ERR_CODE_IS_ERROR(iRet)) {
+                    log_error("Unable to read the value of the volume");
+                    return iRet;
+                }
+                iRet = read_alsa_udce_boolean_value(ctl, pLine12SwitchID, &bLine12Switch);
+                if (ERR_CODE_IS_ERROR(iRet)) {
+                    log_error("Unable to read the value of the mute switch");
+                    return iRet;
+                }
+
+                /* If the state changed, apply it */
+                if ((iLine12Volume != iLine12VolumeLast) || (bLine12Switch != bLine12SwitchLast)) {
+                    apply_state(midi, UDCE_LINE12, iLine12Volume, bLine12Switch);
+                    iLine12VolumeLast = iLine12Volume;
+                    bLine12SwitchLast = bLine12Switch;
+                }
             }
-            iRet = read_alsa_udce_boolean_value(ctl, sw_id, &bEnabled);
-            if (ERR_CODE_IS_ERROR(iRet)) {
-                log_error("Unable to read the value of the mute switch");
-                return iRet;
+            if (BOOL_IS_TRUE(bEventFromPhones34)) {
+                iRet = read_alsa_udce_integer_value(ctl, pPhones34VolumeID, &iPhones34Volume);
+                if (ERR_CODE_IS_ERROR(iRet)) {
+                    log_error("Unable to read the value of the volume");
+                    return iRet;
+                }
+                iRet = read_alsa_udce_boolean_value(ctl, pPhones34SwitchID, &bPhones34Switch);
+                if (ERR_CODE_IS_ERROR(iRet)) {
+                    log_error("Unable to read the value of the mute switch");
+                    return iRet;
+                }
+
+                /* If the state changed, apply it */
+                if ((iPhones34Volume != iPhones34VolumeLast) || (bPhones34Switch != bPhones34SwitchLast)) {
+                    apply_state(midi, UDCE_PHONES34, iPhones34Volume, bPhones34Switch);
+                    iPhones34VolumeLast = iPhones34Volume;
+                    bPhones34SwitchLast = bPhones34Switch;
+                }
             }
 
-            /* If the state changed, apply it */
-            if ((iVolume != iVolumeLast) || (bEnabled != bEnabledLast)) {
-                apply_state(midi, iVolume, bEnabled);
-                iVolumeLast = iVolume;
-                bEnabledLast = bEnabled;
-            }
         } /* end of inner while (snd_clt_read(ctl, event) > 0) */
 
     } /* end of outer while (BOOL_IS_TRUE(gbServiceIsRunning)) */
@@ -1020,24 +1150,24 @@ static int validate_device_id(int deviceID) {
     ) ? BOOL_TRUE : BOOL_FALSE;
 }
 
-/* Return true if the given pDeviceName is supported, and false otherwise. */
-static int validate_device_name(const char* pDeviceName, size_t cbDeviceName) {
+/* Return true if the given szDeviceName is supported, and false otherwise. */
+static int validate_device_name(const char* szDeviceName, size_t cbDeviceName) {
     return (
-        (strncmp(pDeviceName, DEVICE_NAME_AUTODETECT, cbDeviceName) == 0) ||
-        (strncmp(pDeviceName, DEVICE_NAME_RME_ADI2_DAC, cbDeviceName) == 0) ||
-        (strncmp(pDeviceName, DEVICE_NAME_RME_ADI2_PRO, cbDeviceName) == 0) ||
-        (strncmp(pDeviceName, DEVICE_NAME_RME_ADI24_PRO, cbDeviceName) == 0)
+        (strncmp(szDeviceName, DEVICE_NAME_AUTODETECT, cbDeviceName) == 0) ||
+        (strncmp(szDeviceName, DEVICE_NAME_RME_ADI2_DAC, cbDeviceName) == 0) ||
+        (strncmp(szDeviceName, DEVICE_NAME_RME_ADI2_PRO, cbDeviceName) == 0) ||
+        (strncmp(szDeviceName, DEVICE_NAME_RME_ADI24_PRO, cbDeviceName) == 0)
     ) ? BOOL_TRUE : BOOL_FALSE;
 }
 
-/* Return true if the given pMIDIDevice is supported, and false otherwise. */
-static int validate_midi_device(const char* pMIDIDevice, size_t cbMIDIDevice) {
-    /* NOTE: not checking if pMIDIDevice is in the form "hw:X[,Y[,Z]]"
+/* Return true if the given szMIDIDevice is supported, and false otherwise. */
+static int validate_midi_device(const char* szMIDIDevice, size_t cbMIDIDevice) {
+    /* NOTE: not checking if szMIDIDevice is in the form "hw:X[,Y[,Z]]"
      *       since the value might be provided by the user and
      *       it is not clear that that form is the only one accepted by ALSA. */
     return (
-        (strncmp(pMIDIDevice, MIDI_DEVICE_AUTODETECT, cbMIDIDevice) == 0) ||
-        ((strnlen(pMIDIDevice, cbMIDIDevice) > 0))
+        (strncmp(szMIDIDevice, MIDI_DEVICE_AUTODETECT, cbMIDIDevice) == 0) ||
+        ((strnlen(szMIDIDevice, cbMIDIDevice) > 0))
     ) ? BOOL_TRUE : BOOL_FALSE;
 }
 
@@ -1064,16 +1194,15 @@ static void print_usage(const char *prog) {
             DEVICE_NAME_RME_ADI24_PRO
     );
     printf("  -h, --help                  Show this help\n");
+    printf("  -l, --line12-min-db DB      Minimum dB value for line 1/2 output, corresponding to   0%% volume (default: %.1f)\n", gpstConfiguration.dLine12MinDB);
+    printf("  -L, --line12-max-db DB      Maximum dB value for line 1/2 output, corresponding to 100%% volume (default: %.1f)\n", gpstConfiguration.dLine12MaxDB);
     printf("      --list-cards            List all ALSA cards and exit\n");
     printf("  -M, --midi-device STRING    Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'\n");
-    printf("      --no-uninstall-on-exit  If specified, do not uninstall ADI2 controls when the program exits\n");
-    printf("      --uninstall             Remove the ADI2 mixer controls from the card and exit\n");
-    printf("  -v, --verbose               Verbose output\n");
-
-    /* TODO continue from here */
-    printf("  -o, --output TYPE           Output: line or phones (default: line)\n");
-    printf("      --min-db DB             Minimum dB (0%% volume) (default: %.1f)\n", goConfiguration.min_db);
-    printf("      --max-db DB             Maximum dB (100%% volume) (default: %.1f)\n", goConfiguration.max_db);
+    printf("      --no-uninstall-on-exit  If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
+    printf("  -p, --phones34-min-db DB    Minimum dB value for phones 3/4 output, corresponding to   0%% volume (default: %.1f)\n", gpstConfiguration.dPhones34MinDB);
+    printf("  -P, --phones34-max-db DB    Maximum dB value for phones 3/4 output, corresponding to 100%% volume (default: %.1f)\n", gpstConfiguration.dPhones34MaxDB);
+    printf("      --uninstall             Uninstall ALSA user-defined control elements and exit\n");
+    printf("  -v, --verbose               Enable verbose output\n");
     printf("\n");
     printf("Examples:\n");
     printf("  %s --list-cards\n", prog);
@@ -1087,75 +1216,75 @@ static int parse_args(int argc, char *argv[]) {
         {"device-name",              required_argument, 0, 'd'},
         {"device-id",                required_argument, 0, 'D'},
         {"help",                     no_argument,       0, 'h'},
+        {"line12-min-db",            required_argument, 0, 'l'},
+        {"line12-max-db",            required_argument, 0, 'L'},
+        {"list-cards",               no_argument,       0, 'Z'},    /* the short form is not public */
         {"midi-device",              required_argument, 0, 'M'},
-        {"output",                   required_argument, 0, 'o'},
-        {"list-cards",               no_argument,       0, 'W'},    /* the short form is not public */
-        {"min-db",                   required_argument, 0, 'n'},    /* the short form is not public */
-        {"max-db",                   required_argument, 0, 'x'},    /* the short form is not public */
         {"no-uninstall-on-exit",     no_argument,       0, 'U'},    /* the short form is not public */
+        {"phones34-min-db",          required_argument, 0, 'p'},
+        {"phones34-max-db",          required_argument, 0, 'P'},
         {"uninstall",                no_argument,       0, 'u'},    /* the short form is not public */
         {"verbose",                  no_argument,       0, 'v'},
         {0, 0, 0, 0}
     };
 
     int opt = 0;
-    while ((opt = getopt_long(argc, argv, "C:d:D:hM:o:Wn:x:Uuv", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "C:d:D:hl:L:ZM:Up:P:uv", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'C':
-            goConfiguration.card_number = atoi(optarg);
+            gpstConfiguration.iCardNumber = atoi(optarg);
             break;
         case 'd':
-            strncpy(goConfiguration.device_name, optarg, DEVICE_NAME_MAX_LENGTH - 1);
-            if (BOOL_IS_FALSE(validate_device_name(goConfiguration.device_name, DEVICE_NAME_MAX_LENGTH))) {
-                log_error("Invalid device name: '%s'", goConfiguration.device_name);
+            strncpy(gpstConfiguration.szDeviceName, optarg, DEVICE_NAME_MAX_LENGTH - 1);
+            if (BOOL_IS_FALSE(validate_device_name(gpstConfiguration.szDeviceName, DEVICE_NAME_MAX_LENGTH))) {
+                log_error("Invalid device name: '%s'", gpstConfiguration.szDeviceName);
                 return EXIT_ERROR_USAGE_BAD_VALUE;
             }
             break;
         case 'D':
-            goConfiguration.device_id = (int)strtol(optarg, NULL, 0);
-            if (BOOL_IS_FALSE(validate_device_id(goConfiguration.device_id))) {
-                log_error("Invalid device ID: 0x%02X", goConfiguration.device_id);
+            gpstConfiguration.iDeviceID = (int)strtol(optarg, NULL, 0);
+            if (BOOL_IS_FALSE(validate_device_id(gpstConfiguration.iDeviceID))) {
+                log_error("Invalid device ID: 0x%02X", gpstConfiguration.iDeviceID);
                 return EXIT_ERROR_USAGE_BAD_VALUE;
             }
             break;
         case 'h':
-            goConfiguration.bPrintUsageOnly = BOOL_TRUE;
+            gpstConfiguration.bPrintUsageOnly = BOOL_TRUE;
+            break;
+        case 'l':
+            gpstConfiguration.dLine12MinDB = atof(optarg);
+            /* TODO validate */
+            break;
+        case 'L':
+            gpstConfiguration.dLine12MaxDB = atof(optarg);
+            /* TODO validate */
             break;
         case 'M':
-            strncpy(goConfiguration.midi_device, optarg, MIDI_DEVICE_MAX_LENGTH - 1);
-            if (BOOL_IS_FALSE(validate_midi_device(goConfiguration.midi_device, MIDI_DEVICE_MAX_LENGTH))) {
-                log_error("Invalid midi device: '%s'", goConfiguration.midi_device);
+            strncpy(gpstConfiguration.szMIDIDevice, optarg, MIDI_DEVICE_MAX_LENGTH - 1);
+            if (BOOL_IS_FALSE(validate_midi_device(gpstConfiguration.szMIDIDevice, MIDI_DEVICE_MAX_LENGTH))) {
+                log_error("Invalid midi device: '%s'", gpstConfiguration.szMIDIDevice);
                 return EXIT_ERROR_USAGE_BAD_VALUE;
             }
             break;
-        case 'o':
-            /* TODO remove this */
-            if (strcmp(optarg, "line") == 0) {
-                goConfiguration.output_param = RME_PARAM_LINE;
-            } else if (strcmp(optarg, "phones") == 0) {
-                goConfiguration.output_param = RME_PARAM_PHONES;
-            } else {
-                log_error("Invalid output: %s (use 'line' or 'phones')", optarg);
-                return EXIT_ERROR_USAGE_BAD_VALUE;
-            }
+        case 'p':
+            gpstConfiguration.dPhones34MinDB = atof(optarg);
+            /* TODO validate */
             break;
-        case 'n':
-            goConfiguration.min_db = atof(optarg);
-            break;
-        case 'x':
-            goConfiguration.max_db = atof(optarg);
+        case 'P':
+            gpstConfiguration.dPhones34MaxDB = atof(optarg);
+            /* TODO validate */
             break;
         case 'u':
-            goConfiguration.bUninstall = BOOL_TRUE;
+            gpstConfiguration.bUninstall = BOOL_TRUE;
             break;
         case 'U':
-            goConfiguration.bUninstallOnExit = BOOL_FALSE;
+            gpstConfiguration.bUninstallOnExit = BOOL_FALSE;
             break;
         case 'v':
             gbLogVerbose = BOOL_TRUE;
             break;
-        case 'W':
-            goConfiguration.bListCards = BOOL_TRUE;
+        case 'Z':
+            gpstConfiguration.bListCards = BOOL_TRUE;
             break;
         default:
             return EXIT_ERROR_USAGE_BAD_OPTION;
@@ -1171,12 +1300,14 @@ static int parse_args(int argc, char *argv[]) {
  * ************************************************************************* */
 
 int main(int argc, char *argv[]) {
-    snd_ctl_t *ctl = NULL;
-    snd_rawmidi_t *midi = NULL;
-    snd_ctl_elem_id_t *vol_id = NULL;
-    snd_ctl_elem_id_t *sw_id = NULL;
     int iRet = ERR_OK;
     int iExitCode = EXIT_OK;
+    snd_ctl_t *ctl = NULL;
+    snd_rawmidi_t *midi = NULL;
+    snd_ctl_elem_id_t *pLine12VolumeID = NULL;
+    snd_ctl_elem_id_t *pLine12SwitchID = NULL;
+    snd_ctl_elem_id_t *pPhones34VolumeID = NULL;
+    snd_ctl_elem_id_t *pPhones34SwitchID = NULL;
 
     iRet = parse_args(argc, argv);
     if (ERR_CODE_IS_ERROR(iRet)) {
@@ -1187,7 +1318,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Print the usage and exit */
-    if (BOOL_IS_TRUE(goConfiguration.bPrintUsageOnly)) {
+    if (BOOL_IS_TRUE(gpstConfiguration.bPrintUsageOnly)) {
         gbLogVerbose = BOOL_FALSE;
         print_usage(argv[0]);
         iExitCode = EXIT_OK;
@@ -1195,7 +1326,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Print the list of cards and exit */
-    if (BOOL_IS_TRUE(goConfiguration.bListCards)) {
+    if (BOOL_IS_TRUE(gpstConfiguration.bListCards)) {
         gbLogVerbose = BOOL_FALSE;
         print_cards();
         iExitCode = EXIT_OK;
@@ -1218,26 +1349,26 @@ int main(int argc, char *argv[]) {
         iExitCode = EXIT_ERROR_CANNOT_FIND_CARD;
         goto cleanup;
     }
-    log_info("Using device ID '0x%02X'", goConfiguration.device_id);
-    log_info("Using ALSA card '%d'", goConfiguration.card_number);
+    log_info("Using device ID '0x%02X'", gpstConfiguration.iDeviceID);
+    log_info("Using ALSA card '%d'", gpstConfiguration.iCardNumber);
 
-    /* Set the card hw from the card number */
-    set_card_hw();
+    /* Set the card hw string from the card number */
+    set_card_hw_string();
 
     /* Open card */
-    iRet = snd_ctl_open(&ctl, goConfiguration.card_hw, 0);
+    iRet = snd_ctl_open(&ctl, gpstConfiguration.szCardHw, 0);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         log_error(
             "Cannot open ALSA card '%s': %s",
-            goConfiguration.card_hw,
+            gpstConfiguration.szCardHw,
             snd_strerror(iRet)
         );
         iExitCode = EXIT_ERROR_CANNOT_OPEN_CARD;
         goto cleanup;
     }
-    log_verbose("Opened ALSA card '%s'", goConfiguration.card_hw);
+    log_verbose("Opened ALSA card '%s'", gpstConfiguration.szCardHw);
 
-    if (BOOL_IS_TRUE(goConfiguration.bUninstall)) {
+    if (BOOL_IS_TRUE(gpstConfiguration.bUninstall)) {
         /* Uninstall mode: go to the service clean-up immediately */
         log_verbose("Uninstall mode: exit immediately");
         iExitCode = EXIT_OK;
@@ -1256,49 +1387,77 @@ int main(int argc, char *argv[]) {
     if (ERR_CODE_IS_ERROR(iRet)) {
         log_error(
             "Cannot find a valid MIDI device for ALSA card number '%d'",
-            goConfiguration.card_number
+            gpstConfiguration.iCardNumber
         );
         iExitCode = EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE;
         goto cleanup;
     }
-    log_info("Using MIDI device '%s'", goConfiguration.midi_device);
+    log_info("Using MIDI device '%s'", gpstConfiguration.szMIDIDevice);
 
     /* Open the MIDI device with flag 0 (default, blocking) */
-    iRet = snd_rawmidi_open(NULL, &midi, goConfiguration.midi_device, 0);
+    iRet = snd_rawmidi_open(NULL, &midi, gpstConfiguration.szMIDIDevice, 0);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         log_error(
             "Cannot open MIDI device '%s': %s",
-            goConfiguration.midi_device,
+            gpstConfiguration.szMIDIDevice,
             snd_strerror(iRet)
         );
         iExitCode = EXIT_ERROR_CANNOT_OPEN_MIDI_DEVICE;
         goto cleanup;
     }
 
-    /* Create user-defined control elements: volume first, then switch */
-    snd_ctl_elem_id_alloca(&vol_id);
-    iRet = install_control_element(ctl, vol_id, CONTROL_NAME, BOOL_FALSE);
+    /* Create user-defined control elements for line 1/2 output,
+     * volume first, then switch */
+    snd_ctl_elem_id_alloca(&pLine12VolumeID);
+    iRet = install_control_element(ctl, pLine12VolumeID, UDCE_LINE12_VOLUME_NAME, BOOL_FALSE);
     if (ERR_CODE_IS_ERROR(iRet)) {
-        log_error("Cannot add volume control '%s'", CONTROL_NAME);
+        log_error("Cannot add volume UDCE '%s'", UDCE_LINE12_VOLUME_NAME);
         iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
         goto cleanup;
     }
 
-    snd_ctl_elem_id_alloca(&sw_id);
-    iRet = install_control_element(ctl, sw_id, SWITCH_NAME, BOOL_TRUE);
+    snd_ctl_elem_id_alloca(&pLine12SwitchID);
+    iRet = install_control_element(ctl, pLine12SwitchID, UDCE_LINE12_SWITCH_NAME, BOOL_TRUE);
     if (ERR_CODE_IS_ERROR(iRet)) {
-        log_error("Cannot add mute switch control '%s'", SWITCH_NAME);
+        log_error("Cannot add switch UDCE '%s'", UDCE_LINE12_SWITCH_NAME);
+        iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
+        goto cleanup;
+    }
+
+    /* Create user-defined control elements for phones 3/4 output,
+     * volume first, then switch */
+    snd_ctl_elem_id_alloca(&pPhones34VolumeID);
+    iRet = install_control_element(ctl, pPhones34VolumeID, UDCE_PHONES34_VOLUME_NAME, BOOL_FALSE);
+    if (ERR_CODE_IS_ERROR(iRet)) {
+        log_error("Cannot add volume UDCE '%s'", UDCE_PHONES34_VOLUME_NAME);
+        iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
+        goto cleanup;
+    }
+
+    snd_ctl_elem_id_alloca(&pPhones34SwitchID);
+    iRet = install_control_element(ctl, pPhones34SwitchID, UDCE_PHONES34_SWITCH_NAME, BOOL_TRUE);
+    if (ERR_CODE_IS_ERROR(iRet)) {
+        log_error("Cannot add switch UDCE '%s'", UDCE_PHONES34_SWITCH_NAME);
         iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
         goto cleanup;
     }
 
     /* Run the monitoring loop */
     log_info(
-        "Start control loop for device ID '0x%02X' and output '%s'",
-        goConfiguration.device_id,
-        goConfiguration.output_param == RME_PARAM_LINE ? "line" : "phones"
+        "Start control loop for device ID '0x%02X' "
+        "on MIDI device '%s' of ALSA card number '%d'",
+        gpstConfiguration.iDeviceID,
+        gpstConfiguration.szMIDIDevice,
+        gpstConfiguration.iCardNumber
     );
-    iRet = monitor_loop(ctl, vol_id, sw_id, midi);
+    iRet = monitor_loop(
+        ctl,
+        pLine12VolumeID,
+        pLine12SwitchID,
+        pPhones34VolumeID,
+        pPhones34SwitchID,
+        midi
+    );
     log_info("Control loop exited with return code '%d'", iRet);
     if (ERR_CODE_IS_ERROR(iRet)) {
         switch (iRet) {
@@ -1322,7 +1481,7 @@ cleanup:
     log_verbose("Cleaning service up ...");
 
     /* Uninstall user-defined control elements */
-    if (BOOL_IS_TRUE(goConfiguration.bUninstall)) {
+    if (BOOL_IS_TRUE(gpstConfiguration.bUninstall)) {
         if (ctl) {
             /* Uninstall mode (capturing errors) */
             iRet = uninstall_all_alsa_udce_s(ctl, BOOL_FALSE);
@@ -1339,7 +1498,7 @@ cleanup:
         }
     } else {
         /* Normal-mode: check the "uninstall on exit" flag */
-        if (BOOL_IS_TRUE(goConfiguration.bUninstallOnExit)) {
+        if (BOOL_IS_TRUE(gpstConfiguration.bUninstallOnExit)) {
             if (ctl) {
                 /* Uninstall (ignoring errors) */
                 uninstall_all_alsa_udce_s(ctl, BOOL_TRUE);
