@@ -69,21 +69,19 @@
 #define UDCE_PHONES12_SWITCH_NAME                   "Phones Output 1/2 Switch"  /* not used, line 1/2 controls their volume as well */
 #define UDCE_PHONES34_VOLUME_NAME                   "Phones Output 3/4 Volume"
 #define UDCE_PHONES34_SWITCH_NAME                   "Phones Output 3/4 Switch"
-#define UDCE_LINE12                                 0
-#define UDCE_PHONES12                               1                           /* not used, line 1/2 controls their volume as well */
-#define UDCE_PHONES34                               2
 
 /* Constants used in strn* functions and struct declarations */
-#define CARD_HW_MAX_LENGTH                          32                      /* Max length, in bytes, of an ALSA hw string */
-#define CARD_NAME_MAX_LENGTH                        128                     /* Max length, in bytes, of an ALSA card name */
-#define DEVICE_NAME_MAX_LENGTH                      128                     /* Max length, in bytes, of an RME device name */
-#define MIDI_DEVICE_MAX_LENGTH                      32                      /* Max length, in bytes, of a MIDI device (hw:N,x,y) */
-#define MIDI_DEVICE_PROBE_MIN_INDEX                 0                       /* Min index for MIDI device/subdevice to probe, included */
-#define MIDI_DEVICE_PROBE_MAX_INDEX                 9                       /* Max index for MIDI device/subdevice to probe, included */
+#define CARD_HW_MAX_LENGTH                          32                          /* Max length, in bytes, of an ALSA hw string */
+#define CARD_NAME_MAX_LENGTH                        128                         /* Max length, in bytes, of an ALSA card name */
+#define DEVICE_NAME_MAX_LENGTH                      128                         /* Max length, in bytes, of an RME device name */
+#define MIDI_DEVICE_MAX_LENGTH                      32                          /* Max length, in bytes, of a MIDI device (hw:N,x,y) */
+#define MIDI_DEVICE_PROBE_MIN_INDEX                 0                           /* Min index for MIDI device/subdevice to probe, included */
+#define MIDI_DEVICE_PROBE_MAX_INDEX                 9                           /* Max index for MIDI device/subdevice to probe, included */
+#define UDCE_NAME_MAX_LENGTH                        128                         /* Max length, in bytes, of an ALSA user-defined control element */
 
 /* Volume ranges for the ALSA user-defined control elements */
-#define VOL_MIN                                     0                       /* Min volume for the ALSA user-defined control elements */
-#define VOL_MAX                                     100                     /* Max volume for the ALSA user-defined control elements */
+#define VOL_MIN                                     0                           /* Min volume for the ALSA user-defined control elements */
+#define VOL_MAX                                     100                         /* Max volume for the ALSA user-defined control elements */
 
 /* CLI default values */
 #define CARD_HW_NOT_SET                             ""
@@ -107,25 +105,15 @@
 #define DEFAULT_UNINSTALL_ONLY                      BOOL_FALSE
 #define DEFAULT_UNINSTALL_ON_EXIT                   BOOL_TRUE
 
-#define DEFAULT_LINE12_VOLUME_MAX_DB                (-10.0)                 /* Default max volume, in dB, for line 1/2 output */
-#define DEFAULT_LINE12_VOLUME_MIN_DB                (-60.0)                 /* Default min volume, in dB, for line 1/2 output */
-#define DEFAULT_LINE12_VOLUME_SWITCH_ENABLED        BOOL_TRUE               /* Default value of the line 1/2 output switch: true (mute off) or false (mute on) */
-#define DEFAULT_LINE12_VOLUME_VALUE                 50                      /* Default statup volume for line 1/2 output (50 == 50% of [0, 100]) */
+#define DEFAULT_LINE12_SWITCH_VALUE                 BOOL_TRUE                   /* Default value of the line 1/2 output switch: true (mute off) or false (mute on) */
+#define DEFAULT_LINE12_VOLUME_MAX_DB                (-10.0)                     /* Default max volume, in dB, for line 1/2 output */
+#define DEFAULT_LINE12_VOLUME_MIN_DB                (-60.0)                     /* Default min volume, in dB, for line 1/2 output */
+#define DEFAULT_LINE12_VOLUME_VALUE                 50                          /* Default statup volume for line 1/2 output (50 == 50% of [0, 100]) */
 
-#define DEFAULT_PHONES34_VOLUME_MAX_DB              (-10.0)                 /* Default max volume, in dB, for phones 3/4 output */
-#define DEFAULT_PHONES34_VOLUME_MIN_DB              (-60.0)                 /* Default min volume, in dB, for phones 3/4 output */
-#define DEFAULT_PHONES34_VOLUME_SWITCH_ENABLED      BOOL_TRUE               /* Default value of the phones 3/4 output switch: true (mute off) or false (mute on) */
-#define DEFAULT_PHONES34_VOLUME_VALUE               50                      /* Default statup volume for phones 3/4 output (50 == 50% of [0, 100]) */
-
-typedef struct {
-    char szOptionName[64];
-    double dValueDB;
-} OptionMinMaxDB;
-
-typedef struct {
-    char szDeviceName[64];
-    unsigned char chDeviceID;
-} DeviceIDWithName;
+#define DEFAULT_PHONES34_SWITCH_VALUE               BOOL_TRUE                   /* Default value of the phones 3/4 output switch: true (mute off) or false (mute on) */
+#define DEFAULT_PHONES34_VOLUME_MAX_DB              (-10.0)                     /* Default max volume, in dB, for phones 3/4 output */
+#define DEFAULT_PHONES34_VOLUME_MIN_DB              (-60.0)                     /* Default min volume, in dB, for phones 3/4 output */
+#define DEFAULT_PHONES34_VOLUME_VALUE               50                          /* Default statup volume for phones 3/4 output (50 == 50% of [0, 100]) */
 
 
 #endif /* ALSA_RME_ADI2_VOLUME_CONTROL_H guard */
