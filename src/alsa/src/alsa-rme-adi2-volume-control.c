@@ -35,16 +35,6 @@
  * ************************************************************************* */
 
 typedef struct {
-    char szOptionName[64];
-    double dValue;
-} StringDoublePair;
-
-typedef struct {
-    char szOptionName[64];
-    double iValue;
-} StringIntegerPair;
-
-typedef struct {
     char szDeviceName[64];
     unsigned char chDeviceID;
 } DeviceIDWithName;
@@ -64,6 +54,16 @@ typedef struct {
     unsigned char chRMEDeviceID;
     unsigned char chRMEOutput;
 } OutputControl;
+
+typedef struct {
+    char szOptionName[64];
+    double dValue;
+} StringDoublePair;
+
+typedef struct {
+    char szOptionName[64];
+    double iValue;
+} StringIntegerPair;
 
 
 /* *************************************************************************
@@ -121,6 +121,14 @@ static struct {
     .bPrintUsageOnly = DEFAULT_PRINT_USAGE_ONLY,
     .bUninstall = DEFAULT_UNINSTALL_ONLY,
     .bUninstallOnExit = DEFAULT_UNINSTALL_ON_EXIT,
+};
+
+/* (Hardcoded) Names for the ALSA user-defined control elements */
+static const char *gszUDCENames[] = {
+    UDCE_LINE12_SWITCH_NAME,
+    UDCE_LINE12_VOLUME_NAME,
+    UDCE_PHONES34_SWITCH_NAME,
+    UDCE_PHONES34_VOLUME_NAME
 };
 
 
@@ -489,31 +497,20 @@ static int uninstall_alsa_udce_by_name(
 }
 
 /* Uninstall all ALSA user-defined control elements (UDCEs)
- * from the given card ctl.
- *
- * If bIgnoreErrors is true, errors will be ignored,
- * and ERR_OK will be always returned. */
-static int uninstall_all_alsa_udce_s(
-    snd_ctl_t *ctl,
-    int bIgnoreErrors
-) {
-    static const char *szUDCENames[] = {
-        UDCE_LINE12_SWITCH_NAME,
-        UDCE_LINE12_VOLUME_NAME,
-        UDCE_PHONES34_SWITCH_NAME,
-        UDCE_PHONES34_VOLUME_NAME
-    };
+ * from the given card ctl. */
+static void uninstall_all_alsa_udce_s(snd_ctl_t *ctl) {
     int iRemovedCount = 0;
     int iRet = ERR_OK;
-    int iRetInner = ERR_OK;
 
-    size_t cCount = sizeof(szUDCENames) / sizeof(szUDCENames[0]);
+    if (ctl == NULL) {
+        return;
+    }
+
+    size_t cCount = sizeof(gszUDCENames) / sizeof(gszUDCENames[0]);
     for (size_t i = 0; i < cCount; i++) {
-        iRetInner = uninstall_alsa_udce_by_name(ctl, szUDCENames[i]);
-        if (ERR_CODE_IS_OK(iRetInner)) {
+        iRet = uninstall_alsa_udce_by_name(ctl, gszUDCENames[i]);
+        if (ERR_CODE_IS_OK(iRet)) {
             iRemovedCount += 1;
-        } else {
-            iRet = ERR_ERROR_GENERIC;
         }
     }
     log_verbose(
@@ -521,16 +518,6 @@ static int uninstall_all_alsa_udce_s(
         iRemovedCount,
         cCount
     );
-
-    if (BOOL_IS_TRUE(bIgnoreErrors) && ERR_CODE_IS_ERROR(iRet)) {
-        log_verbose(
-            "The above error(s) occurred while trying to uninstall "
-            "user-defined control elements can be ignored"
-        );
-        iRet = ERR_OK;
-    }
-
-    return iRet;
 }
 
 /* Install a new control (identified by id and szName) on the card ctl.
@@ -643,7 +630,6 @@ static int read_alsa_udce_value(
     if (pValue == NULL) {
         return ERR_ERROR_GENERIC;
     }
-    snd_ctl_elem_value_alloca(pValue);
     if (*pValue == NULL) {
         return ERR_ERROR_GENERIC;
     }
@@ -664,6 +650,7 @@ static int read_alsa_udce_integer_value(
     int iRet = ERR_OK;
 
     snd_ctl_elem_value_t *value = NULL;
+    snd_ctl_elem_value_alloca(&value);
     iRet = read_alsa_udce_value(ctl, id, &value);
     if (ERR_CODE_IS_ERROR(iRet)) {
         log_error(
@@ -688,6 +675,7 @@ static int read_alsa_udce_boolean_value(
     int iRet = ERR_OK;
 
     snd_ctl_elem_value_t *value = NULL;
+    snd_ctl_elem_value_alloca(&value);
     iRet = read_alsa_udce_value(ctl, id, &value);
     if (ERR_CODE_IS_ERROR(iRet)) {
         log_error(
@@ -1237,6 +1225,10 @@ static int monitor_loop(
     int bSwitchNewValue = 0;
     unsigned short usRevents = 0;
     OutputControl *pEventFrom = NULL;
+    snd_ctl_event_t *event = NULL;
+
+    /* Allocate stack memory for the event */
+    snd_ctl_event_alloca(&event);
 
     /* Subscribe to control events */
     iRet = snd_ctl_subscribe_events(ctl, 1);
@@ -1312,9 +1304,6 @@ static int monitor_loop(
         }
 
         /* Read events */
-        snd_ctl_event_t *event;
-        snd_ctl_event_alloca(&event);
-
         while (snd_ctl_read(ctl, event) > 0) {
             pEventFrom = NULL;
 
@@ -1757,6 +1746,7 @@ int main(int argc, char *argv[]) {
     OutputControl stLine12;
     OutputControl stPhones34;
 
+    /* allocate the output control structures on the stack */
     memset(&stLine12, 0, sizeof(stLine12));
     memset(&stPhones34, 0, sizeof(stPhones34));
 
@@ -1846,7 +1836,7 @@ int main(int argc, char *argv[]) {
      * ignoring any errors that might occur trying to remove them,
      * for example because no such user-defined control elements
      * survived a previous execution of the service. */
-    iRet = uninstall_all_alsa_udce_s(ctl, BOOL_TRUE);
+    uninstall_all_alsa_udce_s(ctl);
 
     /* Ensure that the MIDI device is set,
      * possibly autodetecting it if not set by the user. */
@@ -1945,33 +1935,22 @@ cleanup:
     log_verbose("Cleaning service up ...");
 
     /* Uninstall user-defined control elements */
-    if (BOOL_IS_TRUE(gpstConfiguration.bUninstall)) {
-        if (ctl) {
-            /* Uninstall mode (capturing errors) */
-            iRet = uninstall_all_alsa_udce_s(ctl, BOOL_FALSE);
-            if (ERR_CODE_IS_ERROR(iRet)) {
-                log_error(
-                    "An error occurred while uninstalling "
-                    "user-defined control elements"
-                );
-                if (iExitCode == EXIT_OK) {
-                    /* on error, overwrite the previous "OK" exit code */
-                    iExitCode = EXIT_ERROR_CANNOT_UNINSTALL;
-                }
-            }
-        }
+    if (
+        BOOL_IS_FALSE(gpstConfiguration.bUninstall) &&
+        BOOL_IS_FALSE(gpstConfiguration.bUninstallOnExit)
+    ) {
+        /* Normal mode, but no uninstall on exit was selected */
+        log_info(
+            "Skip uninstalling user-defined control elements on exit"
+        );
     } else {
-        /* Normal-mode: check the "uninstall on exit" flag */
-        if (BOOL_IS_TRUE(gpstConfiguration.bUninstallOnExit)) {
-            if (ctl) {
-                /* Uninstall (ignoring errors) */
-                uninstall_all_alsa_udce_s(ctl, BOOL_TRUE);
-            }
-        } else {
-            log_info(
-                "Skip uninstalling user-defined control elements on exit"
-            );
-        }
+        /* Uninstall mode, or normal mode with uninstall on exit,
+         * ignoring any errors */
+        uninstall_all_alsa_udce_s(ctl);
+        log_info(
+            "ALSA card '%d' no longer has user-defined control elements",
+            gpstConfiguration.iCardNumber
+        );
     }
 
     /* Close objects */

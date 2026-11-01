@@ -49,13 +49,12 @@
 #define EXIT_ERROR_USAGE_BAD_VALUE                  3
 #define EXIT_ERROR_CANNOT_FIND_CARD                 4
 #define EXIT_ERROR_CANNOT_OPEN_CARD                 5
-#define EXIT_ERROR_CANNOT_UNINSTALL                 6
-#define EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE          7
-#define EXIT_ERROR_CANNOT_OPEN_MIDI_DEVICE          8
-#define EXIT_ERROR_CANNOT_ADD_CONTROL               9
-#define EXIT_ERROR_GENERIC_IN_MONITOR_LOOP          10
-#define EXIT_ERROR_EVENT_POLL                       11
-#define EXIT_ERROR_SOUND_CARD_DISCONNECTED          12
+#define EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE          6
+#define EXIT_ERROR_CANNOT_OPEN_MIDI_DEVICE          7
+#define EXIT_ERROR_CANNOT_ADD_CONTROL               8
+#define EXIT_ERROR_GENERIC_IN_MONITOR_LOOP          9
+#define EXIT_ERROR_EVENT_POLL                       10
+#define EXIT_ERROR_SOUND_CARD_DISCONNECTED          11
 
 /* ALSA User-defined control elements.
  *
@@ -65,8 +64,6 @@
  * e.g. in how they appear in the alsamixer TUI. */
 #define UDCE_LINE12_VOLUME_NAME                     "Line Output 1/2 Volume"
 #define UDCE_LINE12_SWITCH_NAME                     "Line Output 1/2 Switch"
-#define UDCE_PHONES12_VOLUME_NAME                   "Phones Output 1/2 Volume"  /* not used, line 1/2 controls their volume as well */
-#define UDCE_PHONES12_SWITCH_NAME                   "Phones Output 1/2 Switch"  /* not used, line 1/2 controls their volume as well */
 #define UDCE_PHONES34_VOLUME_NAME                   "Phones Output 3/4 Volume"
 #define UDCE_PHONES34_SWITCH_NAME                   "Phones Output 3/4 Switch"
 
