@@ -105,11 +105,13 @@
 #define DEFAULT_UNINSTALL_ONLY                      BOOL_FALSE
 #define DEFAULT_UNINSTALL_ON_EXIT                   BOOL_TRUE
 
+#define DEFAULT_LINE12_CONTROL                      BOOL_TRUE                   /* Default value of the line 1/2 output control: true (create) or false (do not create) */
 #define DEFAULT_LINE12_SWITCH_VALUE                 BOOL_TRUE                   /* Default value of the line 1/2 output switch: true (mute off) or false (mute on) */
 #define DEFAULT_LINE12_VOLUME_MAX_DB                (-10.0)                     /* Default max volume, in dB, for line 1/2 output */
 #define DEFAULT_LINE12_VOLUME_MIN_DB                (-60.0)                     /* Default min volume, in dB, for line 1/2 output */
 #define DEFAULT_LINE12_VOLUME_VALUE                 50                          /* Default statup volume for line 1/2 output (50 == 50% of [0, 100]) */
 
+#define DEFAULT_PHONES34_CONTROL                    BOOL_TRUE                   /* Default value of the phones 3/4 output control: true (create) or false (do not create) */
 #define DEFAULT_PHONES34_SWITCH_VALUE               BOOL_TRUE                   /* Default value of the phones 3/4 output switch: true (mute off) or false (mute on) */
 #define DEFAULT_PHONES34_VOLUME_MAX_DB              (-10.0)                     /* Default max volume, in dB, for phones 3/4 output */
 #define DEFAULT_PHONES34_VOLUME_MIN_DB              (-60.0)                     /* Default min volume, in dB, for phones 3/4 output */

@@ -56,6 +56,7 @@ typedef struct {
     int bSwitchLast;
     int iVolume;
     int iVolumeLast;
+    unsigned char chRMEDeviceID;
     unsigned char chRMEOutput;
 } OutputControl;
 
@@ -81,6 +82,8 @@ static struct {
     double dLine12MaxDB;
     double dPhones34MinDB;
     double dPhones34MaxDB;
+    int bLine12Control;
+    int bPhones34Control;
     int bListCards;
     int bListDeviceIDs;
     int bListDeviceNames;
@@ -97,6 +100,8 @@ static struct {
     .dLine12MaxDB = DEFAULT_LINE12_VOLUME_MAX_DB,
     .dPhones34MinDB = DEFAULT_PHONES34_VOLUME_MIN_DB,
     .dPhones34MaxDB = DEFAULT_PHONES34_VOLUME_MAX_DB,
+    .bLine12Control = DEFAULT_LINE12_CONTROL,
+    .bPhones34Control = DEFAULT_PHONES34_CONTROL,
     .bListCards = DEFAULT_LIST_CARDS_ONLY,
     .bListDeviceIDs = DEFAULT_LIST_DEVICE_IDS_ONLY,
     .bListDeviceNames = DEFAULT_LIST_DEVICE_NAMES_ONLY,
@@ -708,6 +713,13 @@ static int is_event_from_output_control(
     snd_ctl_event_t *event,
     OutputControl *pOutputControl
 ) {
+    if (
+        (pOutputControl == NULL) ||
+        (BOOL_IS_FALSE(pOutputControl->bInitialized))
+    ) {
+        /* output control is not initialized, exit immediately with false */
+        return BOOL_FALSE;
+    }
     return (
         BOOL_IS_TRUE(is_event_from_udce(event, pOutputControl->pVolumeID)) ||
         BOOL_IS_TRUE(is_event_from_udce(event, pOutputControl->pSwitchID))
@@ -848,7 +860,8 @@ static void convert_db_value_to_sysex_bytes(
 /* Send an absolute dB level to ADI-2 via MIDI SysEx */
 static int send_db(
     snd_rawmidi_t *midi,
-    unsigned char chOutput,
+    unsigned char chRMEDeviceID,
+    unsigned char chRMEOutput,
     double dValueDB
 ) {
     unsigned char chHigh = 0;
@@ -873,9 +886,9 @@ static int send_db(
     unsigned char pchSysEx[] = {
         0xF0,                           /* SysEx start */
         0x00, 0x20, 0x0D,               /* RME manufacturer ID */
-        gpstConfiguration.iDeviceID,      /* Device ID */
+        chRMEDeviceID,                  /* Device ID */
         0x02,                           /* Command: set value */
-        chOutput,                       /* Parameter: output volume */
+        chRMEOutput,                    /* Parameter: output volume */
         chHigh, chLow,                  /* Volume bytes */
         0xF7                            /* SysEx end */
     };
@@ -898,7 +911,8 @@ static int send_db(
 /* Send control value as volume to ADI-2 */
 static int send_volume(
     snd_rawmidi_t *midi,
-    unsigned char chOutput,
+    unsigned char chRMEDeviceID,
+    unsigned char chRMEOutput,
     int iValue,
     double dVolumeMinDB,
     double dVolumeMaxDB
@@ -912,7 +926,7 @@ static int send_volume(
         dVolumeMinDB,
         dVolumeMaxDB
     );
-    iRet = send_db(midi, chOutput, dValueDB);
+    iRet = send_db(midi, chRMEDeviceID, chRMEOutput, dValueDB);
     if (ERR_CODE_IS_OK(iRet)) {
         log_info("SET Volume: %.1f dB", dValueDB);
     } else {
@@ -924,7 +938,8 @@ static int send_volume(
 /* Send mute/unmute command to ADI-2 via MIDI SysEx */
 static int send_mute(
     snd_rawmidi_t *midi,
-    unsigned char chOutput,
+    unsigned char chRMEDeviceID,
+    unsigned char chRMEOutput,
     unsigned char chRMEValueMute
 ) {
     /* Example: mute line 1/2 on RME ADI 2/4 PRO SE
@@ -946,9 +961,9 @@ static int send_mute(
     unsigned char pchSysEx[] = {
         0xF0,                           /* SysEx start */
         0x00, 0x20, 0x0D,               /* RME manufacturer ID */
-        gpstConfiguration.iDeviceID,      /* Device ID */
+        chRMEDeviceID,                  /* Device ID */
         0x02,                           /* Command: set value */
-        chOutput,                       /* Parameter: output volume */
+        chRMEOutput,                    /* Parameter: output volume */
         RME_PARAM_MUTE,                 /* Parameter: mute */
         chRMEValueMute,                 /* 0x00 = off (unmute), 0x01 = on (mute) */
         0xF7                            /* SysEx end */
@@ -1010,6 +1025,7 @@ static int control_has_new_state(OutputControl *pOutputControl) {
 static int init_output_control(
     snd_ctl_t *ctl,
     OutputControl *pOutputControl,
+    unsigned char chRMEDeviceID,
     unsigned char chRMEOutput,
     const char *pszUDCEVolumeName,
     const char *pszUDCESwitchName,
@@ -1019,6 +1035,7 @@ static int init_output_control(
     double dVolumeMaxDB
 ) {
     int iRet = ERR_OK;
+    pOutputControl->chRMEDeviceID = chRMEDeviceID;
     pOutputControl->chRMEOutput = chRMEOutput;
 
     /* set the initial values for bSwitch, iVolume, bSwitchLast, iVolumeLast */
@@ -1169,9 +1186,15 @@ static void apply_state(
     /* NOTE: here we ignore errors from the send_() functions */
     if (BOOL_IS_TRUE(pOutputControl->bSwitch)) {
         /* UDCE is enabled (mute off): send mute off and volume value */
-        send_mute(midi, pOutputControl->chRMEOutput, RME_VALUE_MUTE_OFF);
+        send_mute(
+            midi,
+            pOutputControl->chRMEDeviceID,
+            pOutputControl->chRMEOutput,
+            RME_VALUE_MUTE_OFF
+        );
         send_volume(
             midi,
+            pOutputControl->chRMEDeviceID,
             pOutputControl->chRMEOutput,
             pOutputControl->iVolume,
             pOutputControl->dVolumeMinDB,
@@ -1179,7 +1202,12 @@ static void apply_state(
         );
     } else {
         /* UDCE is disabled (mute on): send mute on */
-        send_mute(midi, pOutputControl->chRMEOutput, RME_VALUE_MUTE_ON);
+        send_mute(
+            midi,
+            pOutputControl->chRMEDeviceID,
+            pOutputControl->chRMEOutput,
+            RME_VALUE_MUTE_ON
+        );
     }
 }
 
@@ -1484,6 +1512,8 @@ static void print_usage(const char *prog) {
     printf("      --list-device-ids       List all supported device IDs\n");
     printf("      --list-device-names     List all supported device names\n");
     printf("  -M, --midi-device STRING    Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'\n");
+    printf("      --no-line12             Do not install controls for line output 1/2\n");
+    printf("      --no-phones34           Do not install controls for phones output 3/4\n");
     printf("      --no-uninstall-on-exit  If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
     printf("  -p, --phones34-min-db DB    Minimum dB value for phones output 3/4, corresponding to   0%% volume (default: %.1f dB)\n", gpstConfiguration.dPhones34MinDB);
     printf("  -P, --phones34-max-db DB    Maximum dB value for phones output 3/4, corresponding to 100%% volume (default: %.1f dB)\n", gpstConfiguration.dPhones34MaxDB);
@@ -1498,27 +1528,29 @@ static void print_usage(const char *prog) {
 
 static int parse_args(int argc, char *argv[]) {
     static struct option long_opts[] = {
-        {"card-number",              required_argument, 0, 'C'},
-        {"device-name",              required_argument, 0, 'd'},
-        {"device-id",                required_argument, 0, 'D'},
-        {"help",                     no_argument,       0, 'h'},
-        {"line12-min-db",            required_argument, 0, 'l'},
-        {"line12-max-db",            required_argument, 0, 'L'},
-        {"list-cards",               no_argument,       0, 'X'},    /* the short form is not public */
-        {"list-device-ids",          no_argument,       0, 'Y'},    /* the short form is not public */
-        {"list-device-names",        no_argument,       0, 'Z'},    /* the short form is not public */
-        {"midi-device",              required_argument, 0, 'M'},
-        {"no-uninstall-on-exit",     no_argument,       0, 'U'},    /* the short form is not public */
-        {"phones34-min-db",          required_argument, 0, 'p'},
-        {"phones34-max-db",          required_argument, 0, 'P'},
-        {"uninstall",                no_argument,       0, 'u'},    /* the short form is not public */
-        {"verbose",                  no_argument,       0, 'v'},
+        {"card-number",          required_argument, 0, 'C'},
+        {"device-name",          required_argument, 0, 'd'},
+        {"device-id",            required_argument, 0, 'D'},
+        {"help",                 no_argument,       0, 'h'},
+        {"line12-min-db",        required_argument, 0, 'l'},
+        {"line12-max-db",        required_argument, 0, 'L'},
+        {"list-cards",           no_argument,       0, 'X'},    /* the short form is not public */
+        {"list-device-ids",      no_argument,       0, 'Y'},    /* the short form is not public */
+        {"list-device-names",    no_argument,       0, 'Z'},    /* the short form is not public */
+        {"midi-device",          required_argument, 0, 'M'},
+        {"no-line12",            no_argument,       0, 'S'},    /* the short form is not public */
+        {"no-phones34",          no_argument,       0, 'T'},    /* the short form is not public */
+        {"no-uninstall-on-exit", no_argument,       0, 'U'},    /* the short form is not public */
+        {"phones34-min-db",      required_argument, 0, 'p'},
+        {"phones34-max-db",      required_argument, 0, 'P'},
+        {"uninstall",            no_argument,       0, 'u'},    /* the short form is not public */
+        {"verbose",              no_argument,       0, 'v'},
         {0, 0, 0, 0}
     };
 
     int opt = 0;
     int bDeviceIDWasSet = BOOL_FALSE;
-    while ((opt = getopt_long(argc, argv, "C:d:D:hl:L:XYZM:Up:P:uv", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "C:d:D:hl:L:XYZM:STUp:P:uv", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'C':
             gpstConfiguration.iCardNumber = atoi(optarg);
@@ -1547,6 +1579,12 @@ static int parse_args(int argc, char *argv[]) {
             break;
         case 'P':
             gpstConfiguration.dPhones34MaxDB = atof(optarg);
+            break;
+        case 'S':
+            gpstConfiguration.bLine12Control = BOOL_FALSE;
+            break;
+        case 'T':
+            gpstConfiguration.bPhones34Control = BOOL_FALSE;
             break;
         case 'u':
             gpstConfiguration.bUninstall = BOOL_TRUE;
@@ -1720,11 +1758,11 @@ int main(int argc, char *argv[]) {
     }
 
     /* Initialize control for line output 1/2 */
-    /* TODO control with command line option */
-    if (BOOL_TRUE) {
+    if (BOOL_IS_TRUE(gpstConfiguration.bLine12Control)) {
         iRet = init_output_control(
             ctl,
             &stLine12,
+            gpstConfiguration.iDeviceID,
             RME_PARAM_LINE,
             UDCE_LINE12_VOLUME_NAME,
             UDCE_LINE12_SWITCH_NAME,
@@ -1740,11 +1778,11 @@ int main(int argc, char *argv[]) {
     }
 
     /* Initialize control for phones output 3/4 */
-    /* TODO control with command line option */
-    if (BOOL_TRUE) {
+    if (BOOL_IS_TRUE(gpstConfiguration.bPhones34Control)) {
         iRet = init_output_control(
             ctl,
             &stPhones34,
+            gpstConfiguration.iDeviceID,
             RME_PARAM_PHONES,
             UDCE_PHONES34_VOLUME_NAME,
             UDCE_PHONES34_SWITCH_NAME,
