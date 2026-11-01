@@ -36,8 +36,13 @@
 
 typedef struct {
     char szOptionName[64];
-    double dValueDB;
-} OptionMinMaxDB;
+    double dValue;
+} StringDoublePair;
+
+typedef struct {
+    char szOptionName[64];
+    double iValue;
+} StringIntegerPair;
 
 typedef struct {
     char szDeviceName[64];
@@ -82,10 +87,12 @@ static struct {
     double dLine12MinDB;
     double dLine12MaxDB;
     int iLine12StartupVolume;
+    int bLine12StartupSwitch;
     int bPhones34Control;
     double dPhones34MinDB;
     double dPhones34MaxDB;
     int iPhones34StartupVolume;
+    int bPhones34StartupSwitch;
     int bListCards;
     int bListDeviceIDs;
     int bListDeviceNames;
@@ -102,10 +109,12 @@ static struct {
     .dLine12MinDB = DEFAULT_LINE12_VOLUME_MIN_DB,
     .dLine12MaxDB = DEFAULT_LINE12_VOLUME_MAX_DB,
     .iLine12StartupVolume = DEFAULT_LINE12_STARTUP_VOLUME_VALUE,
+    .bLine12StartupSwitch = DEFAULT_LINE12_STARTUP_SWITCH_VALUE,
     .bPhones34Control = DEFAULT_PHONES34_CONTROL,
     .dPhones34MinDB = DEFAULT_PHONES34_VOLUME_MIN_DB,
     .dPhones34MaxDB = DEFAULT_PHONES34_VOLUME_MAX_DB,
     .iPhones34StartupVolume = DEFAULT_PHONES34_STARTUP_VOLUME_VALUE,
+    .bPhones34StartupSwitch = DEFAULT_PHONES34_STARTUP_SWITCH_VALUE,
     .bListCards = DEFAULT_LIST_CARDS_ONLY,
     .bListDeviceIDs = DEFAULT_LIST_DEVICE_IDS_ONLY,
     .bListDeviceNames = DEFAULT_LIST_DEVICE_NAMES_ONLY,
@@ -1440,23 +1449,68 @@ static int validate_initial_volume_value(int iVolume, const char *szOption) {
     return BOOL_FALSE;
 }
 static int validate_initial_volume_values() {
-    return (
-        validate_initial_volume_value(
-            gpstConfiguration.iLine12StartupVolume,
-            "--line12-volume"
-        ) &&
-        validate_initial_volume_value(
-            gpstConfiguration.iPhones34StartupVolume,
-            "--phones34-volume"
-        )
+    StringIntegerPair pstPairs[] = {
+        {"--line12-volume", gpstConfiguration.iLine12StartupVolume},
+        {"--phones34-volume", gpstConfiguration.iPhones34StartupVolume},
+    };
+    size_t cCount = sizeof(pstPairs) / sizeof(pstPairs[0]);
+
+    for (size_t i = 0; i < cCount; i++) {
+        if (BOOL_IS_FALSE(
+            validate_initial_volume_value(
+                pstPairs[i].iValue,
+                pstPairs[i].szOptionName
+            )
+        )) {
+            return BOOL_FALSE;
+        }
+    }
+    return BOOL_TRUE;
+}
+
+/* Return true if the line12/phones34 initial switch values
+ * in the configuration are supported (or they were not set),
+ * and false otherwise. */
+static int validate_initial_switch_value(int iValue, const char *szOption) {
+    if (
+        (iValue == INITIAL_SWITCH_VALUE_NOT_SET) ||
+        (iValue == BOOL_TRUE) ||
+        (iValue == BOOL_FALSE)
+    ) {
+        return BOOL_TRUE;
+    }
+    log_error(
+        "Invalid initial switch value for option '%s': '%d'",
+        szOption,
+        iValue
     );
+    return BOOL_FALSE;
+}
+static int validate_initial_switch_values() {
+    StringIntegerPair pstPairs[] = {
+        {"--line12-enabled", gpstConfiguration.bLine12StartupSwitch},
+        {"--phones34-enabled", gpstConfiguration.bPhones34StartupSwitch},
+    };
+    size_t cCount = sizeof(pstPairs) / sizeof(pstPairs[0]);
+
+    for (size_t i = 0; i < cCount; i++) {
+        if (BOOL_IS_FALSE(
+            validate_initial_switch_value(
+                pstPairs[i].iValue,
+                pstPairs[i].szOptionName
+            )
+        )) {
+            return BOOL_FALSE;
+        }
+    }
+    return BOOL_TRUE;
 }
 
 /* Return true if the line12/phones34 min/max DB values
  * in the configuration are supported (or they were not set),
  * and false otherwise. */
 static int validate_min_max_db_values() {
-    OptionMinMaxDB pstPairs[] = {
+    StringDoublePair pstPairs[] = {
         {"--line12-min-db", gpstConfiguration.dLine12MinDB},
         {"--line12-max-db", gpstConfiguration.dLine12MaxDB},
         {"--phones34-min-db", gpstConfiguration.dPhones34MinDB},
@@ -1466,13 +1520,13 @@ static int validate_min_max_db_values() {
 
     for (size_t i = 0; i < cCount; i++) {
         if (BOOL_IS_TRUE(
-            (pstPairs[i].dValueDB < RME_VALUE_VOLUME_MIN_DB) ||
-            (pstPairs[i].dValueDB > RME_VALUE_VOLUME_MAX_DB)
+            (pstPairs[i].dValue < RME_VALUE_VOLUME_MIN_DB) ||
+            (pstPairs[i].dValue > RME_VALUE_VOLUME_MAX_DB)
         )) {
             log_error(
                 "Invalid value '%0.1f' for option '%s': "
                 "it must be between '%0.1f' dB and '%0.1f' dB",
-                pstPairs[i].dValueDB,
+                pstPairs[i].dValue,
                 pstPairs[i].szOptionName,
                 RME_VALUE_VOLUME_MIN_DB,
                 RME_VALUE_VOLUME_MAX_DB
@@ -1483,7 +1537,7 @@ static int validate_min_max_db_values() {
 
     for (size_t i = 0; i < cCount; i += 2) {
         if (BOOL_IS_TRUE(
-            (pstPairs[i].dValueDB >= pstPairs[i + 1].dValueDB)
+            (pstPairs[i].dValue >= pstPairs[i + 1].dValue)
         )) {
             log_error(
                 "The value of option '%s' must be smaller than "
@@ -1491,8 +1545,8 @@ static int validate_min_max_db_values() {
                 "Got instead: '%0.1f' >= '%0.1f'.",
                 pstPairs[i].szOptionName,
                 pstPairs[i + 1].szOptionName,
-                pstPairs[i].dValueDB,
-                pstPairs[i + 1].dValueDB
+                pstPairs[i].dValue,
+                pstPairs[i + 1].dValue
             );
             return BOOL_FALSE;
         }
@@ -1536,25 +1590,27 @@ static void print_usage(const char *prog) {
     printf("Creates ALSA mute and volume controls for RME ADI-2 devices.\n");
     printf("\n");
     printf("Options:\n");
-    printf("  -C, --card-number INTEGER      Use the ALSA card with the given index; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones\n");
-    printf("  -d, --device-name STRING       RME device name (default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
-    printf("  -D, --device-id STRING         RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones\n");
-    printf("  -h, --help                     Show this help\n");
-    printf("  -i, --line12-volume INTEGER    Initial volume for line output 1/2 (in [0, 100], default: %d)\n", gpstConfiguration.iLine12StartupVolume);
-    printf("  -I, --phones34-volume INTEGER  Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", gpstConfiguration.iPhones34StartupVolume);
-    printf("  -l, --line12-min-db DB         Minimum dB value for line output 1/2, corresponding to   0%% volume (default: %.1f dB)\n", gpstConfiguration.dLine12MinDB);
-    printf("  -L, --line12-max-db DB         Maximum dB value for line output 1/2, corresponding to 100%% volume (default: %.1f dB)\n", gpstConfiguration.dLine12MaxDB);
-    printf("      --list-cards               List all ALSA cards and exit\n");
-    printf("      --list-device-ids          List all supported device IDs\n");
-    printf("      --list-device-names        List all supported device names\n");
-    printf("  -M, --midi-device STRING       Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'\n");
-    printf("      --no-line12                Do not install controls for line output 1/2\n");
-    printf("      --no-phones34              Do not install controls for phones output 3/4\n");
-    printf("      --no-uninstall-on-exit     If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
-    printf("  -p, --phones34-min-db DB       Minimum dB value for phones output 3/4, corresponding to   0%% volume (default: %.1f dB)\n", gpstConfiguration.dPhones34MinDB);
-    printf("  -P, --phones34-max-db DB       Maximum dB value for phones output 3/4, corresponding to 100%% volume (default: %.1f dB)\n", gpstConfiguration.dPhones34MaxDB);
-    printf("      --uninstall                Uninstall ALSA user-defined control elements and exit\n");
-    printf("  -v, --verbose                  Enable verbose output\n");
+    printf("  -C, --card-number INTEGER       Use the ALSA card with the given index; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones\n");
+    printf("  -d, --device-name STRING        RME device name (default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
+    printf("  -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones\n");
+    printf("  -h, --help                      Show this help\n");
+    printf("  -i, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", gpstConfiguration.iLine12StartupVolume);
+    printf("  -I, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", gpstConfiguration.iPhones34StartupVolume);
+    printf("  -j, --line12-enabled INTEGER    Initial enable line output 1/2: %d == muted, %d == unmuted (default: %d)\n", BOOL_TRUE, BOOL_FALSE, gpstConfiguration.bLine12StartupSwitch);
+    printf("  -J, --phones34-enabled INTEGER  Initial enable phones output 3/4: %d == muted, %d == unmuted (default: %d)\n", BOOL_TRUE, BOOL_FALSE, gpstConfiguration.bPhones34StartupSwitch);
+    printf("  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to   0%% volume (default: %.1f dB)\n", gpstConfiguration.dLine12MinDB);
+    printf("  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (default: %.1f dB)\n", gpstConfiguration.dLine12MaxDB);
+    printf("      --list-cards                List all ALSA cards and exit\n");
+    printf("      --list-device-ids           List all supported device IDs\n");
+    printf("      --list-device-names         List all supported device names\n");
+    printf("  -M, --midi-device STRING        Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'\n");
+    printf("      --no-line12                 Do not install controls for line output 1/2\n");
+    printf("      --no-phones34               Do not install controls for phones output 3/4\n");
+    printf("      --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
+    printf("  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to   0%% volume (default: %.1f dB)\n", gpstConfiguration.dPhones34MinDB);
+    printf("  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100%% volume (default: %.1f dB)\n", gpstConfiguration.dPhones34MaxDB);
+    printf("      --uninstall                 Uninstall ALSA user-defined control elements and exit\n");
+    printf("  -v, --verbose                   Enable verbose output\n");
     printf("\n");
     printf("Examples:\n");
     printf("  %s --list-cards\n", prog);
@@ -1570,6 +1626,8 @@ static int parse_args(int argc, char *argv[]) {
         {"help",                 no_argument,       0, 'h'},
         {"line12-volume",        required_argument, 0, 'i'},
         {"phones34-volume",      required_argument, 0, 'I'},
+        {"line12-enabled",       required_argument, 0, 'j'},
+        {"phones34-enabled",     required_argument, 0, 'J'},
         {"line12-min-db",        required_argument, 0, 'l'},
         {"line12-max-db",        required_argument, 0, 'L'},
         {"list-cards",           no_argument,       0, 'X'},    /* the short form is not public */
@@ -1588,7 +1646,7 @@ static int parse_args(int argc, char *argv[]) {
 
     int opt = 0;
     int bDeviceIDWasSet = BOOL_FALSE;
-    while ((opt = getopt_long(argc, argv, "C:d:D:hi:I:l:L:XYZM:STUp:P:uv", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "C:d:D:hi:I:j:J:l:L:XYZM:STUp:P:uv", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'C':
             gpstConfiguration.iCardNumber = atoi(optarg);
@@ -1608,6 +1666,12 @@ static int parse_args(int argc, char *argv[]) {
             break;
         case 'I':
             gpstConfiguration.iPhones34StartupVolume = atoi(optarg);
+            break;
+        case 'j':
+            gpstConfiguration.bLine12StartupSwitch = atoi(optarg);
+            break;
+        case 'J':
+            gpstConfiguration.bPhones34StartupSwitch = atoi(optarg);
             break;
         case 'l':
             gpstConfiguration.dLine12MinDB = atof(optarg);
@@ -1665,11 +1729,15 @@ static int parse_args(int argc, char *argv[]) {
         return EXIT_ERROR_USAGE_BAD_VALUE;
     }
 
+    if (BOOL_IS_FALSE(validate_min_max_db_values())) {
+        return EXIT_ERROR_USAGE_BAD_VALUE;
+    }
+
     if (BOOL_IS_FALSE(validate_initial_volume_values())) {
         return EXIT_ERROR_USAGE_BAD_VALUE;
     }
 
-    if (BOOL_IS_FALSE(validate_min_max_db_values())) {
+    if (BOOL_IS_FALSE(validate_initial_switch_values())) {
         return EXIT_ERROR_USAGE_BAD_VALUE;
     }
 
@@ -1815,7 +1883,7 @@ int main(int argc, char *argv[]) {
             UDCE_LINE12_VOLUME_NAME,
             UDCE_LINE12_SWITCH_NAME,
             gpstConfiguration.iLine12StartupVolume,
-            DEFAULT_LINE12_SWITCH_VALUE,
+            gpstConfiguration.bLine12StartupSwitch,
             gpstConfiguration.dLine12MinDB,
             gpstConfiguration.dLine12MaxDB
         );
@@ -1835,7 +1903,7 @@ int main(int argc, char *argv[]) {
             UDCE_PHONES34_VOLUME_NAME,
             UDCE_PHONES34_SWITCH_NAME,
             gpstConfiguration.iPhones34StartupVolume,
-            DEFAULT_PHONES34_SWITCH_VALUE,
+            gpstConfiguration.bPhones34StartupSwitch,
             gpstConfiguration.dPhones34MinDB,
             gpstConfiguration.dPhones34MaxDB
         );

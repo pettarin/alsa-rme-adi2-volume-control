@@ -92,6 +92,7 @@
 #define DEVICE_NAME_RME_ADI2_PRO                    "ADI-2 Pro"
 #define DEVICE_NAME_RME_ADI24_PRO                   "ADI-2/4 Pro"
 #define INITIAL_VOLUME_VALUE_NOT_SET                (-1)
+#define INITIAL_SWITCH_VALUE_NOT_SET                (-1)
 #define MIDI_DEVICE_AUTODETECT                      "autodetect"
 
 #define DEFAULT_CARD_HW                             CARD_HW_NOT_SET
@@ -107,14 +108,14 @@
 #define DEFAULT_UNINSTALL_ON_EXIT                   BOOL_TRUE
 
 #define DEFAULT_LINE12_CONTROL                      BOOL_TRUE                   /* Default value of the line 1/2 output control: true (create) or false (do not create) */
-#define DEFAULT_LINE12_STARTUP_VOLUME_VALUE         50                          /* Default statup volume for line 1/2 output (50 == 50% of [0, 100]); use -1 to read device volume */
-#define DEFAULT_LINE12_SWITCH_VALUE                 BOOL_TRUE                   /* Default value of the line 1/2 output switch: true (mute off) or false (mute on) */
+#define DEFAULT_LINE12_STARTUP_VOLUME_VALUE         50                          /* Default statup volume for line 1/2 output (50 == 50% of [0, 100]); use -1 to read device state */
+#define DEFAULT_LINE12_STARTUP_SWITCH_VALUE         BOOL_TRUE                   /* Default value of the line 1/2 output switch: true (mute off) or false (mute on); use -1 to read device state */
 #define DEFAULT_LINE12_VOLUME_MAX_DB                (-10.0)                     /* Default max volume, in dB, for line 1/2 output */
 #define DEFAULT_LINE12_VOLUME_MIN_DB                (-60.0)                     /* Default min volume, in dB, for line 1/2 output */
 
 #define DEFAULT_PHONES34_CONTROL                    BOOL_TRUE                   /* Default value of the phones 3/4 output control: true (create) or false (do not create) */
-#define DEFAULT_PHONES34_STARTUP_VOLUME_VALUE       50                          /* Default statup volume for phones 3/4 output (50 == 50% of [0, 100]); use -1 to read device volume */
-#define DEFAULT_PHONES34_SWITCH_VALUE               BOOL_TRUE                   /* Default value of the phones 3/4 output switch: true (mute off) or false (mute on) */
+#define DEFAULT_PHONES34_STARTUP_VOLUME_VALUE       50                          /* Default statup volume for phones 3/4 output (50 == 50% of [0, 100]); use -1 to read device state */
+#define DEFAULT_PHONES34_STARTUP_SWITCH_VALUE       BOOL_TRUE                   /* Default value of the phones 3/4 output switch: true (mute off) or false (mute on); use -1 to read device state */
 #define DEFAULT_PHONES34_VOLUME_MAX_DB              (-10.0)                     /* Default max volume, in dB, for phones 3/4 output */
 #define DEFAULT_PHONES34_VOLUME_MIN_DB              (-60.0)                     /* Default min volume, in dB, for phones 3/4 output */
 
