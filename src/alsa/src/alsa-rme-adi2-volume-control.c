@@ -179,6 +179,28 @@ static void log_verbose(const char *fmt, ...) {
 
 
 /* *************************************************************************
+ * String helpers
+ * ************************************************************************* */
+
+/* strnstr is not part of the GNU stdlib, but from the BSD stdlib:
+ * define it here instead of depending on the latter */
+static char *strnstr(const char *haystack, const char *needle, size_t len) {
+    size_t needle_len = strnlen(needle, len);
+    if (needle_len == 0) {
+        return (char *)haystack;
+    }
+    while (len >= needle_len && *haystack) {
+        if (memcmp(haystack, needle, needle_len) == 0) {
+            return (char *)haystack;
+        }
+        haystack++;
+        len--;
+    }
+    return NULL;
+}
+
+
+/* *************************************************************************
  * ALSA card helpers
  * ************************************************************************* */
 
@@ -228,7 +250,7 @@ static int find_card_by_name(const char *szQuery) {
         );
 
         /* NOTE: matching szQuery as substring of szCardName */
-        if (strstr(szCardName, szQuery) != NULL) {
+        if (strnstr(szCardName, szQuery, CARD_NAME_MAX_LENGTH) != NULL) {
             log_verbose(
                 "ALSA card number '%d' with name '%s' "
                 "matches the query '%s': returning it",

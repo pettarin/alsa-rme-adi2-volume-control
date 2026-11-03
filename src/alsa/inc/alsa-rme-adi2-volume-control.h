@@ -70,7 +70,7 @@
 
 /* Constants used in strn* functions and struct declarations */
 #define CARD_HW_MAX_LENGTH                          32                          /* Max length, in bytes, of an ALSA hw string */
-#define CARD_NAME_MAX_LENGTH                        128                         /* Max length, in bytes, of an ALSA card name */
+#define CARD_NAME_MAX_LENGTH                        1024                        /* Max length, in bytes, of an ALSA card name */
 #define DEVICE_NAME_MAX_LENGTH                      128                         /* Max length, in bytes, of an RME device name */
 #define MIDI_DEVICE_MAX_LENGTH                      32                          /* Max length, in bytes, of a MIDI device (hw:N,x,y) */
 #define MIDI_DEVICE_PROBE_MIN_INDEX                 0                           /* Min index for MIDI device/subdevice to probe, included */
