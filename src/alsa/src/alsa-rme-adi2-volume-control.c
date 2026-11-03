@@ -1019,17 +1019,17 @@ static int send_volume(
     iRet = send_db(midi, chRMEDeviceID, chRMEOutput, dValueDB);
     if (ERR_CODE_IS_OK(iRet)) {
         log_info(
-            "SET volume on %s: %d == %.1f dB",
-            (chRMEOutput == RME_PARAM_LINE) ? "line12" : "phones34",
+            "SET volume %d == %.1f dB on %s",
             iValue,
-            dValueDB
+            dValueDB,
+            (chRMEOutput == RME_PARAM_LINE) ? "line12" : "phones34"
         );
     } else {
         log_error(
-            "SET volume on %s failed: value %d == %0.1f dB, error %d",
-            (chRMEOutput == RME_PARAM_LINE) ? "line12" : "phones34",
+            "SET volume %d == %0.1f dB on %s failed: error %d",
             iValue,
             dValueDB,
+            (chRMEOutput == RME_PARAM_LINE) ? "line12" : "phones34",
             iRet
         );
     }
@@ -1087,9 +1087,9 @@ static int send_mute(
         return ERR_ERROR_GENERIC;
     } else {
         log_info(
-            "SET mute on %s: %s",
-            (chRMEOutput == RME_PARAM_LINE) ? "line12" : "phones34",
-            (chRMEValueMute == RME_VALUE_MUTE_ON ? "on" : "off")
+            "SET mute %s on %s",
+            (chRMEValueMute == RME_VALUE_MUTE_ON ? "on" : "off"),
+            (chRMEOutput == RME_PARAM_LINE) ? "line12" : "phones34"
         );
     }
     return ERR_OK;
@@ -1321,8 +1321,8 @@ static void apply_state(
 static int monitor_loop(
     snd_ctl_t *ctl,
     snd_rawmidi_t *midi,
-    OutputControl *pLine12,
-    OutputControl *pPhones34
+    OutputControl *pOutputControls[],
+    size_t cOutputControls
 ) {
     int iCount = 0;
     int iRet = ERR_OK;
@@ -1351,26 +1351,20 @@ static int monitor_loop(
     struct pollfd pfd[iCount];
     snd_ctl_poll_descriptors(ctl, pfd, iCount);
 
-    /* TODO implement a real MIDI SysEx read of mute and volume state */
     /* Send initial state */
-    apply_state(midi, pLine12);
-    apply_state(midi, pPhones34);
-
-    if (BOOL_IS_TRUE(pLine12->bInitialized)) {
-        log_info(
-            "Monitoring ALSA user-defined control elements "
-            "'%s' and '%s' for changes",
-            pLine12->szUDCEVolumeName,
-            pLine12->szUDCESwitchName
-        );
+    for (size_t i = 0; i < cOutputControls; i++) {
+        /* TODO implement a real MIDI SysEx read of mute and volume state */
+        apply_state(midi, pOutputControls[i]);
     }
-    if (BOOL_IS_TRUE(pPhones34->bInitialized)) {
-        log_info(
-            "Monitoring ALSA user-defined control elements "
-            "'%s' and '%s' for changes",
-            pPhones34->szUDCEVolumeName,
-            pPhones34->szUDCESwitchName
-        );
+    for (size_t i = 0; i < cOutputControls; i++) {
+        if (BOOL_IS_TRUE(pOutputControls[i]->bInitialized)) {
+            log_info(
+                "Monitoring ALSA user-defined control elements "
+                "'%s' and '%s' for changes",
+                pOutputControls[i]->szUDCEVolumeName,
+                pOutputControls[i]->szUDCESwitchName
+            );
+        }
     }
 
     /* gbServiceIsRunning can be set to false by the signal handler,
@@ -1418,12 +1412,13 @@ static int monitor_loop(
                 continue;
             }
 
-            /* Check if the event belongs to line12 or phones34 */
-            if (BOOL_IS_TRUE(is_event_from_output_control(event, pLine12))) {
-                pEventFrom = pLine12;
-            }
-            if (BOOL_IS_TRUE(is_event_from_output_control(event, pPhones34))) {
-                pEventFrom = pPhones34;
+            /* Check if the event belongs to one of the output controls */
+            for (size_t i = 0; i < cOutputControls; i++) {
+                if (BOOL_IS_TRUE(
+                    is_event_from_output_control(event, pOutputControls[i])
+                )) {
+                    pEventFrom = pOutputControls[i];
+                }
             }
             if (pEventFrom == NULL) {
                 /* evaluate next event */
@@ -1876,18 +1871,29 @@ static int parse_args(int argc, char *argv[]) {
  * ************************************************************************* */
 
 int main(int argc, char *argv[]) {
+    int iRet = ERR_OK;
+    int iExitCode = EXIT_OK;
     snd_ctl_t *ctl = NULL;
     snd_rawmidi_t *midi = NULL;
     void (*pfLogFunction)(const char *msg, ...) = NULL;
     OutputControl stLine12;
     OutputControl stPhones34;
-    int iRet = ERR_OK;
-    int iExitCode = EXIT_OK;
 
-    /* allocate the output control structures on the stack */
-    memset(&stLine12, 0, sizeof(stLine12));
-    memset(&stPhones34, 0, sizeof(stPhones34));
+    /* Note that the OutputControl objects are allocated on the stack */
+    OutputControl *pOutputControls[] = {
+        &stLine12,
+        &stPhones34
+    };
+    OutputParameters *pOutputParameters[] = {
+        &(gpConfiguration.stLine12),
+        &(gpConfiguration.stPhones34)
+    };
+    size_t cOutputControls = sizeof(pOutputControls) / sizeof(pOutputControls[0]);
+    for (size_t i = 0; i < cOutputControls; i++) {
+        memset(pOutputControls[i], 0, sizeof(*(pOutputControls[i])));
+    }
 
+    /* Parse command line arguments */
     iRet = parse_args(argc, argv);
     if (ERR_CODE_IS_ERROR(iRet)) {
         log_error("Cannot parse command line arguments: exit error %d", iRet);
@@ -2009,28 +2015,18 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
-    /* Initialize control for line output 1/2 */
-    iRet = init_output_control(
-        ctl,
-        gpConfiguration.iDeviceID,
-        &(gpConfiguration.stLine12),
-        &stLine12
-    );
-    if (ERR_CODE_IS_ERROR(iRet)) {
-        iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
-        goto cleanup;
-    }
-
-    /* Initialize control for phones output 3/4 */
-    iRet = init_output_control(
-        ctl,
-        gpConfiguration.iDeviceID,
-        &(gpConfiguration.stPhones34),
-        &stPhones34
-    );
-    if (ERR_CODE_IS_ERROR(iRet)) {
-        iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
-        goto cleanup;
+    /* Initialize output controls */
+    for (size_t i = 0; i < cOutputControls; i++) {
+        iRet = init_output_control(
+            ctl,
+            gpConfiguration.iDeviceID,
+            pOutputParameters[i],
+            pOutputControls[i]
+        );
+        if (ERR_CODE_IS_ERROR(iRet)) {
+            iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
+            goto cleanup;
+        }
     }
 
     /* Run the monitoring loop */
@@ -2041,7 +2037,7 @@ int main(int argc, char *argv[]) {
         gpConfiguration.szMIDIDevice,
         gpConfiguration.iCardNumber
     );
-    iRet = monitor_loop(ctl, midi, &stLine12, &stPhones34);
+    iRet = monitor_loop(ctl, midi, pOutputControls, cOutputControls);
     log_info("Control loop exited with return code '%d'", iRet);
     if (ERR_CODE_IS_ERROR(iRet)) {
         switch (iRet) {
@@ -2091,8 +2087,9 @@ cleanup:
     }
 
     /* Close objects */
-    free_output_control(&stLine12);
-    free_output_control(&stPhones34);
+    for (size_t i = 0; i < cOutputControls; i++) {
+        free_output_control(pOutputControls[i]);
+    }
     if (midi) {
         snd_rawmidi_close(midi);
         log_verbose("Closed raw MIDI object");
