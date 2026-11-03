@@ -1732,8 +1732,8 @@ static void print_usage(const char *prog) {
     printf("  -h, --help                      Show this help\n");
     printf("  -i, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", gpConfiguration.stLine12.iStartupVolume);
     printf("  -I, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", gpConfiguration.stPhones34.iStartupVolume);
-    printf("  -j, --line12-enabled INTEGER    Initial enable line output 1/2: %d == muted, %d == unmuted (default: %d)\n", BOOL_TRUE, BOOL_FALSE, gpConfiguration.stLine12.bStartupSwitch);
-    printf("  -J, --phones34-enabled INTEGER  Initial enable phones output 3/4: %d == muted, %d == unmuted (default: %d)\n", BOOL_TRUE, BOOL_FALSE, gpConfiguration.stPhones34.bStartupSwitch);
+    printf("  -j, --line12-enabled INTEGER    Initial enable line output 1/2:   %d == muted, %d == unmuted (default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stLine12.bStartupSwitch);
+    printf("  -J, --phones34-enabled INTEGER  Initial enable phones output 3/4: %d == muted, %d == unmuted (default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stPhones34.bStartupSwitch);
     printf("  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to   0%% volume (default: %.1f dB)\n", gpConfiguration.stLine12.dMinDB);
     printf("  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (default: %.1f dB)\n", gpConfiguration.stLine12.dMaxDB);
     printf("      --list-cards                List all ALSA cards and exit\n");
