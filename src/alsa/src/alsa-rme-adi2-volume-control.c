@@ -80,6 +80,7 @@ typedef struct {
     int bPrintUsageOnly;
     int bUninstall;
     int bUninstallOnExit;
+    int bVerboseLog;
 } ServiceConfiguration;
 
 typedef struct {
@@ -96,9 +97,6 @@ typedef struct {
 /* *************************************************************************
  * Global state variables
  * ************************************************************************* */
-
-/* Flag for verbose log */
-static int gbLogVerbose = BOOL_FALSE;
 
 /* Flag tracking whether the service is running or not */
 static volatile sig_atomic_t gbServiceIsRunning = (sig_atomic_t)BOOL_TRUE;
@@ -135,7 +133,8 @@ static ServiceConfiguration gpConfiguration = {
     .bListDeviceNames = DEFAULT_LIST_DEVICE_NAMES_ONLY,
     .bPrintUsageOnly = DEFAULT_PRINT_USAGE_ONLY,
     .bUninstall = DEFAULT_UNINSTALL_ONLY,
-    .bUninstallOnExit = DEFAULT_UNINSTALL_ON_EXIT
+    .bUninstallOnExit = DEFAULT_UNINSTALL_ON_EXIT,
+    .bVerboseLog = DEFAULT_VERBOSE_LOG
 };
 
 
@@ -164,7 +163,7 @@ static void log_error(const char *fmt, ...) {
 }
 
 static void log_verbose(const char *fmt, ...) {
-    if (BOOL_IS_FALSE(gbLogVerbose)) {
+    if (BOOL_IS_FALSE(gpConfiguration.bVerboseLog)) {
         return;
     }
     va_list ap;
@@ -1719,7 +1718,7 @@ static int parse_args(int argc, char *argv[]) {
             gpConfiguration.bUninstallOnExit = BOOL_FALSE;
             break;
         case 'v':
-            gbLogVerbose = BOOL_TRUE;
+            gpConfiguration.bVerboseLog = BOOL_TRUE;
             break;
         case 'X':
             gpConfiguration.bListCards = BOOL_TRUE;
@@ -1794,7 +1793,7 @@ int main(int argc, char *argv[]) {
 
     /* Print the usage and exit */
     if (BOOL_IS_TRUE(gpConfiguration.bPrintUsageOnly)) {
-        gbLogVerbose = BOOL_FALSE;
+        gpConfiguration.bVerboseLog = BOOL_FALSE;
         print_usage(argv[0]);
         iExitCode = EXIT_OK;
         goto cleanup;
@@ -1802,7 +1801,7 @@ int main(int argc, char *argv[]) {
 
     /* Print the list of cards and exit */
     if (BOOL_IS_TRUE(gpConfiguration.bListCards)) {
-        gbLogVerbose = BOOL_FALSE;
+        gpConfiguration.bVerboseLog = BOOL_FALSE;
         print_cards();
         iExitCode = EXIT_OK;
         goto cleanup;
@@ -1810,7 +1809,7 @@ int main(int argc, char *argv[]) {
 
     /* Print the list of device IDs and exit */
     if (BOOL_IS_TRUE(gpConfiguration.bListDeviceIDs)) {
-        gbLogVerbose = BOOL_FALSE;
+        gpConfiguration.bVerboseLog = BOOL_FALSE;
         print_device_ids();
         iExitCode = EXIT_OK;
         goto cleanup;
@@ -1818,7 +1817,7 @@ int main(int argc, char *argv[]) {
 
     /* Print the list of device names and exit */
     if (BOOL_IS_TRUE(gpConfiguration.bListDeviceNames)) {
-        gbLogVerbose = BOOL_FALSE;
+        gpConfiguration.bVerboseLog = BOOL_FALSE;
         print_device_names();
         iExitCode = EXIT_OK;
         goto cleanup;

@@ -81,7 +81,7 @@
 #define VOL_MIN                                     0                           /* Min volume for the ALSA user-defined control elements */
 #define VOL_MAX                                     100                         /* Max volume for the ALSA user-defined control elements */
 
-/* CLI default values */
+/* Hardcoded/special values for CLI/service configuration */
 #define CARD_HW_NOT_SET                             ""
 #define CARD_NUMBER_NOT_SET                         (-1)
 #define DEVICE_ID_NOT_SET                           (-1)
@@ -93,6 +93,7 @@
 #define INITIAL_SWITCH_VALUE_NOT_SET                (-1)
 #define MIDI_DEVICE_AUTODETECT                      "autodetect"
 
+/* CLI/service configuration default values */
 #define DEFAULT_CARD_HW                             CARD_HW_NOT_SET
 #define DEFAULT_CARD_NUMBER                         CARD_NUMBER_NOT_SET
 #define DEFAULT_DEVICE_ID                           DEVICE_ID_NOT_SET
@@ -104,6 +105,7 @@
 #define DEFAULT_PRINT_USAGE_ONLY                    BOOL_FALSE
 #define DEFAULT_UNINSTALL_ONLY                      BOOL_FALSE
 #define DEFAULT_UNINSTALL_ON_EXIT                   BOOL_TRUE
+#define DEFAULT_VERBOSE_LOG                         BOOL_FALSE
 
 #define DEFAULT_LINE12_CONTROL                      BOOL_TRUE                   /* Default value of the line 1/2 output control: true (create) or false (do not create) */
 #define DEFAULT_LINE12_STARTUP_VOLUME_VALUE         50                          /* Default statup volume for line 1/2 output (50 == 50% of [0, 100]); use -1 to read device state */
