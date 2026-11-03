@@ -262,16 +262,16 @@ By default, controls for both outputs
 will be created.
 Use `--no-line12` or `--no-phones34` to prevent controlling either output.
 
-When run without argument, the RME ADI-2 device to be used
+When run without argument, the RME ADI-2 device
 will be autodetected (`--device-name autodetect`),
-using the first (i.e., lowest index) ALSA card
+using the first (i.e., the lowest index) ALSA card
 that matches one of the supported RME ADI-2 devices,
 along with the corresponding MIDI device.
 This should work for most users,
-who have only a single RME ADI-2 device attached.
+in particular those with only one RME ADI-2 device attached.
 
-Use `--card-number`, `--device-id` or `--device-name`, and `--midi-device`
-to force a specific ALSA card, RME device ID, and MIDI device,
+Use the `--card-number`, `--device-id` or `--device-name`, and `--midi-device`
+options to force a specific ALSA card, RME device ID, and MIDI device,
 for instance if there are more than one RME ADI-2 devices attached.
 For example:
 
