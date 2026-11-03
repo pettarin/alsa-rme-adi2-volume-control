@@ -911,7 +911,7 @@ static void print_midi_devices() {
 }
 
 /* Convert the given volume value (in [VOL_MIN, VOL_MAX])
- * to a dB value (in [dLine12MinDB, dLine12MaxDB]), with a linear mapping. */
+ * to a dB value (in [dVolumeMinDB, dVolumeMaxDB]), with a linear mapping. */
 static double convert_volume_control_value_to_db(
     int iVolume,
     double dVolumeMinDB,
@@ -932,11 +932,9 @@ static void convert_db_value_to_sysex_bytes(
 
     /* Ensure the raw value is in the allowed range */
     if (raw < RME_VALUE_VOLUME_MIN) {
-        /* corresponding to RME_VALUE_VOLUME_dLine12MinDB */
         raw = RME_VALUE_VOLUME_MIN;
     }
     if (raw > RME_VALUE_VOLUME_MAX) {
-        /* corresponding to RME_VALUE_VOLUME_dLine12MaxDB */
         raw = RME_VALUE_VOLUME_MAX;
     }
 
