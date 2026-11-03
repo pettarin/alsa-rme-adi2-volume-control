@@ -376,6 +376,7 @@ sudo cp src/systemd/alsa-rme-adi2-volume-control.service /etc/systemd/system
 sudo systemctl daemon-reload
 
 # load the service
+sudo systemctl enable alsa-rme-adi2-volume-control
 sudo systemctl restart alsa-rme-adi2-volume-control
 ```
 
