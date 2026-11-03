@@ -7,7 +7,7 @@ of an RME ADI-2 device via its MIDI interface.
 
 ## Overview
 
-This repository contains `alsa-rme-adi2-volume-control`,
+This repository contains the source code of `alsa-rme-adi2-volume-control`,
 a C program designed to be executed as a background service
 on a modern Linux machine with
 [ALSA](https://www.alsa-project.org/),
@@ -22,12 +22,14 @@ to client applications (e.g.,
 [MOC](https://moc.daper.net/),
 [moOde](https://moodeaudio.org/),
 [Volumio](https://volumio.com/),
-etc.) avoiding any software-based transformation
-that might impact on the quality of the reproduced audio stream,
-relying on the excellent hardware-based volume controls
-of the RME ADI-2 device itself.
+etc.) allowing the end user to change the mute and volume state
+directly from the client application while
+leveraging the excellent hardware-based volume controls
+of the RME ADI-2 device itself,
+instead of using software-based transformations
+which might impact the quality of the reproduced audio stream.
 
-Some additional support files are provided:
+Some additional support files are provided in this repository:
 
 - a `systemd` unit manifest to run the service in background
   on modern Debian-based Linux distributions;
@@ -52,23 +54,33 @@ Each control has two elements:
 - a boolean switch, for the mute/unmute state of the output; and
 - an integer logical volume, from `0` to `100`, for the volume of the output.
 
-The service command line options
-`--line12-min-db / --line12-max-db` and
-`--phones34-min-db / --phones34-max-db`
+Several service command line options
 allow the user to specify the levels, in dB,
 on the actual RME ADI-2 device,
-corresponding to the `0` and `100` logical volume values
-for each output independently.
+corresponding to the `0` and `100` logical volume values,
+along with the initial mute and volume state,
+independently for each output:
+- `--line12-min-db`,
+- `--line12-max-db`,
+- `--line12-enabled`,
+- `--line12-volume`,
+- `--phones34-min-db`,
+- `--phones34-max-db`,
+- `--phones34-enabled`,
+- `--phones34-volume`.
 
 The service then listens for events on the registered ALSA controls,
 and whenever a mute/unmute or volume change is detected,
 the corresponding SET command is sent to the RME ADI-2 device
 through its MIDI interface.
 
+The service terminates when killed (with `CTRL+C` or `kill/pkill`),
+removing the ALSA controls it registered when it started.
+
 > [!NOTE]
 > Currently the synchronization of the state is one-way only:
 > from ALSA to the physical RME ADI-2 device.
-
+>
 > If the user changes the mute or volume state on the RME ADI-2 device
 > (e.g., using the volume knob or the IR remote),
 > the ALSA controls will not be updated accordingly.
@@ -77,12 +89,12 @@ through its MIDI interface.
 
 #### Screenshots
 
-Screenshot of the service running in foreground,
+Service running in foreground,
 with `alsamixer` showing the registered ALSA controls:
 
 ![Service running](res/screenshot_service_running.png)
 
-Screenshot of the service after its termination,
+Service after its termination,
 with `alsamixer` no longer showing the registered ALSA controls:
 
 ![Service exited](res/screenshot_service_exited.png)
@@ -114,12 +126,13 @@ TODO write this
 > Regular users should take advantage of the automated installation
 > described in the previous section.
 
-### Compile And Install The ALSA Plugin
+### Compile, Test, And Install The Service
 
 #### Requirements
 
 - [ALSA](https://www.alsa-project.org/wiki/Main_Page) (Debian/Ubuntu: `libasound2-dev`)
 - [CMake](https://cmake.org/) (Debian/Ubuntu: `cmake`)
+- [GNU C Compiler (gcc)](https://gcc.gnu.org/) (Debian/Ubuntu: `build-essential`)
 
 #### Compile
 
@@ -134,7 +147,7 @@ The executable is written to `src/alsa/bin/alsa-rme-adi2-volume-control`.
 #### Test
 
 To test the `alsa-rme-adi2-volume-control` executable,
-run a command similar to the following:
+run it in foreground, with a command similar to the following:
 
 ```bash
 ./bin/alsa-rme-adi2-volume-control
