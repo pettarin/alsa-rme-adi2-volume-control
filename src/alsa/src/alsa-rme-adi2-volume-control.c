@@ -1007,10 +1007,11 @@ static int send_db(
     log_verbose(
         "WRITE MIDI SysEx: "
         "%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X"
-        " (volume: %.1f dB)",
+        " (volume: %.1f dB, output: %s)",
         pchSysEx[0], pchSysEx[1], pchSysEx[2], pchSysEx[3], pchSysEx[4],
         pchSysEx[5], pchSysEx[6], pchSysEx[7], pchSysEx[8], pchSysEx[9],
-        dValueDB
+        dValueDB,
+        (chRMEOutput == RME_PARAM_LINE) ? "line12" : "phones34"
     );
 
     ssize_t cbWritten = snd_rawmidi_write(midi, pchSysEx, sizeof(pchSysEx));
@@ -1097,10 +1098,11 @@ static int send_mute(
     log_verbose(
         "WRITE MIDI SysEx: "
         "%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X"
-        " (mute: %s)",
+        " (mute: %s, output: %s)",
         pchSysEx[0], pchSysEx[1], pchSysEx[2], pchSysEx[3], pchSysEx[4],
         pchSysEx[5], pchSysEx[6], pchSysEx[7], pchSysEx[8], pchSysEx[9],
-        (chRMEValueMute == RME_VALUE_MUTE_ON ? "on" : "off")
+        (chRMEValueMute == RME_VALUE_MUTE_ON ? "on" : "off"),
+        (chRMEOutput == RME_PARAM_LINE) ? "line12" : "phones34"
     );
 
     ssize_t cbWritten = snd_rawmidi_write(midi, pchSysEx, sizeof(pchSysEx));
