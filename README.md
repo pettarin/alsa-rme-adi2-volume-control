@@ -307,14 +307,20 @@ Similar information can be obtained with `aplay -l`:
 ```bash
 aplay -l
 **** List of PLAYBACK Hardware Devices ****
-card 0: vc4hdmi0 [vc4-hdmi-0], device 0: MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]
-  Subdevices: 1/1
-  Subdevice #0: subdevice #0
-card 1: vc4hdmi1 [vc4-hdmi-1], device 0: MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]
-  Subdevices: 1/1
-  Subdevice #0: subdevice #0
-card 5: SE52102163 [ADI-2/4 Pro SE (52102163)], device 0: USB Audio [USB Audio]
+card 0: PCH [HDA Intel PCH], device 0: ALC293 Analog [ALC293 Analog]
   Subdevices: 0/1
+  Subdevice #0: subdevice #0
+card 0: PCH [HDA Intel PCH], device 3: HDMI 0 [LG Ultra HD]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+card 0: PCH [HDA Intel PCH], device 7: HDMI 1 [HDMI 1]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+card 0: PCH [HDA Intel PCH], device 8: HDMI 2 [HDMI 2]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+card 1: SE52102163 [ADI-2/4 Pro SE (52102163)], device 0: USB Audio [USB Audio]
+  Subdevices: 1/1
   Subdevice #0: subdevice #0
 ```
 
