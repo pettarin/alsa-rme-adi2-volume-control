@@ -369,8 +369,8 @@ sudo make install
 > Installing the `systemd` service requires `sudo` privileges.
 
 ```bash
-# copy the new systemd file to /etc/systemd/system/
-sudo cp src/systemd/alsa-rme-adi2-volume-control.service /etc/systemd/system
+# copy the new systemd file to /lib/systemd/system/
+sudo cp src/systemd/alsa-rme-adi2-volume-control.service /lib/systemd/system/
 
 # reload the systemd daemon
 sudo systemctl daemon-reload
