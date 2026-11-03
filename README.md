@@ -65,11 +65,6 @@ and whenever a mute/unmute or volume change is detected,
 the corresponding SET command is sent to the RME ADI-2 device
 through its MIDI interface.
 
-Screenshots:
-
-![Service running](res/screenshot_service_running.png)
-![Service exited](res/screenshot_service_exited.png)
-
 > [!NOTE]
 > Currently the synchronization of the state is one-way only:
 > from ALSA to the physical RME ADI-2 device.
@@ -80,6 +75,18 @@ Screenshots:
 >
 > This is a known limitation which will be addressed in a future version.
 
+#### Screenshots
+
+Screenshot of the service running in foreground,
+with `alsamixer` showing the registered ALSA controls:
+
+![Service running](res/screenshot_service_running.png)
+
+Screenshot of the service after its termination,
+with `alsamixer` no longer showing the registered ALSA controls:
+
+![Service exited](res/screenshot_service_exited.png)
+
 ### Supported RME ADI-2 Devices
 
 The following families of RME ADI-2 devices are supported:
@@ -88,8 +95,8 @@ The following families of RME ADI-2 devices are supported:
 - `ADI-2 Pro`   (device ID: `0x72`)
 - `ADI-2/4 Pro` (device ID: `0x73`)
 
-All devices of each family should be supported
-(e.g., `ADI-2/4 Pro SE` and `ADI-2/4 Pro EX`),
+All device "variants" of each family should be supported
+(e.g., `ADI-2/4 Pro SE` and `ADI-2/4 Pro EX` are both `ADI-2/4 Pro`),
 since they share the same RME device ID
 and the same MIDI interface for setting mute/volume parameters.
 
@@ -309,16 +316,16 @@ IO  hw:1,0,0  ADI-2/4 Pro SE (52102163) Port
 ```
 
 > [!NOTE]
-> The above examples were obtained on a PC running GNU/Linux Debian testing,
-> with the RME ADI-2/4 Pro SE connected to it via USB.
-
-> [!NOTE]
 > In the above examples, `hw:1,0,0`, `hw:1,0`, and `hw:1` are all valid
 > MIDI device identifiers associated to the same RME ADI-2/4 Pro SE device.
 
+> [!TIP]
+> The above examples were obtained on a PC running GNU/Linux Debian testing,
+> with the RME ADI-2/4 Pro SE connected to it via USB.
+
 #### Install
 
-> [!NOTE]
+> [!WARNING]
 > Installing the executable, that is, copying it to `/usr/local/bin/`,
 > requires `sudo` privileges.
 
@@ -328,7 +335,7 @@ sudo make install
 
 ### Install The `systemd` Service
 
-> [!NOTE]
+> [!WARNING]
 > Installing the `systemd` service requires `sudo` privileges.
 
 ```bash
@@ -344,7 +351,7 @@ sudo systemctl restart alsa-rme-adi2-volume-control
 
 ### Install The `udev` Rules
 
-> [!NOTE]
+> [!WARNING]
 > Installing the `udev` rules requires `sudo` privileges.
 
 ```bash
@@ -371,10 +378,12 @@ file for details.
 
 - Alberto Pettarin ([Web](https://www.albertopettarin.it))
 
-This project has been heavily inspired by
+The approach of this project has been inspired by
 [rme-adi2-pro-volume](https://github.com/JendaT/rme-adi2-pro-volume)
 by
-[Jenda Třešňák (JendaT)](https://github.com/JendaT).
+[Jenda Třešňák (JendaT)](https://github.com/JendaT),
+although the Python service has been dropped,
+and the code of the C service has been rewritten from scratch.
 
 
 ## Legal Disclaimers
