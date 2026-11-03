@@ -1,17 +1,14 @@
 # This file is part of the alsa-rme-adi2-volume-control project
 
 [Unit]
-Description=ALSA plugin controlling the volume of a RME ADI-2 device via MIDI
+Description=Service exposing ALSA mute/volume controls on an RME ADI-2 device via MIDI
 Documentation=https://github.com/pettarin/alsa-rme-adi-2-volume-control
 After=sound.target
 Before=mpd.service
 
 [Service]
 Type=simple
-# TODO update the command line with the appropriate parameters
-# for example:
-# ExecStart=/usr/local/bin/alsa-rme-adi-2-volume-control --verbose --card ADI-2 --device 0x73 --output line --min-db -60.0 --max-db 0.0
-ExecStart=/usr/local/bin/alsa-rme-adi-2-volume-control
+ExecStart=/usr/local/bin/alsa-rme-adi-2-volume-control --verbose
 Restart=on-failure
 RestartSec=5
 

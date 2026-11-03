@@ -1,1 +1,1 @@
-ALSA plugin providing mixer controls to change the volume of devices of the RME ADI-2 family via their MIDI interface
+A background service exposing ALSA controls to change the mute and volume state of an RME ADI-2 device via its MIDI interface.

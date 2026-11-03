@@ -1,5 +1,5 @@
 /*
- * alsa-rme-adi2-volume-control - ALSA plugin controlling the volume of a RME ADI-2 device via MIDI
+ * alsa-rme-adi2-volume-control - Service exposing ALSA mute/volume controls on an RME ADI-2 device via MIDI
  *   Copyright (C) 2026  Alberto Pettarin
  *
  * This program is free software: you can redistribute it and/or modify
@@ -65,8 +65,8 @@
 #define RME_SYSEX_MANUFACTURER_ID_0     0x00        /* RME manufacturer ID spans 3 bytes */
 #define RME_SYSEX_MANUFACTURER_ID_1     0x20
 #define RME_SYSEX_MANUFACTURER_ID_2     0x0D
-#define RME_SYSEX_COMMAND_GET           0x01
 #define RME_SYSEX_COMMAND_SET           0x02
+#define RME_SYSEX_COMMAND_GET           0x03
 #define RME_SYSEX_END                   0xF7
 
 /* RME volume min/max values */
