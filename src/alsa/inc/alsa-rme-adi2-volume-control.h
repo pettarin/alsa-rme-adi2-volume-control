@@ -28,6 +28,7 @@
 #define BOOL_TRUE                                   1
 #define BOOL_IS_TRUE(x)                             ((x) == BOOL_TRUE)
 #define BOOL_IS_FALSE(x)                            (! BOOL_IS_TRUE(x))
+#define BOOL_IS_VALID(x)                            (((x) == BOOL_TRUE) || ((x) == BOOL_FALSE))
 
 /* Error codes: 0 is OK, anything else is an error */
 #define ERR_OK                                      0

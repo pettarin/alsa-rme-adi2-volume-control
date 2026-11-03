@@ -56,6 +56,33 @@ typedef struct {
 } OutputControl;
 
 typedef struct {
+    char szUDCEVolumeName[UDCE_NAME_MAX_LENGTH];
+    char szUDCESwitchName[UDCE_NAME_MAX_LENGTH];
+    double dMinDB;
+    double dMaxDB;
+    int bControl;
+    int iStartupVolume;
+    int bStartupSwitch;
+    unsigned char chRMEOutput;
+} OutputParameters;
+
+typedef struct {
+    OutputParameters stLine12;
+    OutputParameters stPhones34;
+    char szCardHw[CARD_HW_MAX_LENGTH];
+    char szMIDIDevice[MIDI_DEVICE_MAX_LENGTH];
+    char szDeviceName[DEVICE_NAME_MAX_LENGTH];
+    int iCardNumber;
+    int iDeviceID;
+    int bListCards;
+    int bListDeviceIDs;
+    int bListDeviceNames;
+    int bPrintUsageOnly;
+    int bUninstall;
+    int bUninstallOnExit;
+} ServiceConfiguration;
+
+typedef struct {
     char szOptionName[64];
     double dValue;
 } StringDoublePair;
@@ -77,58 +104,38 @@ static int gbLogVerbose = BOOL_FALSE;
 static volatile sig_atomic_t gbServiceIsRunning = (sig_atomic_t)BOOL_TRUE;
 
 /* Service configuration */
-static struct {
-    char szCardHw[CARD_HW_MAX_LENGTH];
-    char szMIDIDevice[MIDI_DEVICE_MAX_LENGTH];
-    char szDeviceName[DEVICE_NAME_MAX_LENGTH];
-    int iCardNumber;
-    int iDeviceID;
-    int bLine12Control;
-    double dLine12MinDB;
-    double dLine12MaxDB;
-    int iLine12StartupVolume;
-    int bLine12StartupSwitch;
-    int bPhones34Control;
-    double dPhones34MinDB;
-    double dPhones34MaxDB;
-    int iPhones34StartupVolume;
-    int bPhones34StartupSwitch;
-    int bListCards;
-    int bListDeviceIDs;
-    int bListDeviceNames;
-    int bPrintUsageOnly;
-    int bUninstall;
-    int bUninstallOnExit;
-} gpstConfiguration = {
+static ServiceConfiguration gpConfiguration = {
+    .stLine12 = {
+        .szUDCEVolumeName = UDCE_LINE12_VOLUME_NAME,
+        .szUDCESwitchName = UDCE_LINE12_SWITCH_NAME,
+        .dMinDB = DEFAULT_LINE12_VOLUME_MIN_DB,
+        .dMaxDB = DEFAULT_LINE12_VOLUME_MAX_DB,
+        .bControl = DEFAULT_LINE12_CONTROL,
+        .iStartupVolume = DEFAULT_LINE12_STARTUP_VOLUME_VALUE,
+        .bStartupSwitch = DEFAULT_LINE12_STARTUP_SWITCH_VALUE,
+        .chRMEOutput = RME_PARAM_LINE
+    },
+    .stPhones34 = {
+        .szUDCEVolumeName = UDCE_PHONES34_VOLUME_NAME,
+        .szUDCESwitchName = UDCE_PHONES34_SWITCH_NAME,
+        .dMinDB = DEFAULT_PHONES34_VOLUME_MIN_DB,
+        .dMaxDB = DEFAULT_PHONES34_VOLUME_MAX_DB,
+        .bControl = DEFAULT_PHONES34_CONTROL,
+        .iStartupVolume = DEFAULT_PHONES34_STARTUP_VOLUME_VALUE,
+        .bStartupSwitch = DEFAULT_PHONES34_STARTUP_SWITCH_VALUE,
+        .chRMEOutput = RME_PARAM_PHONES
+    },
     .szCardHw = DEFAULT_CARD_HW,
     .szMIDIDevice = DEFAULT_MIDI_DEVICE,
     .szDeviceName = DEFAULT_DEVICE_NAME,
     .iCardNumber = DEFAULT_CARD_NUMBER,
     .iDeviceID = DEFAULT_DEVICE_ID,
-    .bLine12Control = DEFAULT_LINE12_CONTROL,
-    .dLine12MinDB = DEFAULT_LINE12_VOLUME_MIN_DB,
-    .dLine12MaxDB = DEFAULT_LINE12_VOLUME_MAX_DB,
-    .iLine12StartupVolume = DEFAULT_LINE12_STARTUP_VOLUME_VALUE,
-    .bLine12StartupSwitch = DEFAULT_LINE12_STARTUP_SWITCH_VALUE,
-    .bPhones34Control = DEFAULT_PHONES34_CONTROL,
-    .dPhones34MinDB = DEFAULT_PHONES34_VOLUME_MIN_DB,
-    .dPhones34MaxDB = DEFAULT_PHONES34_VOLUME_MAX_DB,
-    .iPhones34StartupVolume = DEFAULT_PHONES34_STARTUP_VOLUME_VALUE,
-    .bPhones34StartupSwitch = DEFAULT_PHONES34_STARTUP_SWITCH_VALUE,
     .bListCards = DEFAULT_LIST_CARDS_ONLY,
     .bListDeviceIDs = DEFAULT_LIST_DEVICE_IDS_ONLY,
     .bListDeviceNames = DEFAULT_LIST_DEVICE_NAMES_ONLY,
     .bPrintUsageOnly = DEFAULT_PRINT_USAGE_ONLY,
     .bUninstall = DEFAULT_UNINSTALL_ONLY,
-    .bUninstallOnExit = DEFAULT_UNINSTALL_ON_EXIT,
-};
-
-/* (Hardcoded) Names for the ALSA user-defined control elements */
-static const char *gszUDCENames[] = {
-    UDCE_LINE12_SWITCH_NAME,
-    UDCE_LINE12_VOLUME_NAME,
-    UDCE_PHONES34_SWITCH_NAME,
-    UDCE_PHONES34_VOLUME_NAME
+    .bUninstallOnExit = DEFAULT_UNINSTALL_ON_EXIT
 };
 
 
@@ -257,10 +264,10 @@ static int find_card_and_set_configuration(
     }
 
     /* card found */
-    gpstConfiguration.iDeviceID = iDeviceID;
-    gpstConfiguration.iCardNumber = iCardNumber;
+    gpConfiguration.iDeviceID = iDeviceID;
+    gpConfiguration.iCardNumber = iCardNumber;
     strncpy(
-        gpstConfiguration.szDeviceName,
+        gpConfiguration.szDeviceName,
         szDeviceName,
         DEVICE_NAME_MAX_LENGTH
     );
@@ -298,12 +305,12 @@ static int find_card_and_set_configuration_rme_adi2_dac() {
 static int device_name_is_autodetect_or_rme_adi24_pro() {
     return (
         (strncmp(
-            gpstConfiguration.szDeviceName,
+            gpConfiguration.szDeviceName,
             DEVICE_NAME_AUTODETECT,
             DEVICE_NAME_MAX_LENGTH
         ) == 0) ||
         (strncmp(
-            gpstConfiguration.szDeviceName,
+            gpConfiguration.szDeviceName,
             DEVICE_NAME_RME_ADI24_PRO,
             DEVICE_NAME_MAX_LENGTH
         ) == 0)
@@ -313,12 +320,12 @@ static int device_name_is_autodetect_or_rme_adi24_pro() {
 static int device_name_is_autodetect_or_rme_adi2_pro() {
     return (
         (strncmp(
-            gpstConfiguration.szDeviceName,
+            gpConfiguration.szDeviceName,
             DEVICE_NAME_AUTODETECT,
             DEVICE_NAME_MAX_LENGTH
         ) == 0) ||
         (strncmp(
-            gpstConfiguration.szDeviceName,
+            gpConfiguration.szDeviceName,
             DEVICE_NAME_RME_ADI2_PRO,
             DEVICE_NAME_MAX_LENGTH
         ) == 0)
@@ -328,12 +335,12 @@ static int device_name_is_autodetect_or_rme_adi2_pro() {
 static int device_name_is_autodetect_or_rme_adi2_dac() {
     return (
         (strncmp(
-            gpstConfiguration.szDeviceName,
+            gpConfiguration.szDeviceName,
             DEVICE_NAME_AUTODETECT,
             DEVICE_NAME_MAX_LENGTH
         ) == 0) ||
         (strncmp(
-            gpstConfiguration.szDeviceName,
+            gpConfiguration.szDeviceName,
             DEVICE_NAME_RME_ADI2_DAC,
             DEVICE_NAME_MAX_LENGTH
         ) == 0)
@@ -350,17 +357,17 @@ static int device_name_is_autodetect_or_rme_adi2_dac() {
  *
  * Return true if a matching card is found; otherwise return false. */
 static int ensure_device_id_is_set() {
-    if (gpstConfiguration.iDeviceID >= 0) {
+    if (gpConfiguration.iDeviceID >= 0) {
         log_verbose(
             "Device ID '0x%02X' explicitly specified by the user",
-            gpstConfiguration.iDeviceID
+            gpConfiguration.iDeviceID
         );
         return BOOL_TRUE;
     }
 
     log_verbose(
         "Find ALSA card number and device ID from device name '%s'",
-        gpstConfiguration.szDeviceName
+        gpConfiguration.szDeviceName
     );
 
     if (
@@ -394,16 +401,16 @@ static int ensure_device_id_is_set() {
 static int ensure_card_number_is_set() {
     int bCardFound = BOOL_FALSE;
 
-    if (gpstConfiguration.iCardNumber >= 0) {
+    if (gpConfiguration.iCardNumber >= 0) {
         log_verbose(
             "ALSA card number '%d' explicitly specified by the user "
             "or already determined",
-            gpstConfiguration.iCardNumber
+            gpConfiguration.iCardNumber
         );
         return BOOL_TRUE;
     }
 
-    switch (gpstConfiguration.iDeviceID) {
+    switch (gpConfiguration.iDeviceID) {
         case RME_DEVICE_FAMILY_ADI24_PRO:
             bCardFound = find_card_and_set_configuration_rme_adi24_pro();
             break;
@@ -415,8 +422,8 @@ static int ensure_card_number_is_set() {
             break;
         default:
             log_verbose(
-                "gpstConfiguration.iDeviceID has unsupported value '%d'",
-                gpstConfiguration.iDeviceID
+                "gpConfiguration.iDeviceID has unsupported value '%d'",
+                gpConfiguration.iDeviceID
             );
             break;
     }
@@ -443,7 +450,7 @@ static int ensure_device_id_and_card_number() {
     if (BOOL_IS_FALSE(bCardFound)) {
         log_error(
             "Cannot find an ALSA card matching device name '%s'",
-            gpstConfiguration.szDeviceName
+            gpConfiguration.szDeviceName
         );
         return ERR_ERROR_GENERIC;
     }
@@ -452,7 +459,7 @@ static int ensure_device_id_and_card_number() {
     if (BOOL_IS_FALSE(bCardFound)) {
         log_error(
             "Cannot find an ALSA card matching device id '0x%02X'",
-            gpstConfiguration.iDeviceID
+            gpConfiguration.iDeviceID
         );
         return ERR_ERROR_GENERIC;
     }
@@ -463,10 +470,10 @@ static int ensure_device_id_and_card_number() {
 /* Set the card hw string from the card number */
 static void set_card_hw_string() {
     snprintf(
-        gpstConfiguration.szCardHw,
+        gpConfiguration.szCardHw,
         CARD_HW_MAX_LENGTH,
         "hw:%d",
-        gpstConfiguration.iCardNumber
+        gpConfiguration.iCardNumber
     );
 }
 
@@ -499,6 +506,12 @@ static int uninstall_alsa_udce_by_name(
 /* Uninstall all ALSA user-defined control elements (UDCEs)
  * from the given card ctl. */
 static void uninstall_all_alsa_udce_s(snd_ctl_t *ctl) {
+    const char *gszUDCENames[] = {
+        gpConfiguration.stLine12.szUDCEVolumeName,
+        gpConfiguration.stLine12.szUDCESwitchName,
+        gpConfiguration.stPhones34.szUDCEVolumeName,
+        gpConfiguration.stPhones34.szUDCESwitchName
+    };
     int iRemovedCount = 0;
     int iRet = ERR_OK;
 
@@ -756,18 +769,18 @@ static int is_valid_midi_device(const char *szMIDIDevice) {
 static int ensure_midi_device() {
     if (
         strncmp(
-            gpstConfiguration.szMIDIDevice,
+            gpConfiguration.szMIDIDevice,
             MIDI_DEVICE_AUTODETECT,
             MIDI_DEVICE_MAX_LENGTH
         ) != 0
     ) {
         log_verbose(
             "Check if MIDI device '%s' for card number '%d' is valid",
-            gpstConfiguration.szMIDIDevice,
-            gpstConfiguration.iCardNumber
+            gpConfiguration.szMIDIDevice,
+            gpConfiguration.iCardNumber
         );
 
-        if (BOOL_IS_TRUE(is_valid_midi_device(gpstConfiguration.szMIDIDevice))) {
+        if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
             return ERR_OK;
         }
 
@@ -776,21 +789,21 @@ static int ensure_midi_device() {
 
     log_verbose(
         "Autodetect MIDI device for card number '%d'",
-        gpstConfiguration.iCardNumber
+        gpConfiguration.iCardNumber
     );
 
     /* first, try with hw:X,i,j */
     for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
         for (int j = MIDI_DEVICE_PROBE_MIN_INDEX; j <= MIDI_DEVICE_PROBE_MAX_INDEX; j++) {
             snprintf(
-                gpstConfiguration.szMIDIDevice,
+                gpConfiguration.szMIDIDevice,
                 MIDI_DEVICE_MAX_LENGTH,
                 "hw:%d,%d,%d",
-                gpstConfiguration.iCardNumber,
+                gpConfiguration.iCardNumber,
                 i,
                 j
             );
-            if (BOOL_IS_TRUE(is_valid_midi_device(gpstConfiguration.szMIDIDevice))) {
+            if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
                 return ERR_OK;
             }
         }
@@ -799,25 +812,25 @@ static int ensure_midi_device() {
     /* second, try with just hw:X,i */
     for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
         snprintf(
-            gpstConfiguration.szMIDIDevice,
+            gpConfiguration.szMIDIDevice,
             MIDI_DEVICE_MAX_LENGTH,
             "hw:%d,%d",
-            gpstConfiguration.iCardNumber,
+            gpConfiguration.iCardNumber,
             i
         );
-        if (BOOL_IS_TRUE(is_valid_midi_device(gpstConfiguration.szMIDIDevice))) {
+        if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
             return ERR_OK;
         }
     }
 
     /* third, try with just hw:X */
     snprintf(
-        gpstConfiguration.szMIDIDevice,
+        gpConfiguration.szMIDIDevice,
         MIDI_DEVICE_MAX_LENGTH,
         "hw:%d",
-        gpstConfiguration.iCardNumber
+        gpConfiguration.iCardNumber
     );
-    if (BOOL_IS_TRUE(is_valid_midi_device(gpstConfiguration.szMIDIDevice))) {
+    if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
         return ERR_OK;
     }
 
@@ -885,13 +898,13 @@ static int send_db(
 
     */
     unsigned char pchSysEx[] = {
-        0xF0,                           /* SysEx start */
-        0x00, 0x20, 0x0D,               /* RME manufacturer ID */
-        chRMEDeviceID,                  /* Device ID */
-        0x02,                           /* Command: set value */
-        chRMEOutput,                    /* Parameter: output volume */
-        chHigh, chLow,                  /* Volume bytes */
-        0xF7                            /* SysEx end */
+        0xF0,               /* SysEx start */
+        0x00, 0x20, 0x0D,   /* RME manufacturer ID */
+        chRMEDeviceID,      /* Device ID */
+        0x02,               /* Command: set value */
+        chRMEOutput,        /* Parameter: output volume */
+        chHigh, chLow,      /* Volume bytes */
+        0xF7                /* SysEx end */
     };
 
     log_verbose(
@@ -960,14 +973,14 @@ static int send_mute(
 
     */
     unsigned char pchSysEx[] = {
-        0xF0,                           /* SysEx start */
-        0x00, 0x20, 0x0D,               /* RME manufacturer ID */
-        chRMEDeviceID,                  /* Device ID */
-        0x02,                           /* Command: set value */
-        chRMEOutput,                    /* Parameter: output volume */
-        RME_PARAM_MUTE,                 /* Parameter: mute */
-        chRMEValueMute,                 /* 0x00 = off (unmute), 0x01 = on (mute) */
-        0xF7                            /* SysEx end */
+        0xF0,               /* SysEx start */
+        0x00, 0x20, 0x0D,   /* RME manufacturer ID */
+        chRMEDeviceID,      /* Device ID */
+        0x02,               /* Command: set value */
+        chRMEOutput,        /* Parameter: output volume */
+        RME_PARAM_MUTE,     /* Parameter: mute */
+        chRMEValueMute,     /* 0x00 = off (unmute), 0x01 = on (mute) */
+        0xF7                /* SysEx end */
     };
 
     log_verbose(
@@ -1025,38 +1038,38 @@ static int control_has_new_state(OutputControl *pOutputControl) {
 
 static int init_output_control(
     snd_ctl_t *ctl,
-    OutputControl *pOutputControl,
     unsigned char chRMEDeviceID,
-    unsigned char chRMEOutput,
-    const char *pszUDCEVolumeName,
-    const char *pszUDCESwitchName,
-    int iVolumeInitialValue,
-    int bSwitchInitialValue,
-    double dVolumeMinDB,
-    double dVolumeMaxDB
+    OutputParameters *pOutputParameters,
+    OutputControl *pOutputControl
 ) {
     int iRet = ERR_OK;
+
+    if (BOOL_IS_FALSE(pOutputParameters->bControl)) {
+        /* do not add controls for this output, exit immediately */
+        goto cleanup;
+    }
+
     pOutputControl->chRMEDeviceID = chRMEDeviceID;
-    pOutputControl->chRMEOutput = chRMEOutput;
+    pOutputControl->chRMEOutput = pOutputParameters->chRMEOutput;
 
     /* set the initial values for bSwitch, iVolume, bSwitchLast, iVolumeLast */
-    pOutputControl->iVolume = iVolumeInitialValue;
-    pOutputControl->bSwitch = bSwitchInitialValue;
+    pOutputControl->iVolume = pOutputParameters->iStartupVolume;
+    pOutputControl->bSwitch = pOutputParameters->bStartupSwitch;
     save_volume_switch_values(pOutputControl);
 
     /* set the min and max volume DB */
-    pOutputControl->dVolumeMinDB = dVolumeMinDB;
-    pOutputControl->dVolumeMaxDB = dVolumeMaxDB;
+    pOutputControl->dVolumeMinDB = pOutputParameters->dMinDB;
+    pOutputControl->dVolumeMaxDB = pOutputParameters->dMaxDB;
 
     /* copy the UDCE names, they will be used for logging and querying */
     strncpy(
         pOutputControl->szUDCEVolumeName,
-        pszUDCEVolumeName,
+        pOutputParameters->szUDCEVolumeName,
         UDCE_NAME_MAX_LENGTH
     );
     strncpy(
         pOutputControl->szUDCESwitchName,
-        pszUDCESwitchName,
+        pOutputParameters->szUDCESwitchName,
         UDCE_NAME_MAX_LENGTH
     );
 
@@ -1369,10 +1382,27 @@ static int monitor_loop(
  * CLI Helpers
  * ************************************************************************* */
 
+/* Return true if at least one output is selected
+ * (that is, at most one of --no-line12 and --no-phones34 was provided),
+ * and false otherwise. */
+static int validate_no_output_options() {
+    if (
+        BOOL_IS_TRUE(gpConfiguration.stLine12.bControl) ||
+        BOOL_IS_TRUE(gpConfiguration.stPhones34.bControl)
+    ) {
+        return BOOL_TRUE;
+    }
+    log_error(
+        "Options '--no-line12' and '--no-phones34' "
+        "cannot be both specified at the same time"
+    );
+    return BOOL_FALSE;
+}
+
 /* Return true if the device ID in the configuration is supported
  * (or was not set), and false otherwise. */
 static int validate_device_id(int bDeviceIDWasSet) {
-    int iDeviceID = gpstConfiguration.iDeviceID;
+    int iDeviceID = gpConfiguration.iDeviceID;
     if (BOOL_IS_TRUE(
         ((BOOL_IS_FALSE(bDeviceIDWasSet)) && (iDeviceID == DEVICE_ID_NOT_SET)) ||
         (iDeviceID == RME_DEVICE_FAMILY_ADI2_DAC) ||
@@ -1388,8 +1418,8 @@ static int validate_device_id(int bDeviceIDWasSet) {
 /* Return true if the device name in the configuration is supported
  * (or it was not set), and false otherwise. */
 static int validate_device_name() {
-    const char *szDeviceName = gpstConfiguration.szDeviceName;
-    size_t cbDeviceName = sizeof(gpstConfiguration.szDeviceName);
+    const char *szDeviceName = gpConfiguration.szDeviceName;
+    size_t cbDeviceName = sizeof(gpConfiguration.szDeviceName);
     if (BOOL_IS_TRUE(
         (strncmp(szDeviceName, DEVICE_NAME_AUTODETECT, cbDeviceName) == 0) ||
         (strncmp(szDeviceName, DEVICE_NAME_RME_ADI2_DAC, cbDeviceName) == 0) ||
@@ -1398,7 +1428,7 @@ static int validate_device_name() {
     )) {
         return BOOL_TRUE;
     }
-    log_error("Invalid device name: '%s'", gpstConfiguration.szDeviceName);
+    log_error("Invalid device name: '%s'", gpConfiguration.szDeviceName);
     return BOOL_FALSE;
 }
 
@@ -1408,15 +1438,15 @@ static int validate_midi_device() {
     /* NOTE: not checking if szMIDIDevice is in the form "hw:X[,Y[,Z]]"
      *       since the value might be provided by the user and
      *       it is not clear that that form is the only one accepted by ALSA. */
-    const char *szMIDIDevice = gpstConfiguration.szMIDIDevice;
-    size_t cbMIDIDevice = sizeof(gpstConfiguration.szMIDIDevice);
+    const char *szMIDIDevice = gpConfiguration.szMIDIDevice;
+    size_t cbMIDIDevice = sizeof(gpConfiguration.szMIDIDevice);
     if (BOOL_IS_TRUE(
         (strncmp(szMIDIDevice, MIDI_DEVICE_AUTODETECT, cbMIDIDevice) == 0) ||
         ((strnlen(szMIDIDevice, cbMIDIDevice) > 0))
     )) {
         return BOOL_TRUE;
     }
-    log_error("Invalid midi device: '%s'", gpstConfiguration.szMIDIDevice);
+    log_error("Invalid midi device: '%s'", gpConfiguration.szMIDIDevice);
     return BOOL_FALSE;
 }
 
@@ -1439,8 +1469,8 @@ static int validate_initial_volume_value(int iVolume, const char *szOption) {
 }
 static int validate_initial_volume_values() {
     StringIntegerPair pstPairs[] = {
-        {"--line12-volume", gpstConfiguration.iLine12StartupVolume},
-        {"--phones34-volume", gpstConfiguration.iPhones34StartupVolume},
+        {"--line12-volume", gpConfiguration.stLine12.iStartupVolume},
+        {"--phones34-volume", gpConfiguration.stPhones34.iStartupVolume},
     };
     size_t cCount = sizeof(pstPairs) / sizeof(pstPairs[0]);
 
@@ -1463,8 +1493,7 @@ static int validate_initial_volume_values() {
 static int validate_initial_switch_value(int iValue, const char *szOption) {
     if (
         (iValue == INITIAL_SWITCH_VALUE_NOT_SET) ||
-        (iValue == BOOL_TRUE) ||
-        (iValue == BOOL_FALSE)
+        (BOOL_IS_VALID(iValue))
     ) {
         return BOOL_TRUE;
     }
@@ -1477,8 +1506,8 @@ static int validate_initial_switch_value(int iValue, const char *szOption) {
 }
 static int validate_initial_switch_values() {
     StringIntegerPair pstPairs[] = {
-        {"--line12-enabled", gpstConfiguration.bLine12StartupSwitch},
-        {"--phones34-enabled", gpstConfiguration.bPhones34StartupSwitch},
+        {"--line12-enabled", gpConfiguration.stLine12.bStartupSwitch},
+        {"--phones34-enabled", gpConfiguration.stPhones34.bStartupSwitch},
     };
     size_t cCount = sizeof(pstPairs) / sizeof(pstPairs[0]);
 
@@ -1500,10 +1529,10 @@ static int validate_initial_switch_values() {
  * and false otherwise. */
 static int validate_min_max_db_values() {
     StringDoublePair pstPairs[] = {
-        {"--line12-min-db", gpstConfiguration.dLine12MinDB},
-        {"--line12-max-db", gpstConfiguration.dLine12MaxDB},
-        {"--phones34-min-db", gpstConfiguration.dPhones34MinDB},
-        {"--phones34-max-db", gpstConfiguration.dPhones34MaxDB},
+        {"--line12-min-db", gpConfiguration.stLine12.dMinDB},
+        {"--line12-max-db", gpConfiguration.stLine12.dMaxDB},
+        {"--phones34-min-db", gpConfiguration.stPhones34.dMinDB},
+        {"--phones34-max-db", gpConfiguration.stPhones34.dMaxDB},
     };
     size_t cCount = sizeof(pstPairs) / sizeof(pstPairs[0]);
 
@@ -1545,7 +1574,7 @@ static int validate_min_max_db_values() {
 }
 
 static void print_device_names() {
-    static const char *szDeviceNames[] = {
+    const char *szDeviceNames[] = {
         DEVICE_NAME_AUTODETECT,
         DEVICE_NAME_RME_ADI2_DAC,
         DEVICE_NAME_RME_ADI2_PRO,
@@ -1583,12 +1612,12 @@ static void print_usage(const char *prog) {
     printf("  -d, --device-name STRING        RME device name (default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
     printf("  -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones\n");
     printf("  -h, --help                      Show this help\n");
-    printf("  -i, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", gpstConfiguration.iLine12StartupVolume);
-    printf("  -I, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", gpstConfiguration.iPhones34StartupVolume);
-    printf("  -j, --line12-enabled INTEGER    Initial enable line output 1/2: %d == muted, %d == unmuted (default: %d)\n", BOOL_TRUE, BOOL_FALSE, gpstConfiguration.bLine12StartupSwitch);
-    printf("  -J, --phones34-enabled INTEGER  Initial enable phones output 3/4: %d == muted, %d == unmuted (default: %d)\n", BOOL_TRUE, BOOL_FALSE, gpstConfiguration.bPhones34StartupSwitch);
-    printf("  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to   0%% volume (default: %.1f dB)\n", gpstConfiguration.dLine12MinDB);
-    printf("  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (default: %.1f dB)\n", gpstConfiguration.dLine12MaxDB);
+    printf("  -i, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", gpConfiguration.stLine12.iStartupVolume);
+    printf("  -I, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", gpConfiguration.stPhones34.iStartupVolume);
+    printf("  -j, --line12-enabled INTEGER    Initial enable line output 1/2: %d == muted, %d == unmuted (default: %d)\n", BOOL_TRUE, BOOL_FALSE, gpConfiguration.stLine12.bStartupSwitch);
+    printf("  -J, --phones34-enabled INTEGER  Initial enable phones output 3/4: %d == muted, %d == unmuted (default: %d)\n", BOOL_TRUE, BOOL_FALSE, gpConfiguration.stPhones34.bStartupSwitch);
+    printf("  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to   0%% volume (default: %.1f dB)\n", gpConfiguration.stLine12.dMinDB);
+    printf("  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (default: %.1f dB)\n", gpConfiguration.stLine12.dMaxDB);
     printf("      --list-cards                List all ALSA cards and exit\n");
     printf("      --list-device-ids           List all supported device IDs\n");
     printf("      --list-device-names         List all supported device names\n");
@@ -1596,8 +1625,8 @@ static void print_usage(const char *prog) {
     printf("      --no-line12                 Do not install controls for line output 1/2\n");
     printf("      --no-phones34               Do not install controls for phones output 3/4\n");
     printf("      --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
-    printf("  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to   0%% volume (default: %.1f dB)\n", gpstConfiguration.dPhones34MinDB);
-    printf("  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100%% volume (default: %.1f dB)\n", gpstConfiguration.dPhones34MaxDB);
+    printf("  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to   0%% volume (default: %.1f dB)\n", gpConfiguration.stPhones34.dMinDB);
+    printf("  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100%% volume (default: %.1f dB)\n", gpConfiguration.stPhones34.dMaxDB);
     printf("      --uninstall                 Uninstall ALSA user-defined control elements and exit\n");
     printf("  -v, --verbose                   Enable verbose output\n");
     printf("\n");
@@ -1608,7 +1637,7 @@ static void print_usage(const char *prog) {
 }
 
 static int parse_args(int argc, char *argv[]) {
-    static struct option long_opts[] = {
+    struct option long_opts[] = {
         {"card-number",          required_argument, 0, 'C'},
         {"device-name",          required_argument, 0, 'd'},
         {"device-id",            required_argument, 0, 'D'},
@@ -1638,72 +1667,76 @@ static int parse_args(int argc, char *argv[]) {
     while ((opt = getopt_long(argc, argv, "C:d:D:hi:I:j:J:l:L:XYZM:STUp:P:uv", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'C':
-            gpstConfiguration.iCardNumber = atoi(optarg);
+            gpConfiguration.iCardNumber = atoi(optarg);
             break;
         case 'd':
-            strncpy(gpstConfiguration.szDeviceName, optarg, DEVICE_NAME_MAX_LENGTH - 1);
+            strncpy(gpConfiguration.szDeviceName, optarg, DEVICE_NAME_MAX_LENGTH - 1);
             break;
         case 'D':
-            gpstConfiguration.iDeviceID = (int)strtol(optarg, NULL, 0);
+            gpConfiguration.iDeviceID = (int)strtol(optarg, NULL, 0);
             bDeviceIDWasSet = BOOL_TRUE;
             break;
         case 'h':
-            gpstConfiguration.bPrintUsageOnly = BOOL_TRUE;
+            gpConfiguration.bPrintUsageOnly = BOOL_TRUE;
             break;
         case 'i':
-            gpstConfiguration.iLine12StartupVolume = atoi(optarg);
+            gpConfiguration.stLine12.iStartupVolume = atoi(optarg);
             break;
         case 'I':
-            gpstConfiguration.iPhones34StartupVolume = atoi(optarg);
+            gpConfiguration.stPhones34.iStartupVolume = atoi(optarg);
             break;
         case 'j':
-            gpstConfiguration.bLine12StartupSwitch = atoi(optarg);
+            gpConfiguration.stLine12.bStartupSwitch = atoi(optarg);
             break;
         case 'J':
-            gpstConfiguration.bPhones34StartupSwitch = atoi(optarg);
+            gpConfiguration.stPhones34.bStartupSwitch = atoi(optarg);
             break;
         case 'l':
-            gpstConfiguration.dLine12MinDB = atof(optarg);
+            gpConfiguration.stLine12.dMinDB = atof(optarg);
             break;
         case 'L':
-            gpstConfiguration.dLine12MaxDB = atof(optarg);
+            gpConfiguration.stLine12.dMaxDB = atof(optarg);
             break;
         case 'M':
-            strncpy(gpstConfiguration.szMIDIDevice, optarg, MIDI_DEVICE_MAX_LENGTH - 1);
+            strncpy(gpConfiguration.szMIDIDevice, optarg, MIDI_DEVICE_MAX_LENGTH - 1);
             break;
         case 'p':
-            gpstConfiguration.dPhones34MinDB = atof(optarg);
+            gpConfiguration.stPhones34.dMinDB = atof(optarg);
             break;
         case 'P':
-            gpstConfiguration.dPhones34MaxDB = atof(optarg);
+            gpConfiguration.stPhones34.dMaxDB = atof(optarg);
             break;
         case 'S':
-            gpstConfiguration.bLine12Control = BOOL_FALSE;
+            gpConfiguration.stLine12.bControl = BOOL_FALSE;
             break;
         case 'T':
-            gpstConfiguration.bPhones34Control = BOOL_FALSE;
+            gpConfiguration.stPhones34.bControl = BOOL_FALSE;
             break;
         case 'u':
-            gpstConfiguration.bUninstall = BOOL_TRUE;
+            gpConfiguration.bUninstall = BOOL_TRUE;
             break;
         case 'U':
-            gpstConfiguration.bUninstallOnExit = BOOL_FALSE;
+            gpConfiguration.bUninstallOnExit = BOOL_FALSE;
             break;
         case 'v':
             gbLogVerbose = BOOL_TRUE;
             break;
         case 'X':
-            gpstConfiguration.bListCards = BOOL_TRUE;
+            gpConfiguration.bListCards = BOOL_TRUE;
             break;
         case 'Y':
-            gpstConfiguration.bListDeviceIDs = BOOL_TRUE;
+            gpConfiguration.bListDeviceIDs = BOOL_TRUE;
             break;
         case 'Z':
-            gpstConfiguration.bListDeviceNames = BOOL_TRUE;
+            gpConfiguration.bListDeviceNames = BOOL_TRUE;
             break;
         default:
             return EXIT_ERROR_USAGE_BAD_OPTION;
         }
+    }
+
+    if (BOOL_IS_FALSE(validate_no_output_options())) {
+        return EXIT_ERROR_USAGE_BAD_OPTION;
     }
 
     if (BOOL_IS_FALSE(validate_device_name())) {
@@ -1739,12 +1772,13 @@ static int parse_args(int argc, char *argv[]) {
  * ************************************************************************* */
 
 int main(int argc, char *argv[]) {
-    int iRet = ERR_OK;
-    int iExitCode = EXIT_OK;
     snd_ctl_t *ctl = NULL;
     snd_rawmidi_t *midi = NULL;
+    void (*pfLogFunction)(const char *msg, ...) = NULL;
     OutputControl stLine12;
     OutputControl stPhones34;
+    int iRet = ERR_OK;
+    int iExitCode = EXIT_OK;
 
     /* allocate the output control structures on the stack */
     memset(&stLine12, 0, sizeof(stLine12));
@@ -1759,7 +1793,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Print the usage and exit */
-    if (BOOL_IS_TRUE(gpstConfiguration.bPrintUsageOnly)) {
+    if (BOOL_IS_TRUE(gpConfiguration.bPrintUsageOnly)) {
         gbLogVerbose = BOOL_FALSE;
         print_usage(argv[0]);
         iExitCode = EXIT_OK;
@@ -1767,7 +1801,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Print the list of cards and exit */
-    if (BOOL_IS_TRUE(gpstConfiguration.bListCards)) {
+    if (BOOL_IS_TRUE(gpConfiguration.bListCards)) {
         gbLogVerbose = BOOL_FALSE;
         print_cards();
         iExitCode = EXIT_OK;
@@ -1775,7 +1809,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Print the list of device IDs and exit */
-    if (BOOL_IS_TRUE(gpstConfiguration.bListDeviceIDs)) {
+    if (BOOL_IS_TRUE(gpConfiguration.bListDeviceIDs)) {
         gbLogVerbose = BOOL_FALSE;
         print_device_ids();
         iExitCode = EXIT_OK;
@@ -1783,7 +1817,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Print the list of device names and exit */
-    if (BOOL_IS_TRUE(gpstConfiguration.bListDeviceNames)) {
+    if (BOOL_IS_TRUE(gpConfiguration.bListDeviceNames)) {
         gbLogVerbose = BOOL_FALSE;
         print_device_names();
         iExitCode = EXIT_OK;
@@ -1806,26 +1840,26 @@ int main(int argc, char *argv[]) {
         iExitCode = EXIT_ERROR_CANNOT_FIND_CARD;
         goto cleanup;
     }
-    log_info("Using device ID '0x%02X'", gpstConfiguration.iDeviceID);
-    log_info("Using ALSA card '%d'", gpstConfiguration.iCardNumber);
+    log_info("Using device ID '0x%02X'", gpConfiguration.iDeviceID);
+    log_info("Using ALSA card '%d'", gpConfiguration.iCardNumber);
 
     /* Set the card hw string from the card number */
     set_card_hw_string();
 
     /* Open card */
-    iRet = snd_ctl_open(&ctl, gpstConfiguration.szCardHw, 0);
-    if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
+    iRet = snd_ctl_open(&ctl, gpConfiguration.szCardHw, 0);
+    if (ERR_ALSA_CODE_IS_ERROR(iRet) || (ctl == NULL)) {
         log_error(
             "Cannot open ALSA card '%s': %s",
-            gpstConfiguration.szCardHw,
+            gpConfiguration.szCardHw,
             snd_strerror(iRet)
         );
         iExitCode = EXIT_ERROR_CANNOT_OPEN_CARD;
         goto cleanup;
     }
-    log_verbose("Opened ALSA card '%s'", gpstConfiguration.szCardHw);
+    log_verbose("Opened ALSA card '%s'", gpConfiguration.szCardHw);
 
-    if (BOOL_IS_TRUE(gpstConfiguration.bUninstall)) {
+    if (BOOL_IS_TRUE(gpConfiguration.bUninstall)) {
         /* Uninstall mode: go to the service clean-up immediately */
         log_verbose("Uninstall mode: exit immediately");
         iExitCode = EXIT_OK;
@@ -1844,19 +1878,19 @@ int main(int argc, char *argv[]) {
     if (ERR_CODE_IS_ERROR(iRet)) {
         log_error(
             "Cannot find a valid MIDI device for ALSA card number '%d'",
-            gpstConfiguration.iCardNumber
+            gpConfiguration.iCardNumber
         );
         iExitCode = EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE;
         goto cleanup;
     }
-    log_info("Using MIDI device '%s'", gpstConfiguration.szMIDIDevice);
+    log_info("Using MIDI device '%s'", gpConfiguration.szMIDIDevice);
 
     /* Open the MIDI device with flag 0 (default, blocking) */
-    iRet = snd_rawmidi_open(NULL, &midi, gpstConfiguration.szMIDIDevice, 0);
+    iRet = snd_rawmidi_open(NULL, &midi, gpConfiguration.szMIDIDevice, 0);
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         log_error(
             "Cannot open MIDI device '%s': %s",
-            gpstConfiguration.szMIDIDevice,
+            gpConfiguration.szMIDIDevice,
             snd_strerror(iRet)
         );
         iExitCode = EXIT_ERROR_CANNOT_OPEN_MIDI_DEVICE;
@@ -1864,52 +1898,36 @@ int main(int argc, char *argv[]) {
     }
 
     /* Initialize control for line output 1/2 */
-    if (BOOL_IS_TRUE(gpstConfiguration.bLine12Control)) {
-        iRet = init_output_control(
-            ctl,
-            &stLine12,
-            gpstConfiguration.iDeviceID,
-            RME_PARAM_LINE,
-            UDCE_LINE12_VOLUME_NAME,
-            UDCE_LINE12_SWITCH_NAME,
-            gpstConfiguration.iLine12StartupVolume,
-            gpstConfiguration.bLine12StartupSwitch,
-            gpstConfiguration.dLine12MinDB,
-            gpstConfiguration.dLine12MaxDB
-        );
-        if (ERR_CODE_IS_ERROR(iRet)) {
-            iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
-            goto cleanup;
-        }
+    iRet = init_output_control(
+        ctl,
+        gpConfiguration.iDeviceID,
+        &(gpConfiguration.stLine12),
+        &stLine12
+    );
+    if (ERR_CODE_IS_ERROR(iRet)) {
+        iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
+        goto cleanup;
     }
 
     /* Initialize control for phones output 3/4 */
-    if (BOOL_IS_TRUE(gpstConfiguration.bPhones34Control)) {
-        iRet = init_output_control(
-            ctl,
-            &stPhones34,
-            gpstConfiguration.iDeviceID,
-            RME_PARAM_PHONES,
-            UDCE_PHONES34_VOLUME_NAME,
-            UDCE_PHONES34_SWITCH_NAME,
-            gpstConfiguration.iPhones34StartupVolume,
-            gpstConfiguration.bPhones34StartupSwitch,
-            gpstConfiguration.dPhones34MinDB,
-            gpstConfiguration.dPhones34MaxDB
-        );
-        if (ERR_CODE_IS_ERROR(iRet)) {
-            iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
-            goto cleanup;
-        }
+    iRet = init_output_control(
+        ctl,
+        gpConfiguration.iDeviceID,
+        &(gpConfiguration.stPhones34),
+        &stPhones34
+    );
+    if (ERR_CODE_IS_ERROR(iRet)) {
+        iExitCode = EXIT_ERROR_CANNOT_ADD_CONTROL;
+        goto cleanup;
     }
 
     /* Run the monitoring loop */
     log_info(
         "Start control loop for device ID '0x%02X' "
         "on MIDI device '%s' of ALSA card number '%d'",
-        gpstConfiguration.iDeviceID,
-        gpstConfiguration.szMIDIDevice,
-        gpstConfiguration.iCardNumber
+        gpConfiguration.iDeviceID,
+        gpConfiguration.szMIDIDevice,
+        gpConfiguration.iCardNumber
     );
     iRet = monitor_loop(ctl, midi, &stLine12, &stPhones34);
     log_info("Control loop exited with return code '%d'", iRet);
@@ -1936,8 +1954,8 @@ cleanup:
 
     /* Uninstall user-defined control elements */
     if (
-        BOOL_IS_FALSE(gpstConfiguration.bUninstall) &&
-        BOOL_IS_FALSE(gpstConfiguration.bUninstallOnExit)
+        BOOL_IS_FALSE(gpConfiguration.bUninstall) &&
+        BOOL_IS_FALSE(gpConfiguration.bUninstallOnExit)
     ) {
         /* Normal mode, but no uninstall on exit was selected */
         log_info(
@@ -1947,9 +1965,16 @@ cleanup:
         /* Uninstall mode, or normal mode with uninstall on exit,
          * ignoring any errors */
         uninstall_all_alsa_udce_s(ctl);
-        log_info(
+        if (BOOL_IS_TRUE(gpConfiguration.bUninstall)) {
+            /* in uninstall mode, print a log message at INFO level */
+            pfLogFunction = log_info;
+        } else {
+            pfLogFunction = log_verbose;
+
+        }
+        pfLogFunction(
             "ALSA card '%d' no longer has user-defined control elements",
-            gpstConfiguration.iCardNumber
+            gpConfiguration.iCardNumber
         );
     }
 
