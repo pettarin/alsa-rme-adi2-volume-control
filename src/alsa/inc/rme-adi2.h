@@ -60,6 +60,15 @@
 #define RME_VALUE_MUTE_OFF              0x00
 #define RME_VALUE_MUTE_ON               0x01
 
+/* RME SysEx constants */
+#define RME_SYSEX_START                 0xF0
+#define RME_SYSEX_MANUFACTURER_ID_0     0x00        /* RME manufacturer ID spans 3 bytes */
+#define RME_SYSEX_MANUFACTURER_ID_1     0x20
+#define RME_SYSEX_MANUFACTURER_ID_2     0x0D
+#define RME_SYSEX_COMMAND_GET           0x01
+#define RME_SYSEX_COMMAND_SET           0x02
+#define RME_SYSEX_END                   0xF7
+
 /* RME volume min/max values */
 #define RME_VALUE_VOLUME_MIN_DB         (-93.8)
 #define RME_VALUE_VOLUME_MIN            3158        /* 3158 == -93.8 * 10 + 4096 */

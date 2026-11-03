@@ -101,6 +101,7 @@
 #define DEFAULT_LIST_CARDS_ONLY                     BOOL_FALSE
 #define DEFAULT_LIST_DEVICE_IDS_ONLY                BOOL_FALSE
 #define DEFAULT_LIST_DEVICE_NAMES_ONLY              BOOL_FALSE
+#define DEFAULT_LIST_MIDI_DEVICES_ONLY              BOOL_FALSE
 #define DEFAULT_MIDI_DEVICE                         MIDI_DEVICE_AUTODETECT
 #define DEFAULT_PRINT_USAGE_ONLY                    BOOL_FALSE
 #define DEFAULT_UNINSTALL_ONLY                      BOOL_FALSE

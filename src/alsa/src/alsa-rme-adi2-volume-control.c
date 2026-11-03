@@ -77,6 +77,7 @@ typedef struct {
     int bListCards;
     int bListDeviceIDs;
     int bListDeviceNames;
+    int bListMIDIDevices;
     int bPrintUsageOnly;
     int bUninstall;
     int bUninstallOnExit;
@@ -131,6 +132,7 @@ static ServiceConfiguration gpConfiguration = {
     .bListCards = DEFAULT_LIST_CARDS_ONLY,
     .bListDeviceIDs = DEFAULT_LIST_DEVICE_IDS_ONLY,
     .bListDeviceNames = DEFAULT_LIST_DEVICE_NAMES_ONLY,
+    .bListMIDIDevices = DEFAULT_LIST_MIDI_DEVICES_ONLY,
     .bPrintUsageOnly = DEFAULT_PRINT_USAGE_ONLY,
     .bUninstall = DEFAULT_UNINSTALL_ONLY,
     .bUninstallOnExit = DEFAULT_UNINSTALL_ON_EXIT,
@@ -268,7 +270,7 @@ static int find_card_and_set_configuration(
     strncpy(
         gpConfiguration.szDeviceName,
         szDeviceName,
-        DEVICE_NAME_MAX_LENGTH
+        DEVICE_NAME_MAX_LENGTH - 1
     );
     log_verbose(
         "Found ALSA card number '%d' for device ID '0x%02X' (%s)",
@@ -555,9 +557,22 @@ static int install_control_element(
     /* Create new control */
     snd_ctl_elem_info_set_id(info, id);
     if (BOOL_IS_TRUE(bElementIsSwitch)) {
-        iRet = snd_ctl_add_boolean_elem_set(ctl, info, 1, 1);
+        iRet = snd_ctl_add_boolean_elem_set(
+            ctl,
+            info,
+            1,      /* element_count */
+            1       /* member_count */
+        );
     } else {
-        iRet = snd_ctl_add_integer_elem_set(ctl, info, 1, 1, VOL_MIN, VOL_MAX, 1);
+        iRet = snd_ctl_add_integer_elem_set(
+            ctl,
+            info,
+            1,          /* element_count */
+            1,          /* member_count */
+            VOL_MIN,    /* min */
+            VOL_MAX,    /* max */
+            1           /* step */
+        );
     }
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
         log_error(
@@ -666,7 +681,7 @@ static int read_alsa_udce_integer_value(
     iRet = read_alsa_udce_value(ctl, id, &value);
     if (ERR_CODE_IS_ERROR(iRet)) {
         log_error(
-            "Unable to read ALSA user-defined control element value (integer)"
+            "Unable to read ALSA user-defined control element integer value"
         );
         return iRet;
     }
@@ -691,7 +706,7 @@ static int read_alsa_udce_boolean_value(
     iRet = read_alsa_udce_value(ctl, id, &value);
     if (ERR_CODE_IS_ERROR(iRet)) {
         log_error(
-            "Unable to read ALSA user-defined control element value (boolean)"
+            "Unable to read ALSA user-defined control element boolean value"
         );
         return iRet;
     }
@@ -765,6 +780,80 @@ static int is_valid_midi_device(const char *szMIDIDevice) {
     return BOOL_TRUE;
 }
 
+/* Probe the MIDI devices of the given iCardNumber X, in this order:
+ * hw:X,i,j , hw:X,i , hw:X .
+ *
+ * Return true if a MIDI device is found, and false otherwise.
+ *
+ * If bFirstOnly is true, return as soon as the first MIDI device is found;
+ * if false, loop over all MIDI devices, printing (MIDI Device, Card Name)
+ * for all the MIDI devices found. */
+static int probe_midi_devices_for_card(
+    int iCardNumber,
+    const char *szCardName,
+    int bFirstOnly
+) {
+    /* first, try with hw:X,i,j */
+    for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
+        for (int j = MIDI_DEVICE_PROBE_MIN_INDEX; j <= MIDI_DEVICE_PROBE_MAX_INDEX; j++) {
+            snprintf(
+                gpConfiguration.szMIDIDevice,
+                MIDI_DEVICE_MAX_LENGTH,
+                "hw:%d,%d,%d",
+                iCardNumber,
+                i,
+                j
+            );
+            if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
+                if (BOOL_IS_TRUE(bFirstOnly)) {
+                    return BOOL_TRUE;
+                } else {
+                    printf("%s\t%s\n", gpConfiguration.szMIDIDevice, szCardName);
+                }
+            }
+        }
+    }
+
+    /* second, try with just hw:X,i */
+    for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
+        snprintf(
+            gpConfiguration.szMIDIDevice,
+            MIDI_DEVICE_MAX_LENGTH,
+            "hw:%d,%d",
+            iCardNumber,
+            i
+        );
+        if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
+            if (BOOL_IS_TRUE(bFirstOnly)) {
+                return BOOL_TRUE;
+            } else {
+                printf("%s\t%s\n", gpConfiguration.szMIDIDevice, szCardName);
+            }
+        }
+    }
+
+    /* third, try with just hw:X */
+    snprintf(
+        gpConfiguration.szMIDIDevice,
+        MIDI_DEVICE_MAX_LENGTH,
+        "hw:%d",
+        iCardNumber
+    );
+    if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
+        if (BOOL_IS_TRUE(bFirstOnly)) {
+            return BOOL_TRUE;
+        } else {
+            printf("%s\t%s\n", gpConfiguration.szMIDIDevice, szCardName);
+        }
+    }
+
+    return BOOL_FALSE;
+}
+
+/* Ensure that gpConfiguration.szMIDIDevice holds valid a MIDI device
+ * (e.g., hw:0,0,0), possibly autodetecting it if not explicitly specified.
+ *
+ * Return ERR_OK if a valid MIDI device is found, or an error otherwise. */
 static int ensure_midi_device() {
     if (
         strncmp(
@@ -790,50 +879,35 @@ static int ensure_midi_device() {
         "Autodetect MIDI device for card number '%d'",
         gpConfiguration.iCardNumber
     );
-
-    /* first, try with hw:X,i,j */
-    for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
-        for (int j = MIDI_DEVICE_PROBE_MIN_INDEX; j <= MIDI_DEVICE_PROBE_MAX_INDEX; j++) {
-            snprintf(
-                gpConfiguration.szMIDIDevice,
-                MIDI_DEVICE_MAX_LENGTH,
-                "hw:%d,%d,%d",
-                gpConfiguration.iCardNumber,
-                i,
-                j
-            );
-            if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
-                return ERR_OK;
-            }
-        }
-    }
-
-    /* second, try with just hw:X,i */
-    for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
-        snprintf(
-            gpConfiguration.szMIDIDevice,
-            MIDI_DEVICE_MAX_LENGTH,
-            "hw:%d,%d",
-            gpConfiguration.iCardNumber,
-            i
-        );
-        if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
-            return ERR_OK;
-        }
-    }
-
-    /* third, try with just hw:X */
-    snprintf(
-        gpConfiguration.szMIDIDevice,
-        MIDI_DEVICE_MAX_LENGTH,
-        "hw:%d",
-        gpConfiguration.iCardNumber
-    );
-    if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
+    if (BOOL_IS_TRUE(probe_midi_devices_for_card(
+        gpConfiguration.iCardNumber,
+        NULL,
+        BOOL_TRUE
+    ))) {
         return ERR_OK;
     }
 
     return ERR_ERROR_GENERIC;
+}
+
+/* Print the list of MIDI devices as a table
+ * with colums (MIDI Device, Card Name). */
+static void print_midi_devices() {
+    int iCard = -1;
+    char *szCardName;
+
+    printf("MIDI Device\tCard Name\n");
+    while ((snd_card_next(&iCard) >= 0) && (iCard >= 0)) {
+        if (ERR_ALSA_CODE_IS_ERROR(snd_card_get_name(iCard, &szCardName))) {
+            /* ignore error and continue looping over the available cards */
+            continue;
+        }
+        if (szCardName == NULL) {
+            continue;
+        }
+        probe_midi_devices_for_card(iCard, szCardName, BOOL_FALSE);
+        free(szCardName);
+    }
 }
 
 /* Convert the given volume value (in [VOL_MIN, VOL_MAX])
@@ -847,7 +921,8 @@ static double convert_volume_control_value_to_db(
 }
 
 /* Convert the given volume value in dB to the corresponding two bytes
- * that can be sent to the RME ADI-2 device via MIDI SysEx to set that volume. */
+ * that can be sent to the RME ADI-2 device via MIDI SysEx
+ * to set that volume. */
 static void convert_db_value_to_sysex_bytes(
     double dValueDB,
     unsigned char *pchHigh,
@@ -877,9 +952,9 @@ static int send_db(
     unsigned char chRMEOutput,
     double dValueDB
 ) {
-    unsigned char chHigh = 0;
-    unsigned char chLow = 0;
-    convert_db_value_to_sysex_bytes(dValueDB, &chHigh, &chLow);
+    unsigned char chHighByte = 0;
+    unsigned char chLowByte = 0;
+    convert_db_value_to_sysex_bytes(dValueDB, &chHighByte, &chLowByte);
 
     /* Example: set -10.0 dB on line 1/2 on RME ADI 2/4 PRO SE
 
@@ -897,17 +972,22 @@ static int send_db(
 
     */
     unsigned char pchSysEx[] = {
-        0xF0,               /* SysEx start */
-        0x00, 0x20, 0x0D,   /* RME manufacturer ID */
-        chRMEDeviceID,      /* Device ID */
-        0x02,               /* Command: set value */
-        chRMEOutput,        /* Parameter: output volume */
-        chHigh, chLow,      /* Volume bytes */
-        0xF7                /* SysEx end */
+        RME_SYSEX_START,                /* SysEx start */
+        RME_SYSEX_MANUFACTURER_ID_0,    /* RME manufacturer ID */
+        RME_SYSEX_MANUFACTURER_ID_1,
+        RME_SYSEX_MANUFACTURER_ID_2,
+        chRMEDeviceID,                  /* Device ID */
+        RME_SYSEX_COMMAND_SET,          /* Command: set value */
+        chRMEOutput,                    /* Parameter: output (line12 or phones34) */
+        chHighByte,                     /* Value: volume bytes */
+        chLowByte,
+        RME_SYSEX_END                   /* SysEx end */
     };
 
     log_verbose(
-        "WRITE MIDI SysEx: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X (volume: %.1f dB)",
+        "WRITE MIDI SysEx: "
+        "%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X"
+        " (volume: %.1f dB)",
         pchSysEx[0], pchSysEx[1], pchSysEx[2], pchSysEx[3], pchSysEx[4],
         pchSysEx[5], pchSysEx[6], pchSysEx[7], pchSysEx[8], pchSysEx[9],
         dValueDB
@@ -933,7 +1013,6 @@ static int send_volume(
     double dValueDB = 0;
     int iRet = ERR_OK;
 
-    log_info("SET Volume: %d", iValue);
     dValueDB = convert_volume_control_value_to_db(
         iValue,
         dVolumeMinDB,
@@ -941,14 +1020,25 @@ static int send_volume(
     );
     iRet = send_db(midi, chRMEDeviceID, chRMEOutput, dValueDB);
     if (ERR_CODE_IS_OK(iRet)) {
-        log_info("SET Volume: %.1f dB", dValueDB);
+        log_info(
+            "SET volume on %s: %d == %.1f dB",
+            (chRMEOutput == RME_PARAM_LINE) ? "line12" : "phones34",
+            iValue,
+            dValueDB
+        );
     } else {
-        log_error("SET Volume failed: error %d", iRet);
+        log_error(
+            "SET volume on %s failed: value %d == %0.1f dB, error %d",
+            (chRMEOutput == RME_PARAM_LINE) ? "line12" : "phones34",
+            iValue,
+            dValueDB,
+            iRet
+        );
     }
     return iRet;
 }
 
-/* Send mute/unmute command to ADI-2 via MIDI SysEx */
+/* Send mute on/off command to ADI-2 via MIDI SysEx */
 static int send_mute(
     snd_rawmidi_t *midi,
     unsigned char chRMEDeviceID,
@@ -972,18 +1062,22 @@ static int send_mute(
 
     */
     unsigned char pchSysEx[] = {
-        0xF0,               /* SysEx start */
-        0x00, 0x20, 0x0D,   /* RME manufacturer ID */
-        chRMEDeviceID,      /* Device ID */
-        0x02,               /* Command: set value */
-        chRMEOutput,        /* Parameter: output volume */
-        RME_PARAM_MUTE,     /* Parameter: mute */
-        chRMEValueMute,     /* 0x00 = off (unmute), 0x01 = on (mute) */
-        0xF7                /* SysEx end */
+        RME_SYSEX_START,                /* SysEx start */
+        RME_SYSEX_MANUFACTURER_ID_0,    /* RME manufacturer ID */
+        RME_SYSEX_MANUFACTURER_ID_1,
+        RME_SYSEX_MANUFACTURER_ID_2,
+        chRMEDeviceID,                  /* Device ID */
+        RME_SYSEX_COMMAND_SET,          /* Command: set value */
+        chRMEOutput,                    /* Parameter: output (line12 or phones34) */
+        RME_PARAM_MUTE,                 /* Parameter: mute */
+        chRMEValueMute,                 /* Value: RME_VALUE_MUTE_OFF or RME_VALUE_MUTE_ON */
+        RME_SYSEX_END                   /* SysEx end */
     };
 
     log_verbose(
-        "WRITE MIDI SysEx: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X (mute: %s)",
+        "WRITE MIDI SysEx: "
+        "%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X"
+        " (mute: %s)",
         pchSysEx[0], pchSysEx[1], pchSysEx[2], pchSysEx[3], pchSysEx[4],
         pchSysEx[5], pchSysEx[6], pchSysEx[7], pchSysEx[8], pchSysEx[9],
         (chRMEValueMute == RME_VALUE_MUTE_ON ? "on" : "off")
@@ -995,7 +1089,8 @@ static int send_mute(
         return ERR_ERROR_GENERIC;
     } else {
         log_info(
-            "SET Mute: %s",
+            "SET mute on %s: %s",
+            (chRMEOutput == RME_PARAM_LINE) ? "line12" : "phones34",
             (chRMEValueMute == RME_VALUE_MUTE_ON ? "on" : "off")
         );
     }
@@ -1064,12 +1159,12 @@ static int init_output_control(
     strncpy(
         pOutputControl->szUDCEVolumeName,
         pOutputParameters->szUDCEVolumeName,
-        UDCE_NAME_MAX_LENGTH
+        UDCE_NAME_MAX_LENGTH - 1
     );
     strncpy(
         pOutputControl->szUDCESwitchName,
         pOutputParameters->szUDCESwitchName,
-        UDCE_NAME_MAX_LENGTH
+        UDCE_NAME_MAX_LENGTH - 1
     );
 
     /* Allocate and create volume UDCE */
@@ -1583,7 +1678,10 @@ static void print_device_names() {
 
     printf("RME Product Family (Device Name)\n");
     for (size_t i = 0; i < cCount; i++) {
-        printf("- '%s'\n", szDeviceNames[i]);
+        printf(
+            "- '%s'\n",
+            szDeviceNames[i]
+        );
     }
 }
 
@@ -1597,7 +1695,11 @@ static void print_device_ids() {
 
     printf("ID\tRME Product Family\n");
     for (size_t i = 0; i < cCount; i++) {
-        printf("0x%02X\t%s\n", pszDeviceIDs[i].chDeviceID, pszDeviceIDs[i].szDeviceName);
+        printf(
+            "0x%02X\t%s\n",
+            pszDeviceIDs[i].chDeviceID,
+            pszDeviceIDs[i].szDeviceName
+        );
     }
 }
 
@@ -1620,6 +1722,7 @@ static void print_usage(const char *prog) {
     printf("      --list-cards                List all ALSA cards and exit\n");
     printf("      --list-device-ids           List all supported device IDs\n");
     printf("      --list-device-names         List all supported device names\n");
+    printf("      --list-midi-devices         List all supported MIDI devices\n");
     printf("  -M, --midi-device STRING        Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'\n");
     printf("      --no-line12                 Do not install controls for line output 1/2\n");
     printf("      --no-phones34               Do not install controls for phones output 3/4\n");
@@ -1650,6 +1753,7 @@ static int parse_args(int argc, char *argv[]) {
         {"list-cards",           no_argument,       0, 'X'},    /* the short form is not public */
         {"list-device-ids",      no_argument,       0, 'Y'},    /* the short form is not public */
         {"list-device-names",    no_argument,       0, 'Z'},    /* the short form is not public */
+        {"list-midi-devices",    no_argument,       0, 'Q'},    /* the short form is not public */
         {"midi-device",          required_argument, 0, 'M'},
         {"no-line12",            no_argument,       0, 'S'},    /* the short form is not public */
         {"no-phones34",          no_argument,       0, 'T'},    /* the short form is not public */
@@ -1663,7 +1767,7 @@ static int parse_args(int argc, char *argv[]) {
 
     int opt = 0;
     int bDeviceIDWasSet = BOOL_FALSE;
-    while ((opt = getopt_long(argc, argv, "C:d:D:hi:I:j:J:l:L:XYZM:STUp:P:uv", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "C:d:D:hi:I:j:J:l:L:XYZRM:STUp:P:uv", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'C':
             gpConfiguration.iCardNumber = atoi(optarg);
@@ -1704,6 +1808,9 @@ static int parse_args(int argc, char *argv[]) {
             break;
         case 'P':
             gpConfiguration.stPhones34.dMaxDB = atof(optarg);
+            break;
+        case 'Q':
+            gpConfiguration.bListMIDIDevices = BOOL_TRUE;
             break;
         case 'S':
             gpConfiguration.stLine12.bControl = BOOL_FALSE;
@@ -1819,6 +1926,14 @@ int main(int argc, char *argv[]) {
     if (BOOL_IS_TRUE(gpConfiguration.bListDeviceNames)) {
         gpConfiguration.bVerboseLog = BOOL_FALSE;
         print_device_names();
+        iExitCode = EXIT_OK;
+        goto cleanup;
+    }
+
+    /* Print the list of MIDI devices */
+    if (BOOL_IS_TRUE(gpConfiguration.bListMIDIDevices)) {
+        gpConfiguration.bVerboseLog = BOOL_FALSE;
+        print_midi_devices();
         iExitCode = EXIT_OK;
         goto cleanup;
     }
