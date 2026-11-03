@@ -79,14 +79,15 @@ The service terminates when killed (with `CTRL+C` or `kill/pkill`),
 removing the ALSA controls it registered when it started.
 
 > [!NOTE]
-> Currently the synchronization of the state is one-way only:
+> In the current version of the service
+> the synchronization of the state is one-way only:
 > from ALSA to the physical RME ADI-2 device.
 >
 > If the user changes the mute or volume state on the RME ADI-2 device
 > (e.g., using the volume knob or the IR remote),
 > the ALSA controls will not be updated accordingly.
 >
-> This is a known limitation which will be addressed in a future version.
+> This is a known limitation which will be addressed in a future release.
 
 #### Screenshots
 
@@ -115,7 +116,7 @@ since they share the same RME device ID
 and the same MIDI interface for setting mute/volume parameters.
 
 > [!NOTE]
-> Currently the author tested the service with an RME ADI-2/4 Pro SE device,
+> The author tested the service with an RME ADI-2/4 Pro SE device,
 > on both Debian testing on a PC (`amd64`) and
 > Volumio 4.119 on a Raspberry Pi 5 (`arm64`).
 >
