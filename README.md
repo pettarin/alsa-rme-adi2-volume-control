@@ -12,7 +12,8 @@ a C program designed to be executed as a background service
 on a modern Linux machine with
 [ALSA](https://www.alsa-project.org/),
 exposing user-defined control elements to change the mute and volume state
-of an RME ADI-2 device connected to the running machine via USB,
+of an [RME](https://rme-audio.de/home.html) ADI-2 device
+connected to the running machine via USB,
 via its MIDI interface.
 
 The main purpose of `alsa-rme-adi2-volume-control`
@@ -103,9 +104,9 @@ with `alsamixer` no longer showing the registered ALSA controls:
 
 The following families of RME ADI-2 devices are supported:
 
-- `ADI-2 DAC`   (device ID: `0x71`)
-- `ADI-2 Pro`   (device ID: `0x72`)
-- `ADI-2/4 Pro` (device ID: `0x73`)
+- [ADI-2 DAC](https://rme-audio.de/adi-2-dac.html) (device ID: `0x71`)
+- [ADI-2 Pro](https://rme-audio.de/converter/adi-2-pro-ex.html) (device ID: `0x72`)
+- [ADI-2/4 Pro](https://rme-audio.de/converter/adi-2-4-pro-ex.html) (device ID: `0x73`)
 
 All device "variants" of each family should be supported
 (e.g., `ADI-2/4 Pro SE` and `ADI-2/4 Pro EX` are both `ADI-2/4 Pro`),
@@ -117,8 +118,8 @@ and the same MIDI interface for setting mute/volume parameters.
 > on both Debian testing on a PC (`amd64`) and
 > Volumio 4.119 on a Raspberry Pi 5 (`arm64`).
 >
-> Other RME ADI-2 devices should work, but they have not been tested
-> directly by the author.
+> Other RME ADI-2 devices should work,
+> but mind that they have not been tested directly by the author.
 
 
 ## Automated Installation
@@ -140,7 +141,7 @@ TODO write this
 
 - [ALSA](https://www.alsa-project.org/wiki/Main_Page) (Debian/Ubuntu: `libasound2-dev`)
 - [CMake](https://cmake.org/) (Debian/Ubuntu: `cmake`)
-- [GNU C Compiler (gcc)](https://gcc.gnu.org/) (Debian/Ubuntu: `build-essential`)
+- [GNU C Compiler (GCC)](https://gcc.gnu.org/) (Debian/Ubuntu: `build-essential`)
 
 #### Compile
 
