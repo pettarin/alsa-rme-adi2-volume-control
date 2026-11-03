@@ -24,9 +24,9 @@
  * [After the introduction of the EX models in 2026]
  * The Device IDs are unchanged:
  *
- * 0x71    ADI-2 DAC, ADI-2 DAC EX
- * 0x72    ADI-2 Pro series, ADI-2 Pro EX
- * 0x73    ADI-2/4 Pro SE, ADI-2/4 Pro EX
+ * 0x71    ADI-2 DAC FS
+ * 0x72    ADI-2 Pro series (AE, EX, FS, FS BE)
+ * 0x73    ADI-2/4 Pro series (EX, SE)
  *
  * The Pro is identical in functionality.
  * The 2/4 Pro EX has digital input gain and RIAA-off option, plus input impedance choice.
@@ -37,12 +37,10 @@
 
 /* RME device IDs */
 #define RME_DEVICE_FAMILY_ADI2_DAC      0x71
-#define RME_DEVICE_ADI2_DAC             0x71
-#define RME_DEVICE_ADI2_DAC_EX          0x71
 #define RME_DEVICE_ADI2_DAC_FS          0x71
 
 #define RME_DEVICE_FAMILY_ADI2_PRO      0x72
-#define RME_DEVICE_ADI2_PRO             0x72
+#define RME_DEVICE_ADI2_PRO_AE          0x72
 #define RME_DEVICE_ADI2_PRO_EX          0x72
 #define RME_DEVICE_ADI2_PRO_FS          0x72
 #define RME_DEVICE_ADI2_PRO_FS_BE       0x72

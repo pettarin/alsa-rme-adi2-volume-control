@@ -109,7 +109,8 @@ The following families of RME ADI-2 devices are supported:
 - [ADI-2/4 Pro](https://rme-audio.de/converter/adi-2-4-pro-ex.html) (device ID: `0x73`)
 
 All device "variants" of each family should be supported
-(e.g., `ADI-2/4 Pro SE` and `ADI-2/4 Pro EX` are both `ADI-2/4 Pro`),
+(e.g., `ADI-2 Pro AE`, `ADI-2 Pro FS`, `ADI-2 Pro FS BE`, and `ADI-2 Pro EX`
+are all `ADI-2 Pro`),
 since they share the same RME device ID
 and the same MIDI interface for setting mute/volume parameters.
 
