@@ -112,6 +112,14 @@ All device "variants" of each family should be supported
 since they share the same RME device ID
 and the same MIDI interface for setting mute/volume parameters.
 
+> [!NOTE]
+> Currently the author tested the service with an RME ADI-2/4 Pro SE device,
+> on both Debian testing on a PC (`amd64`) and
+> Volumio 4.119 on a Raspberry Pi 5 (`arm64`).
+>
+> Other RME ADI-2 devices should work, but they have not been tested
+> directly by the author.
+
 
 ## Automated Installation
 
