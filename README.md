@@ -105,7 +105,31 @@ and the same MIDI interface for setting mute/volume parameters.
 > documentation if they prefer recompiling the program from sources
 > and/or manually installing the service.
 
-TODO write this
+> [!WARNING]
+> Installing the service as described below requires `sudo` privileges.
+
+To install the service from the latest released package:
+
+```bash
+# always inspect the install.sh script before running it with sudo!
+curl https://www.albertopettarin.it/alsa-rme-adi2-volume-control/repo/alsa-rme-adi2-volume-control/install.sh
+sudo bash install.sh
+```
+
+To install from a local clone of this Git repository,
+compiling the service executable locally:
+
+```bash
+git clone https://github.com/pettarin/alsa-rme-adi2-volume-control.git
+cd alsa-rme-adi2-volume-control
+sudo bash install.sh --from-source
+```
+
+To uninstall:
+
+```
+sudo bash install.sh --uninstall
+```
 
 The complete command line usage documentation can be found in the
 [USAGE](docs/USAGE.md)
