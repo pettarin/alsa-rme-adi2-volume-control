@@ -78,7 +78,8 @@ typedef struct {
     int bListDeviceIDs;
     int bListDeviceNames;
     int bListMIDIDevices;
-    int bPrintUsageOnly;
+    int bPrintUsage;
+    int bPrintVersion;
     int bUninstall;
     int bUninstallOnExit;
     int bVerboseLog;
@@ -129,12 +130,13 @@ static ServiceConfiguration gpConfiguration = {
     .szDeviceName = DEFAULT_DEVICE_NAME,
     .iCardNumber = DEFAULT_CARD_NUMBER,
     .iDeviceID = DEFAULT_DEVICE_ID,
-    .bListCards = DEFAULT_LIST_CARDS_ONLY,
-    .bListDeviceIDs = DEFAULT_LIST_DEVICE_IDS_ONLY,
-    .bListDeviceNames = DEFAULT_LIST_DEVICE_NAMES_ONLY,
-    .bListMIDIDevices = DEFAULT_LIST_MIDI_DEVICES_ONLY,
-    .bPrintUsageOnly = DEFAULT_PRINT_USAGE_ONLY,
-    .bUninstall = DEFAULT_UNINSTALL_ONLY,
+    .bListCards = DEFAULT_LIST_CARDS,
+    .bListDeviceIDs = DEFAULT_LIST_DEVICE_IDS,
+    .bListDeviceNames = DEFAULT_LIST_DEVICE_NAMES,
+    .bListMIDIDevices = DEFAULT_LIST_MIDI_DEVICES,
+    .bPrintUsage = DEFAULT_PRINT_USAGE,
+    .bPrintVersion = DEFAULT_PRINT_VERSION,
+    .bUninstall = DEFAULT_UNINSTALL,
     .bUninstallOnExit = DEFAULT_UNINSTALL_ON_EXIT,
     .bVerboseLog = DEFAULT_VERBOSE_LOG
 };
@@ -1617,8 +1619,8 @@ static int validate_initial_switch_value(int iValue, const char *szOption) {
 }
 static int validate_initial_switch_values() {
     StringIntegerPair pstPairs[] = {
-        {"--line12-enabled", gpConfiguration.stLine12.bStartupSwitch},
-        {"--phones34-enabled", gpConfiguration.stPhones34.bStartupSwitch},
+        {"--line12-switch", gpConfiguration.stLine12.bStartupSwitch},
+        {"--phones34-switch", gpConfiguration.stPhones34.bStartupSwitch},
     };
     size_t cCount = sizeof(pstPairs) / sizeof(pstPairs[0]);
 
@@ -1725,48 +1727,54 @@ static void print_usage(const char *prog) {
     printf("\n");
     printf("Creates ALSA mute and volume controls for RME ADI-2 devices.\n");
     printf("\n");
-    printf("Options:\n");
-    printf("  -C, --card-number INTEGER       Use the ALSA card with the given index; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones\n");
-    printf("  -d, --device-name STRING        RME device name (default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
+    printf("Options:\n"); /* keep sorted by short option, then lexicographically */
+    printf("  -C, --card-number INTEGER       Use the ALSA card with the given number; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones\n");
+    printf("  -d, --device-name STRING        RME device name (case sensitive, default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
     printf("  -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones\n");
     printf("  -h, --help                      Show this help\n");
-    printf("  -i, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", gpConfiguration.stLine12.iStartupVolume);
-    printf("  -I, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", gpConfiguration.stPhones34.iStartupVolume);
-    printf("  -j, --line12-enabled INTEGER    Initial enable line output 1/2:   %d == muted, %d == unmuted (default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stLine12.bStartupSwitch);
-    printf("  -J, --phones34-enabled INTEGER  Initial enable phones output 3/4: %d == muted, %d == unmuted (default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stPhones34.bStartupSwitch);
+    printf("  -k, --line12-switch INTEGER     Initial state for line output 1/2   (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stLine12.bStartupSwitch);
+    printf("  -K, --line12-volume INTEGER     Initial volume for line output 1/2   (in [0, 100], default: %d)\n", gpConfiguration.stLine12.iStartupVolume);
     printf("  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to   0%% volume (default: %.1f dB)\n", gpConfiguration.stLine12.dMinDB);
     printf("  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (default: %.1f dB)\n", gpConfiguration.stLine12.dMaxDB);
     printf("      --list-cards                List all ALSA cards and exit\n");
     printf("      --list-device-ids           List all supported device IDs\n");
     printf("      --list-device-names         List all supported device names\n");
     printf("      --list-midi-devices         List all supported MIDI devices\n");
-    printf("  -M, --midi-device STRING        Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'\n");
+    printf("  -M, --midi-device STRING        Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'; option --list-midi-devices prints the detected ones\n");
     printf("      --no-line12                 Do not install controls for line output 1/2\n");
     printf("      --no-phones34               Do not install controls for phones output 3/4\n");
     printf("      --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
+    printf("  -o, --phones34-switch INTEGER   Initial state for phones output 3/4 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stPhones34.bStartupSwitch);
+    printf("  -O, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", gpConfiguration.stPhones34.iStartupVolume);
     printf("  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to   0%% volume (default: %.1f dB)\n", gpConfiguration.stPhones34.dMinDB);
     printf("  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100%% volume (default: %.1f dB)\n", gpConfiguration.stPhones34.dMaxDB);
     printf("      --uninstall                 Uninstall ALSA user-defined control elements and exit\n");
     printf("  -v, --verbose                   Enable verbose output\n");
+    printf("  -V, --version                   Print the name and version of this program and exit\n");
     printf("\n");
     printf("Examples:\n");
     printf("  %s --list-cards\n", prog);
-    printf("  %s --verbose --device-name autodetect\n", prog);
-    printf("  %s --card-index 5 --device-id 0x%02X --line12-min-db -25.0 --line12-max-db 0.0\n", prog, RME_DEVICE_FAMILY_ADI24_PRO);
+    printf("  %s --list-midi-devices\n", prog);
+    printf("  %s --uninstall\n", prog);
+    printf("  %s --verbose --device-name \"%s\"\n", prog, DEVICE_NAME_RME_ADI2_DAC);
+    printf("  %s --card-number 1 --device-id 0x%02X --line12-min-db -25.0 --line12-max-db 0.0 --line12-volume 70 --line12-switch 1 --no-phones34\n", prog, RME_DEVICE_FAMILY_ADI24_PRO);
+}
+
+static void print_version(const char *prog) {
+    printf("%s %s (build %s)\n", prog, PROGRAM_VERSION, PROGRAM_BUILD_DATE);
 }
 
 static int parse_args(int argc, char *argv[]) {
     struct option long_opts[] = {
+        /* keep sorted by long option name; use {0,0,0,0} sentinel to end */
         {"card-number",          required_argument, 0, 'C'},
-        {"device-name",          required_argument, 0, 'd'},
         {"device-id",            required_argument, 0, 'D'},
+        {"device-name",          required_argument, 0, 'd'},
         {"help",                 no_argument,       0, 'h'},
-        {"line12-volume",        required_argument, 0, 'i'},
-        {"phones34-volume",      required_argument, 0, 'I'},
-        {"line12-enabled",       required_argument, 0, 'j'},
-        {"phones34-enabled",     required_argument, 0, 'J'},
-        {"line12-min-db",        required_argument, 0, 'l'},
         {"line12-max-db",        required_argument, 0, 'L'},
+        {"line12-min-db",        required_argument, 0, 'l'},
+        {"line12-switch",        required_argument, 0, 'k'},
+        {"line12-volume",        required_argument, 0, 'K'},
         {"list-cards",           no_argument,       0, 'X'},    /* the short form is not public */
         {"list-device-ids",      no_argument,       0, 'Y'},    /* the short form is not public */
         {"list-device-names",    no_argument,       0, 'Z'},    /* the short form is not public */
@@ -1775,88 +1783,102 @@ static int parse_args(int argc, char *argv[]) {
         {"no-line12",            no_argument,       0, 'S'},    /* the short form is not public */
         {"no-phones34",          no_argument,       0, 'T'},    /* the short form is not public */
         {"no-uninstall-on-exit", no_argument,       0, 'U'},    /* the short form is not public */
-        {"phones34-min-db",      required_argument, 0, 'p'},
         {"phones34-max-db",      required_argument, 0, 'P'},
+        {"phones34-min-db",      required_argument, 0, 'p'},
+        {"phones34-switch",      required_argument, 0, 'o'},
+        {"phones34-volume",      required_argument, 0, 'O'},
         {"uninstall",            no_argument,       0, 'u'},    /* the short form is not public */
         {"verbose",              no_argument,       0, 'v'},
-        {0, 0, 0, 0}
+        {"version",              no_argument,       0, 'V'},
+        {0,                      0,                 0,  0 }
     };
 
     int opt = 0;
     int bDeviceIDWasSet = BOOL_FALSE;
-    while ((opt = getopt_long(argc, argv, "C:d:D:hi:I:j:J:l:L:XYZRM:STUp:P:uv", long_opts, NULL)) != -1) {
+    while (
+        (opt = getopt_long(
+            argc,
+            argv,
+            "C:d:D:hk:K:l:L:M:o:O:p:P:QSTuUvVXYZ",
+            long_opts,
+            NULL
+        )) != -1
+    ) {
         switch (opt) {
-        case 'C':
-            gpConfiguration.iCardNumber = atoi(optarg);
-            break;
-        case 'd':
-            strncpy(gpConfiguration.szDeviceName, optarg, DEVICE_NAME_MAX_LENGTH - 1);
-            break;
-        case 'D':
-            gpConfiguration.iDeviceID = (int)strtol(optarg, NULL, 0);
-            bDeviceIDWasSet = BOOL_TRUE;
-            break;
-        case 'h':
-            gpConfiguration.bPrintUsageOnly = BOOL_TRUE;
-            break;
-        case 'i':
-            gpConfiguration.stLine12.iStartupVolume = atoi(optarg);
-            break;
-        case 'I':
-            gpConfiguration.stPhones34.iStartupVolume = atoi(optarg);
-            break;
-        case 'j':
-            gpConfiguration.stLine12.bStartupSwitch = atoi(optarg);
-            break;
-        case 'J':
-            gpConfiguration.stPhones34.bStartupSwitch = atoi(optarg);
-            break;
-        case 'l':
-            gpConfiguration.stLine12.dMinDB = atof(optarg);
-            break;
-        case 'L':
-            gpConfiguration.stLine12.dMaxDB = atof(optarg);
-            break;
-        case 'M':
-            strncpy(gpConfiguration.szMIDIDevice, optarg, MIDI_DEVICE_MAX_LENGTH - 1);
-            break;
-        case 'p':
-            gpConfiguration.stPhones34.dMinDB = atof(optarg);
-            break;
-        case 'P':
-            gpConfiguration.stPhones34.dMaxDB = atof(optarg);
-            break;
-        case 'Q':
-            gpConfiguration.bListMIDIDevices = BOOL_TRUE;
-            break;
-        case 'S':
-            gpConfiguration.stLine12.bControl = BOOL_FALSE;
-            break;
-        case 'T':
-            gpConfiguration.stPhones34.bControl = BOOL_FALSE;
-            break;
-        case 'u':
-            gpConfiguration.bUninstall = BOOL_TRUE;
-            break;
-        case 'U':
-            gpConfiguration.bUninstallOnExit = BOOL_FALSE;
-            break;
-        case 'v':
-            gpConfiguration.bVerboseLog = BOOL_TRUE;
-            break;
-        case 'X':
-            gpConfiguration.bListCards = BOOL_TRUE;
-            break;
-        case 'Y':
-            gpConfiguration.bListDeviceIDs = BOOL_TRUE;
-            break;
-        case 'Z':
-            gpConfiguration.bListDeviceNames = BOOL_TRUE;
-            break;
-        default:
-            return EXIT_ERROR_USAGE_BAD_OPTION;
-        }
-    }
+            case 'C':
+                gpConfiguration.iCardNumber = atoi(optarg);
+                break;
+            case 'd':
+                strncpy(gpConfiguration.szDeviceName, optarg, DEVICE_NAME_MAX_LENGTH - 1);
+                break;
+            case 'D':
+                gpConfiguration.iDeviceID = (int)strtol(optarg, NULL, 0);
+                bDeviceIDWasSet = BOOL_TRUE;
+                break;
+            case 'h':
+                gpConfiguration.bPrintUsage = BOOL_TRUE;
+                break;
+            case 'k':
+                gpConfiguration.stLine12.bStartupSwitch = atoi(optarg);
+                break;
+            case 'K':
+                gpConfiguration.stLine12.iStartupVolume = atoi(optarg);
+                break;
+            case 'l':
+                gpConfiguration.stLine12.dMinDB = atof(optarg);
+                break;
+            case 'L':
+                gpConfiguration.stLine12.dMaxDB = atof(optarg);
+                break;
+            case 'M':
+                strncpy(gpConfiguration.szMIDIDevice, optarg, MIDI_DEVICE_MAX_LENGTH - 1);
+                break;
+            case 'o':
+                gpConfiguration.stPhones34.bStartupSwitch = atoi(optarg);
+                break;
+            case 'O':
+                gpConfiguration.stPhones34.iStartupVolume = atoi(optarg);
+                break;
+            case 'p':
+                gpConfiguration.stPhones34.dMinDB = atof(optarg);
+                break;
+            case 'P':
+                gpConfiguration.stPhones34.dMaxDB = atof(optarg);
+                break;
+            case 'Q':
+                gpConfiguration.bListMIDIDevices = BOOL_TRUE;
+                break;
+            case 'S':
+                gpConfiguration.stLine12.bControl = BOOL_FALSE;
+                break;
+            case 'T':
+                gpConfiguration.stPhones34.bControl = BOOL_FALSE;
+                break;
+            case 'u':
+                gpConfiguration.bUninstall = BOOL_TRUE;
+                break;
+            case 'U':
+                gpConfiguration.bUninstallOnExit = BOOL_FALSE;
+                break;
+            case 'v':
+                gpConfiguration.bVerboseLog = BOOL_TRUE;
+                break;
+            case 'V':
+                gpConfiguration.bPrintVersion = BOOL_TRUE;
+                break;
+            case 'X':
+                gpConfiguration.bListCards = BOOL_TRUE;
+                break;
+            case 'Y':
+                gpConfiguration.bListDeviceIDs = BOOL_TRUE;
+                break;
+            case 'Z':
+                gpConfiguration.bListDeviceNames = BOOL_TRUE;
+                break;
+            default:
+                return EXIT_ERROR_USAGE_BAD_OPTION;
+        } /* end switch opt */
+    } /* end while opt */
 
     if (BOOL_IS_FALSE(validate_no_output_options())) {
         return EXIT_ERROR_USAGE_BAD_OPTION;
@@ -1926,8 +1948,16 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
+    /* Print the version and exit */
+    if (BOOL_IS_TRUE(gpConfiguration.bPrintVersion)) {
+        gpConfiguration.bVerboseLog = BOOL_FALSE;
+        print_version(argv[0]);
+        iExitCode = EXIT_OK;
+        goto cleanup;
+    }
+
     /* Print the usage and exit */
-    if (BOOL_IS_TRUE(gpConfiguration.bPrintUsageOnly)) {
+    if (BOOL_IS_TRUE(gpConfiguration.bPrintUsage)) {
         gpConfiguration.bVerboseLog = BOOL_FALSE;
         print_usage(argv[0]);
         iExitCode = EXIT_OK;

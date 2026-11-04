@@ -23,6 +23,10 @@
 #ifndef ALSA_RME_ADI2_VOLUME_CONTROL_H
 #define ALSA_RME_ADI2_VOLUME_CONTROL_H
 
+/* Program version */
+#define PROGRAM_VERSION                             "1.0.0"
+#define PROGRAM_BUILD_DATE                          "2026-11-04"
+
 /* Boolean values */
 #define BOOL_FALSE                                  0
 #define BOOL_TRUE                                   1
@@ -98,13 +102,14 @@
 #define DEFAULT_CARD_NUMBER                         CARD_NUMBER_NOT_SET
 #define DEFAULT_DEVICE_ID                           DEVICE_ID_NOT_SET
 #define DEFAULT_DEVICE_NAME                         DEVICE_NAME_AUTODETECT
-#define DEFAULT_LIST_CARDS_ONLY                     BOOL_FALSE
-#define DEFAULT_LIST_DEVICE_IDS_ONLY                BOOL_FALSE
-#define DEFAULT_LIST_DEVICE_NAMES_ONLY              BOOL_FALSE
-#define DEFAULT_LIST_MIDI_DEVICES_ONLY              BOOL_FALSE
+#define DEFAULT_LIST_CARDS                          BOOL_FALSE
+#define DEFAULT_LIST_DEVICE_IDS                     BOOL_FALSE
+#define DEFAULT_LIST_DEVICE_NAMES                   BOOL_FALSE
+#define DEFAULT_LIST_MIDI_DEVICES                   BOOL_FALSE
 #define DEFAULT_MIDI_DEVICE                         MIDI_DEVICE_AUTODETECT
-#define DEFAULT_PRINT_USAGE_ONLY                    BOOL_FALSE
-#define DEFAULT_UNINSTALL_ONLY                      BOOL_FALSE
+#define DEFAULT_PRINT_USAGE                         BOOL_FALSE
+#define DEFAULT_PRINT_VERSION                       BOOL_FALSE
+#define DEFAULT_UNINSTALL                           BOOL_FALSE
 #define DEFAULT_UNINSTALL_ON_EXIT                   BOOL_TRUE
 #define DEFAULT_VERBOSE_LOG                         BOOL_FALSE
 
