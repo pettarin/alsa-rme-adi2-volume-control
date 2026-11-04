@@ -5,22 +5,22 @@
 # Usage: bash install.sh [options]
 #
 # Options:
-#   --compile-from-source          Compile the service executable from source
-#   --install-build-dependencies   Install build dependencies
-#   --uninstall                    Remove installation
+#   --from-source                   Install from source, instead of downloading a released package
+#   --install-build-dependencies    Install build dependencies
+#   --uninstall                     Remove installation
 #
 # Examples:
 #   # remove a previous installation
 #   bash install.sh --uninstall
 #
-#   # download the pre-built executable and install service
+#   # install service from a released package (including a pre-built executable)
 #   bash install.sh
 #
-#   # compile the executable from source and install service
-#   bash install.sh --compile-from-source
+#   # install service from source
+#   bash install.sh --from-source
 #
-#   # install the build dependencies, compile from source, and install service
-#   bash install.sh --install-build-dependencies --compile-from-source
+#   # install the build dependencies and then install the service from source
+#   bash install.sh --install-build-dependencies --from-source
 #
 
 set -euo pipefail
@@ -54,27 +54,30 @@ SERVICE_UDEV_RULES_FILE_NAME="99-$SERVICE_NAME.rules"
 SERVICE_SYSTEMD_UNIT_SOURCE_FILE_PATH="$PROJECT_DIRECTORY_PATH/src/systemd/$SERVICE_SYSTEMD_UNIT_FILE_NAME"
 SERVICE_UDEV_RULES_SOURCE_FILE_PATH="$PROJECT_DIRECTORY_PATH/src/udev/$SERVICE_UDEV_RULES_FILE_NAME"
 
-# Absolute URL for the pre-built executable to download
+# Absolute URLs of the files to be downloaded
 SERVICE_EXECUTABLE_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$SERVICE_NAME/$ARCHITECTURE/$SERVICE_EXECUTABLE_FILE_NAME"
+SERVICE_SYSTEMD_UNIT_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$SERVICE_NAME/repo/$SERVICE_NAME/src/systemd/$SERVICE_SYSTEMD_UNIT_FILE_NAME"
+SERVICE_UDEV_RULES_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$SERVICE_NAME/repo/$SERVICE_NAME/src/udev/$SERVICE_UDEV_RULES_FILE_NAME"
 
 # Absolute destination paths
 # (they do NOT depend on the structure of the source repository)
 SERVICE_EXECUTABLE_DESTINATION_FILE_PATH="/usr/local/bin/$SERVICE_EXECUTABLE_FILE_NAME"
-SERVICE_EXECUTABLE_DOWNLOADED_TMP_PATH="/tmp/$SERVICE_EXECUTABLE_FILE_NAME"
 SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH="/lib/systemd/system/$SERVICE_SYSTEMD_UNIT_FILE_NAME"
 SERVICE_UDEV_RULES_DESTINATION_FILE_PATH="/etc/udev/rules.d/$SERVICE_UDEV_RULES_FILE_NAME"
 
 # Script CLI defaults
-COMPILE_FROM_SOURCE=0
+FROM_SOURCE=0
 INSTALL_BUILD_DEPENDENCIES=0
 INSTALL=1
 UNINSTALL=0
+USE_CURL=0
+USE_WGET=0
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --compile-from-source)
-            COMPILE_FROM_SOURCE=1
+        --from-source)
+            FROM_SOURCE=1
             shift
             ;;
         --install-build-dependencies)
@@ -90,9 +93,9 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: bash $0 [options]"
             echo ""
             echo "Options:"
-            echo "  --compile-from-source          Compile the service executable from source"
-            echo "  --install-build-dependencies   Install build dependencies"
-            echo "  --uninstall                    Remove installation"
+            echo "  --from-source                   Install from source, instead of downloading a released package"
+            echo "  --install-build-dependencies    Install build dependencies"
+            echo "  --uninstall                     Remove installation"
             exit 0
             ;;
         *)
@@ -106,6 +109,19 @@ done
 if [[ $EUID -ne 0 ]]; then
     echo "This script must be run as root (sudo)"
     exit 1
+fi
+
+# Check we have either curl or wget if not installing from source
+if [[ $FROM_SOURCE -ne 1 ]]; then
+    if command -v curl &>/dev/null; then
+        USE_CURL=1
+    elif command -v wget &>/dev/null; then
+        USE_WGET=1
+    else
+        echo "ERROR: unable to find either curl or wget to download a pre-built executable."
+        echo "Please install either curl or wget and try again."
+        exit 2
+    fi
 fi
 
 # Uninstall
@@ -129,9 +145,9 @@ if [[ $UNINSTALL -eq 1 ]]; then
     exit 0
 fi
 
-# Install build dependencies
-if [[ $COMPILE_FROM_SOURCE -eq 1 ]]; then
+if [[ $FROM_SOURCE -eq 1 ]]; then
 
+    # Install build dependencies
     if [[ $INSTALL_BUILD_DEPENDENCIES -eq 1 ]]; then
         echo "Installing build dependencies ..."
         if command -v apt &>/dev/null; then
@@ -161,7 +177,6 @@ if [[ $COMPILE_FROM_SOURCE -eq 1 ]]; then
 else
 
     echo "Downloading pre-built executable ..."
-
     # x86_64 == PC, aarch64 == Raspberry Pi
     if [[ $ARCHITECTURE != "aarch64" ]] && [[ $ARCHITECTURE != "x86_64" ]]; then
         echo "ERROR: architecture has no pre-built executable."
@@ -169,34 +184,50 @@ else
         exit 2
     fi
 
-    if command -v curl &>/dev/null; then
-        curl -s -o "$SERVICE_EXECUTABLE_DOWNLOADED_TMP_PATH" "$SERVICE_EXECUTABLE_SOURCE_URL"
-    elif command -v wget &>/dev/null; then
-        wget -q -O "$SERVICE_EXECUTABLE_DOWNLOADED_TMP_PATH" "$SERVICE_EXECUTABLE_SOURCE_URL"
+    if [[ $USE_CURL -eq 1 ]]; then
+        curl -s -o "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH" "$SERVICE_EXECUTABLE_SOURCE_URL"
+    elif [[ $USE_WGET -eq 1 ]]; then
+        wget -q -O "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH" "$SERVICE_EXECUTABLE_SOURCE_URL"
     else
-        echo "ERROR: unable to find either curl or wget to download a pre-built executable."
-        echo "Please install either curl or wget and try again."
+        # it should never happen...
         exit 2
     fi
-    echo "Downloading pre-built executable ... done"
-
-    echo "Copying executable ..."
-    cp "$SERVICE_EXECUTABLE_DOWNLOADED_TMP_PATH" "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH"
     chmod +x "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH"
-    rm "$SERVICE_EXECUTABLE_DOWNLOADED_TMP_PATH"
-    echo "Copying executable ... done"
+    echo "Downloading pre-built executable ... done"
 
 fi
 
 echo "Installing systemd service ..."
-cp "$SERVICE_SYSTEMD_UNIT_SOURCE_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH"
+if [[ $FROM_SOURCE -eq 1 ]]; then
+    cp "$SERVICE_SYSTEMD_UNIT_SOURCE_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH"
+else
+    if [[ $USE_CURL -eq 1 ]]; then
+        curl -s -o "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_SOURCE_URL"
+    elif [[ $USE_WGET -eq 1 ]]; then
+        wget -q -O "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_SOURCE_URL"
+    else
+        # it should never happen...
+        exit 2
+    fi
+fi
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
 echo "Installing systemd service ... done"
 
 echo "Installing udev rules ..."
-cp "$SERVICE_UDEV_RULES_SOURCE_FILE_PATH" "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH"
+if [[ $FROM_SOURCE -eq 1 ]]; then
+    cp "$SERVICE_UDEV_RULES_SOURCE_FILE_PATH" "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH"
+else
+    if [[ $USE_CURL -eq 1 ]]; then
+        curl -s -o "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH" "$SERVICE_UDEV_RULES_SOURCE_URL"
+    elif [[ $USE_WGET -eq 1 ]]; then
+        wget -q -O "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH" "$SERVICE_UDEV_RULES_SOURCE_URL"
+    else
+        # it should never happen...
+        exit 2
+    fi
+fi
 udevadm control --reload-rules
 udevadm trigger
 echo "Installing udev rules ... done"
