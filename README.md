@@ -112,7 +112,7 @@ To install the service from the latest released package:
 
 ```bash
 # always inspect the install.sh script before running it with sudo!
-curl https://www.albertopettarin.it/alsa-rme-adi2-volume-control/repo/alsa-rme-adi2-volume-control/install.sh
+curl -s -o "install.sh" "https://www.albertopettarin.it/alsa-rme-adi2-volume-control/repo/alsa-rme-adi2-volume-control/install.sh"
 sudo bash install.sh
 ```
 
