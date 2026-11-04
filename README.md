@@ -107,6 +107,10 @@ and the same MIDI interface for setting mute/volume parameters.
 
 TODO write this
 
+The complete command line usage documentation can be found in the
+[USAGE](docs/USAGE.md)
+file.
+
 
 ## License
 

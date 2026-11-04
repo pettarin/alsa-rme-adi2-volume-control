@@ -234,16 +234,16 @@ if the provided values are invalid
 
 ### Initial State And Volume
 
-The initial state (mute or unmute) and volume
-can be set independently for each of the two outputs,
+The initial state (muted or unmuted) and volume
+can be set independently for each of the two ALSA controls,
 with the following options:
 
 | Short Option | Long Option         | Output            | Allowed Values               | Default Value |
 |--------------|---------------------|-------------------|------------------------------|---------------|
 | `-k`         | `--line12-switch`   | Line Output 1/2   | `0` (muted) or `1` (unmuted) | `1`           |
 | `-K`         | `--line12-volume`   | Line Output 1/2   | `[0, 100]`                   | `50.0`        |
-| `-o`         | `--phones34-min-db` | Phones Output 3/4 | `0` (muted) or `1` (unmuted) | `1`           |
-| `-O`         | `--phones34-max-db` | Phones Output 3/4 | `[0, 100]`                   | `50.0`        |
+| `-o`         | `--phones34-switch` | Phones Output 3/4 | `0` (muted) or `1` (unmuted) | `1`           |
+| `-O`         | `--phones34-volume` | Phones Output 3/4 | `[0, 100]`                   | `50.0`        |
 
 Examples:
 
