@@ -34,7 +34,6 @@ which might impact the quality of the reproduced audio stream.
 > In the current version of the service
 > the synchronization of the state is one-way only:
 > from ALSA to the physical RME ADI-2 device.
->
 > If the user changes the mute or volume state on the RME ADI-2 device
 > (e.g., using the volume knob or the IR remote),
 > the ALSA controls will not be updated accordingly.
@@ -50,6 +49,17 @@ Some additional support files are provided in this repository:
   without requiring elevated privileges;
 - (TODO) a Bash script to automate installing and uninstalling
   the required files on a modern Debian-based Linux distribution.
+
+> [!WARNING]
+> The Volumio plugin is not available yet.
+> TODO: remove this warning when it is.
+
+The Volumio plugin that installs the `alsa-rme-adi2-volume-control` service
+on a running Volumio 4 device can be found in the
+[Volumio (Bookworm) Plugins](https://github.com/volumio/volumio-plugins-sources-bookworm)
+repository.
+Consult the documentation there for the details
+on how to install and operate it.
 
 ### Screenshots
 
@@ -84,20 +94,6 @@ and the same MIDI interface for setting mute/volume parameters.
 >
 > Other RME ADI-2 devices should work,
 > but mind that they have not been tested directly by the author.
-
-### Volumio Plugin
-
-> [!WARNING]
-> The Volumio plugin is not available yet.
-> TODO: remove this warning when it is.
-
-The Volumio plugin that installs the `alsa-rme-adi2-volume-control` service
-on a running Volumio 4 device can be found in the
-[Volumio (Bookworm) Plugins](https://github.com/volumio/volumio-plugins-sources-bookworm)
-repository.
-
-Consult the documentation there for the details
-on how to install and operate it.
 
 
 ## Installation

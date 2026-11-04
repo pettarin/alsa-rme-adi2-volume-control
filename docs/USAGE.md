@@ -41,46 +41,42 @@ Examples:
   alsa-rme-adi2-volume-control --card-number 1 --device-id 0x73 --line12-min-db -25.0 --line12-max-db 0.0 --line12-volume 70 --line12-switch 1 --no-phones34
 ```
 
+## How To
 
+> [!TIP]
+> The examples below were obtained on a PC running GNU/Linux Debian testing,
+> with the RME ADI-2/4 Pro SE connected to it via USB.
+>
+> The actual output of the commands might depend on the host machine
+> and/or operating system, and on the available audio devices attached to it.
 
-
-
-By default, controls for both outputs
-(`Line Output 1/2` and `Phones Output 3/4`)
-will be created.
-Use `--no-line12` or `--no-phones34` to prevent controlling either output.
-
-When run without argument, the RME ADI-2 device
-will be autodetected (`--device-name autodetect`),
-using the first (i.e., the lowest index) ALSA card
-that matches one of the supported RME ADI-2 devices,
-along with the corresponding MIDI device.
-This should work for most users,
-in particular those with only one RME ADI-2 device attached.
-
-Use the `--card-number`, `--device-id` or `--device-name`, and `--midi-device`
-options to force a specific ALSA card, RME device ID, and MIDI device,
-for instance if there are more than one RME ADI-2 devices attached.
-For example:
+### Print The Version
 
 ```bash
-# use the first ADI-2 Pro found, autodetecting the MIDI device
-alsa-rme-adi2-volume-control --device-name "ADI-2 Pro"
-
-# use the ADI-2/4 Pro connected as ALSA card #1, autodetecting the MIDI device
-alsa-rme-adi2-volume-control --card-index 1 --device-name "ADI-2/4 Pro"
-
-# use the ADI-2 DAC connected as ALSA card #5, using MIDI device hw:5,0,1
-alsa-rme-adi2-volume-control --card-index 5 --device-id 0x71 --midi-device hw:5,0,1
+alsa-rme-adi2-volume-control --version
+alsa-rme-adi2-volume-control 1.0.0 (build 2026-11-04)
 ```
 
-To enable verbose logging, pass the `--verbose` option.
+### List All Supported Devices
 
-#### Listing ALSA Cards And MIDI Devices
+```bash
+alsa-rme-adi2-volume-control --list-device-id
+ID      RME Product Family
+0x71    ADI-2 DAC
+0x72    ADI-2 Pro
+0x73    ADI-2/4 Pro
+```
 
-To list all the ALSA cards available on the system,
-attach your RME ADI-2 device and power it on,
-then run the command with the `--list-cards` option:
+```bash
+alsa-rme-adi2-volume-control --list-device-names
+RME Product Family (Device Name)
+- 'autodetect'
+- 'ADI-2 DAC'
+- 'ADI-2 Pro'
+- 'ADI-2/4 Pro'
+```
+
+### List All ALSA Cards
 
 ```bash
 alsa-rme-adi2-volume-control --list-cards
@@ -111,9 +107,7 @@ card 1: SE52102163 [ADI-2/4 Pro SE (52102163)], device 0: USB Audio [USB Audio]
   Subdevice #0: subdevice #0
 ```
 
-Similarly, to list all the MIDI devices,
-attach your RME ADI-2 device and power it on,
-then run the command with the `--list-midi-devices` option:
+### List All MIDI Devices
 
 ```bash
 alsa-rme-adi2-volume-control --list-midi-devices
@@ -123,6 +117,10 @@ hw:1,0          ADI-2/4 Pro SE (52102163)
 hw:1            ADI-2/4 Pro SE (52102163)
 ```
 
+> [!NOTE]
+> In the above example, `hw:1,0,0`, `hw:1,0`, and `hw:1` are all valid
+> MIDI device identifiers associated to the same RME ADI-2/4 Pro SE device.
+
 Similar information can be obtained with `amidi -l`:
 
 ```bash
@@ -131,12 +129,136 @@ Dir Device    Name
 IO  hw:1,0,0  ADI-2/4 Pro SE (52102163) Port
 ```
 
-> [!NOTE]
-> In the above examples, `hw:1,0,0`, `hw:1,0`, and `hw:1` are all valid
-> MIDI device identifiers associated to the same RME ADI-2/4 Pro SE device.
+### Enable Verbose Logging
 
-> [!TIP]
-> The above examples were obtained on a PC running GNU/Linux Debian testing,
-> with the RME ADI-2/4 Pro SE connected to it via USB.
+```bash
+alsa-rme-adi2-volume-control --verbose
+[DEBU] Find ALSA card number and device ID from device name 'autodetect'
+[DEBU] Find ALSA card by name matching query 'ADI-2/4 Pro'
+[DEBU] Discovered ALSA card number '0' with name 'HDA Intel PCH'
+[DEBU] Discovered ALSA card number '1' with name 'ADI-2/4 Pro SE (52102163)'
+[DEBU] ALSA card number '1' with name 'ADI-2/4 Pro SE (52102163)' matches the query 'ADI-2/4 Pro': returning it
+[DEBU] Found ALSA card number '1' for device ID '0x73' (ADI-2/4 Pro)
+[DEBU] ALSA card number '1' explicitly specified by the user or already determined
+[INFO] Using device ID '0x73'
+[INFO] Using ALSA card '1'
+[DEBU] Opened ALSA card 'hw:1'
+...
+```
 
+### Specify The RME ADI-2 Device Explicitly
+
+When run without argument, the service will attempt at
+detecting the RME ADI-2 device automatically
+(default: `--device-name autodetect`).
+
+The service will use the first (i.e., the lowest number) ALSA card
+that matches one of the supported RME ADI-2 devices,
+along with the corresponding MIDI device.
+This approach should work for most users,
+in particular those with only one RME ADI-2 device attached.
+
+However, if the autodetection fails (please file a defect!)
+or multiple RME ADI-2 devices are connected to the host machine,
+the following options can be used
+to bypass the autodetection of the RME ADI-2 device and
+to specify an ALSA card/MIDI device/RME device ID explicitly:
+
+- `--card-number`,
+- `--device-id`,
+- `--device-name` (with a value different than `autodetect`),
+- `--midi-device`.
+
+Examples:
+
+```bash
+# use the first ADI-2 Pro found, autodetecting the card number and MIDI device
+alsa-rme-adi2-volume-control --device-name "ADI-2 Pro"
+
+# use the ADI-2/4 Pro connected as ALSA card #1, autodetecting the MIDI device
+alsa-rme-adi2-volume-control --card-number 1 --device-name "ADI-2/4 Pro"
+
+# use the ADI-2 DAC (0x71) connected as ALSA card #5, using MIDI device hw:5,0,1
+alsa-rme-adi2-volume-control --card-number 5 --device-id 0x71 --midi-device hw:5,0,1
+```
+
+### Control Only One Output
+
+By default, controls for both outputs
+(`Line Output 1/2` and `Phones Output 3/4`)
+will be created.
+
+To prevent controlling either output:
+
+```bash
+# control only Phones Output 3/4
+alsa-rme-adi2-volume-control --no-line12
+
+# control only Line Output 1/2
+alsa-rme-adi2-volume-control --no-phones34
+```
+
+The service will exit immediately with an error
+if both `--no-line12` and `--no-phones34` options
+are specified.
+
+### Limiting Min And Max Volume Levels
+
+The minimum and maximum volume level, in dB, on the RME ADI-2 device
+can be set independently for each of the two outputs,
+with the following options:
+
+| Short Option | Long Option         | Output            | Range (dB)     | Default Value (dB) | Notes                       |
+|--------------|---------------------|-------------------|----------------|--------------------|-----------------------------|
+| `-l`         | `--line12-min-db`   | Line Output 1/2   | `[-93.8, 6.0]` | `-60.0`            | Corresponds to volume `0`   |
+| `-L`         | `--line12-max-db`   | Line Output 1/2   | `[-93.8, 6.0]` | `-10.0`            | Corresponds to volume `100` |
+| `-p`         | `--phones34-min-db` | Phones Output 3/4 | `[-93.8, 6.0]` | `-60.0`            | Corresponds to volume `0`   |
+| `-P`         | `--phones34-max-db` | Phones Output 3/4 | `[-93.8, 6.0]` | `-10.0`            | Corresponds to volume `100` |
+
+Examples:
+
+```bash
+# set the min and max levels for Line Output 1/2 to -20.0 dB and 0.0 dB, respectively
+alsa-rme-adi2-volume-control --line12-min-db -20.0 --line12-max-db 0.0
+
+# set the min and max levels for Phones Output 3/4 to -50.0 dB and -30.0 dB, respectively
+alsa-rme-adi2-volume-control --phones-min-db -50.0 --phones34-max-db -30.0
+
+# both the above
+alsa-rme-adi2-volume-control --line12-min-db -20.0 --line12-max-db 0.0 --phones-min-db -50.0 --phones34-max-db -30.0
+```
+
+The service will exit immediately with an error
+if the provided values are invalid
+(e.g., out of range, or min greater than max).
+
+### Initial State And Volume
+
+The initial state (mute or unmute) and volume
+can be set independently for each of the two outputs,
+with the following options:
+
+| Short Option | Long Option         | Output            | Allowed Values               | Default Value |
+|--------------|---------------------|-------------------|------------------------------|---------------|
+| `-k`         | `--line12-switch`   | Line Output 1/2   | `0` (muted) or `1` (unmuted) | `1`           |
+| `-K`         | `--line12-volume`   | Line Output 1/2   | `[0, 100]`                   | `50.0`        |
+| `-o`         | `--phones34-min-db` | Phones Output 3/4 | `0` (muted) or `1` (unmuted) | `1`           |
+| `-O`         | `--phones34-max-db` | Phones Output 3/4 | `[0, 100]`                   | `50.0`        |
+
+Examples:
+
+```bash
+# mute Line Output 1/2 with initial volume 30%
+alsa-rme-adi2-volume-control --line12-switch 0 --line12-volume 30
+
+# unmute Phones Output 3/4 with initial volume 70%
+alsa-rme-adi2-volume-control --phones34-switch 1 --phones34-volume 70
+
+# both the above
+alsa-rme-adi2-volume-control --line12-switch 0 --line12-volume 30 --phones34-switch 1 --phones34-volume 70
+```
+
+The service will exit immediately with an error
+if the provided values are invalid
+(e.g., out of range or not `0` or `1`).
 

@@ -41,7 +41,7 @@ The executable is written to `src/alsa/bin/alsa-rme-adi2-volume-control`.
 #### Test
 
 To test the `alsa-rme-adi2-volume-control` executable,
-run it in foreground, with a command similar to the following:
+run it in foreground:
 
 ```bash
 ./bin/alsa-rme-adi2-volume-control
@@ -59,7 +59,8 @@ run it in foreground, with a command similar to the following:
 ```
 
 and, on a different shell, run `alsamixer`,
-selecting the card (hit `F6`) corresponding your RME ADI-2 device.
+select the card (hit `F6`) corresponding your RME ADI-2 device
+and start making changes to the user-defined control elements.
 
 You should observe in the service log messages similar to the following ones,
 and the volume of the selected output change on your RME ADI-2 device.
@@ -90,8 +91,8 @@ and the volume of the selected output change on your RME ADI-2 device.
 [INFO] SET volume 70 == -25.0 dB on phones34
 ```
 
-To terminate the service, simply hit `CTRL+C`
-or use the `kill` or `pkill` commands with the `SIGTERM` signal:
+To terminate the service, simply hit `CTRL+C` on the console running it
+or use the `pkill`/`kill` command with the `SIGTERM` signal:
 
 ```bash
 ./bin/alsa-rme-adi2-volume-control
@@ -103,7 +104,7 @@ or use the `kill` or `pkill` commands with the `SIGTERM` signal:
 ```
 
 For details on all the available command line options, see the
-[Usage](./USAGE.md)
+[USAGE](./USAGE.md)
 document.
 
 #### Install
