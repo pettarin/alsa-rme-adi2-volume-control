@@ -13,10 +13,10 @@ Options:
   -d, --device-name STRING        RME device name (case sensitive, default: 'autodetect'); option --list-device-names prints the supported ones
   -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones
   -h, --help                      Show this help
-  -k, --line12-switch INTEGER     Initial state for line output 1/2   (0=muted, 1=unmuted, default: 1)
-  -K, --line12-volume INTEGER     Initial volume for line output 1/2   (in [0, 100], default: 50)
-  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to   0% volume (default: -60.0 dB)
-  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100% volume (default: -10.0 dB)
+  -k, --line12-switch INTEGER     Initial state for line output 1/2 (0=muted, 1=unmuted, default: 1)
+  -K, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: 50)
+  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to 0% volume (in [-93.8, 6.0], default: -60.0 dB)
+  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100% volume (in [-93.8, 6.0], default: -10.0 dB)
       --list-cards                List all ALSA cards and exit
       --list-device-ids           List all supported device IDs
       --list-device-names         List all supported device names
@@ -27,8 +27,8 @@ Options:
       --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits
   -o, --phones34-switch INTEGER   Initial state for phones output 3/4 (0=muted, 1=unmuted, default: 1)
   -O, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: 50)
-  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to   0% volume (default: -60.0 dB)
-  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100% volume (default: -10.0 dB)
+  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to 0% volume (in [-93.8, 6.0], default: -60.0 dB)
+  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100% volume (in [-93.8, 6.0], default: -10.0 dB)
       --uninstall                 Uninstall ALSA user-defined control elements and exit
   -v, --verbose                   Enable verbose output
   -V, --version                   Print the name and version of this program and exit
@@ -41,7 +41,7 @@ Examples:
   alsa-rme-adi2-volume-control --card-number 1 --device-id 0x73 --line12-min-db -25.0 --line12-max-db 0.0 --line12-volume 70 --line12-switch 1 --no-phones34
 ```
 
-## How To
+## How To ...
 
 > [!TIP]
 > The examples below were obtained on a PC running GNU/Linux Debian testing,
@@ -148,13 +148,16 @@ alsa-rme-adi2-volume-control --verbose
 
 ### Specify The RME ADI-2 Device Explicitly
 
-When run without argument, the service will attempt at
-detecting the RME ADI-2 device automatically
-(default: `--device-name autodetect`).
+When run without arguments,
+the service attempts to autodetect the RME ADI-2 device
+(default: `--device-name autodetect`)
+by probing all ALSA cards and matching the card name
+against the supported device names
+(as printed by `--list-device-ids` or `--list-device-names`).
 
-The service will use the first (i.e., the lowest number) ALSA card
+The service uses the first (i.e., the lowest number) ALSA card
 that matches one of the supported RME ADI-2 devices,
-along with the corresponding MIDI device.
+along with the corresponding MIDI device and RME device ID.
 This approach should work for most users,
 in particular those with only one RME ADI-2 device attached.
 
@@ -202,7 +205,7 @@ The service will exit immediately with an error
 if both `--no-line12` and `--no-phones34` options
 are specified.
 
-### Limiting Min And Max Volume Levels
+### Limit The Min And Max Volume Levels
 
 The minimum and maximum volume level, in dB, on the RME ADI-2 device
 can be set independently for each of the two outputs,
@@ -232,7 +235,7 @@ The service will exit immediately with an error
 if the provided values are invalid
 (e.g., out of range, or min greater than max).
 
-### Initial State And Volume
+### Set The Initial State And Volume
 
 The initial state (muted or unmuted) and volume
 can be set independently for each of the two ALSA controls,

@@ -1732,10 +1732,10 @@ static void print_usage(const char *prog) {
     printf("  -d, --device-name STRING        RME device name (case sensitive, default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
     printf("  -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones\n");
     printf("  -h, --help                      Show this help\n");
-    printf("  -k, --line12-switch INTEGER     Initial state for line output 1/2   (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stLine12.bStartupSwitch);
-    printf("  -K, --line12-volume INTEGER     Initial volume for line output 1/2   (in [0, 100], default: %d)\n", gpConfiguration.stLine12.iStartupVolume);
-    printf("  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to   0%% volume (default: %.1f dB)\n", gpConfiguration.stLine12.dMinDB);
-    printf("  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (default: %.1f dB)\n", gpConfiguration.stLine12.dMaxDB);
+    printf("  -k, --line12-switch INTEGER     Initial state for line output 1/2 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stLine12.bStartupSwitch);
+    printf("  -K, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", gpConfiguration.stLine12.iStartupVolume);
+    printf("  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stLine12.dMinDB);
+    printf("  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stLine12.dMaxDB);
     printf("      --list-cards                List all ALSA cards and exit\n");
     printf("      --list-device-ids           List all supported device IDs\n");
     printf("      --list-device-names         List all supported device names\n");
@@ -1746,8 +1746,8 @@ static void print_usage(const char *prog) {
     printf("      --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
     printf("  -o, --phones34-switch INTEGER   Initial state for phones output 3/4 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stPhones34.bStartupSwitch);
     printf("  -O, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", gpConfiguration.stPhones34.iStartupVolume);
-    printf("  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to   0%% volume (default: %.1f dB)\n", gpConfiguration.stPhones34.dMinDB);
-    printf("  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100%% volume (default: %.1f dB)\n", gpConfiguration.stPhones34.dMaxDB);
+    printf("  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stPhones34.dMinDB);
+    printf("  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stPhones34.dMaxDB);
     printf("      --uninstall                 Uninstall ALSA user-defined control elements and exit\n");
     printf("  -v, --verbose                   Enable verbose output\n");
     printf("  -V, --version                   Print the name and version of this program and exit\n");
