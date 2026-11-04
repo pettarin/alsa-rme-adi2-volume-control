@@ -78,6 +78,7 @@ typedef struct {
     int bListDeviceIDs;
     int bListDeviceNames;
     int bListMIDIDevices;
+    int bPrintLicense;
     int bPrintUsage;
     int bPrintVersion;
     int bUninstall;
@@ -134,6 +135,7 @@ static ServiceConfiguration gpConfiguration = {
     .bListDeviceIDs = DEFAULT_LIST_DEVICE_IDS,
     .bListDeviceNames = DEFAULT_LIST_DEVICE_NAMES,
     .bListMIDIDevices = DEFAULT_LIST_MIDI_DEVICES,
+    .bPrintLicense = DEFAULT_PRINT_LICENSE,
     .bPrintUsage = DEFAULT_PRINT_USAGE,
     .bPrintVersion = DEFAULT_PRINT_VERSION,
     .bUninstall = DEFAULT_UNINSTALL,
@@ -1731,7 +1733,8 @@ static void print_usage(const char *prog) {
     printf("  -C, --card-number INTEGER       Use the ALSA card with the given number; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones\n");
     printf("  -d, --device-name STRING        RME device name (case sensitive, default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
     printf("  -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones\n");
-    printf("  -h, --help                      Show this help\n");
+    printf("  -h, --help                      Print this help\n");
+    printf("      --license                   Print the license\n");
     printf("  -k, --line12-switch INTEGER     Initial state for line output 1/2 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stLine12.bStartupSwitch);
     printf("  -K, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", gpConfiguration.stLine12.iStartupVolume);
     printf("  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stLine12.dMinDB);
@@ -1740,7 +1743,7 @@ static void print_usage(const char *prog) {
     printf("      --list-device-ids           List all supported device IDs\n");
     printf("      --list-device-names         List all supported device names\n");
     printf("      --list-midi-devices         List all supported MIDI devices\n");
-    printf("  -M, --midi-device STRING        Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'; option --list-midi-devices prints the detected ones\n");
+    printf("  -M, --midi-device STRING        Use the specified MIDI device: 'autodetect' (default) or 'hw:X[,Y[,Z]]'; option --list-midi-devices prints the detected ones\n");
     printf("      --no-line12                 Do not install controls for line output 1/2\n");
     printf("      --no-phones34               Do not install controls for phones output 3/4\n");
     printf("      --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
@@ -1764,6 +1767,24 @@ static void print_version(const char *prog) {
     printf("%s %s (build %s)\n", prog, PROGRAM_VERSION, PROGRAM_BUILD_DATE);
 }
 
+static void print_license() {
+    printf("alsa-rme-adi2-volume-control - Service exposing ALSA mute/volume controls on an RME ADI-2 device via MIDI\n");
+    printf("Copyright (C) 2026  Alberto Pettarin\n");
+    printf("\n");
+    printf("This program is free software: you can redistribute it and/or modify\n");
+    printf("it under the terms of the GNU General Public License as published by\n");
+    printf("the Free Software Foundation, either version 3 of the License, or\n");
+    printf("(at your option) any later version.\n");
+    printf("\n");
+    printf("This program is distributed in the hope that it will be useful,\n");
+    printf("but WITHOUT ANY WARRANTY; without even the implied warranty of\n");
+    printf("MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n");
+    printf("GNU General Public License for more details.\n");
+    printf("\n");
+    printf("You should have received a copy of the GNU General Public License\n");
+    printf("along with this program.  If not, see <https://www.gnu.org/licenses/>.\n");
+}
+
 static int parse_args(int argc, char *argv[]) {
     struct option long_opts[] = {
         /* keep sorted by long option name; use {0,0,0,0} sentinel to end */
@@ -1771,6 +1792,7 @@ static int parse_args(int argc, char *argv[]) {
         {"device-id",            required_argument, 0, 'D'},
         {"device-name",          required_argument, 0, 'd'},
         {"help",                 no_argument,       0, 'h'},
+        {"license",              no_argument,       0, 'R'},
         {"line12-max-db",        required_argument, 0, 'L'},
         {"line12-min-db",        required_argument, 0, 'l'},
         {"line12-switch",        required_argument, 0, 'k'},
@@ -1799,7 +1821,7 @@ static int parse_args(int argc, char *argv[]) {
         (opt = getopt_long(
             argc,
             argv,
-            "C:d:D:hk:K:l:L:M:o:O:p:P:QSTuUvVXYZ",
+            "C:d:D:hk:K:l:L:M:o:O:p:P:QRSTuUvVXYZ",
             long_opts,
             NULL
         )) != -1
@@ -1847,6 +1869,9 @@ static int parse_args(int argc, char *argv[]) {
                 break;
             case 'Q':
                 gpConfiguration.bListMIDIDevices = BOOL_TRUE;
+                break;
+            case 'R':
+                gpConfiguration.bPrintLicense = BOOL_TRUE;
                 break;
             case 'S':
                 gpConfiguration.stLine12.bControl = BOOL_FALSE;
@@ -1952,6 +1977,14 @@ int main(int argc, char *argv[]) {
     if (BOOL_IS_TRUE(gpConfiguration.bPrintVersion)) {
         gpConfiguration.bVerboseLog = BOOL_FALSE;
         print_version(argv[0]);
+        iExitCode = EXIT_OK;
+        goto cleanup;
+    }
+
+    /* Print the usage and exit */
+    if (BOOL_IS_TRUE(gpConfiguration.bPrintLicense)) {
+        gpConfiguration.bVerboseLog = BOOL_FALSE;
+        print_license();
         iExitCode = EXIT_OK;
         goto cleanup;
     }

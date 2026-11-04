@@ -107,6 +107,7 @@
 #define DEFAULT_LIST_DEVICE_NAMES                   BOOL_FALSE
 #define DEFAULT_LIST_MIDI_DEVICES                   BOOL_FALSE
 #define DEFAULT_MIDI_DEVICE                         MIDI_DEVICE_AUTODETECT
+#define DEFAULT_PRINT_LICENSE                       BOOL_FALSE
 #define DEFAULT_PRINT_USAGE                         BOOL_FALSE
 #define DEFAULT_PRINT_VERSION                       BOOL_FALSE
 #define DEFAULT_UNINSTALL                           BOOL_FALSE

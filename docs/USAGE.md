@@ -12,7 +12,8 @@ Options:
   -C, --card-number INTEGER       Use the ALSA card with the given number; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones
   -d, --device-name STRING        RME device name (case sensitive, default: 'autodetect'); option --list-device-names prints the supported ones
   -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones
-  -h, --help                      Show this help
+  -h, --help                      Print this help
+      --license                   Print the license
   -k, --line12-switch INTEGER     Initial state for line output 1/2 (0=muted, 1=unmuted, default: 1)
   -K, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: 50)
   -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to 0% volume (in [-93.8, 6.0], default: -60.0 dB)
@@ -21,7 +22,7 @@ Options:
       --list-device-ids           List all supported device IDs
       --list-device-names         List all supported device names
       --list-midi-devices         List all supported MIDI devices
-  -M, --midi-device STRING        Use the specified MIDI device: 'autodetect' or 'hw:X[,Y[,Z]]'; option --list-midi-devices prints the detected ones
+  -M, --midi-device STRING        Use the specified MIDI device: 'autodetect' (default) or 'hw:X[,Y[,Z]]'; option --list-midi-devices prints the detected ones
       --no-line12                 Do not install controls for line output 1/2
       --no-phones34               Do not install controls for phones output 3/4
       --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits

@@ -102,8 +102,8 @@ and the same MIDI interface for setting mute/volume parameters.
 > [!TIP]
 > Expert users and developers might want to consult the
 > [DEVELOPMENT](docs/DEVELOPMENT.md)
-> documentation if they prefer recompile the service
-> and/or manually installing it.
+> documentation if they prefer recompiling the program from sources
+> and/or manually installing the service.
 
 TODO write this
 
