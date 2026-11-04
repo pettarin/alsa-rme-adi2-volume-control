@@ -42,7 +42,7 @@ which might impact the quality of the reproduced audio stream.
 
 Some additional support files are provided in this repository:
 
-- a `systemd` unit manifest to run the service in background
+- a `systemd` service manifest to run the service in background
   on modern Debian-based Linux distributions;
 - a `udev` rules definition file that allows applications
   in user-space to interact with an RME ADI-2 device
@@ -52,14 +52,15 @@ Some additional support files are provided in this repository:
 
 > [!WARNING]
 > The Volumio plugin is not available yet.
-> TODO: remove this warning when it is.
-
-The Volumio plugin that installs the `alsa-rme-adi2-volume-control` service
-on a running Volumio 4 device can be found in the
-[Volumio (Bookworm) Plugins](https://github.com/volumio/volumio-plugins-sources-bookworm)
-repository.
-Consult the documentation there for the details
-on how to install and operate it.
+> TODO: when it is, change this WARNING into a NOTE.
+>
+> The source code of the Volumio plugin
+> that installs the `alsa-rme-adi2-volume-control` service
+> on a running Volumio device can be found in the
+> [Volumio (Bookworm) Plugins](https://github.com/volumio/volumio-plugins-sources-bookworm)
+> repository.
+> Consult the documentation there for the details
+> on how to install and operate the plugin.
 
 ### Screenshots
 
@@ -121,12 +122,12 @@ file for details.
 
 - Alberto Pettarin ([Web](https://www.albertopettarin.it))
 
-The approach of this project has been inspired by
+The approach of this project was inspired by
 [rme-adi2-pro-volume](https://github.com/JendaT/rme-adi2-pro-volume)
 by
 [Jenda Třešňák (JendaT)](https://github.com/JendaT),
-although the Python service has been dropped,
-and the code of the C service has been rewritten from scratch.
+although eventually the Python service was dropped,
+and the code of the C service was rewritten from scratch.
 
 
 ## Legal Disclaimers

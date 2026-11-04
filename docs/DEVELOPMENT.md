@@ -123,7 +123,7 @@ sudo make install
 > Installing the `systemd` service requires `sudo` privileges.
 
 ```bash
-# copy the new systemd file to /lib/systemd/system/
+# copy the new systemd service manifest to /lib/systemd/system/
 sudo cp src/systemd/alsa-rme-adi2-volume-control.service /lib/systemd/system/
 
 # reload the systemd daemon
@@ -140,7 +140,7 @@ sudo systemctl restart alsa-rme-adi2-volume-control
 > Installing the `udev` rules requires `sudo` privileges.
 
 ```bash
-# copy the new rules file to /etc/udev/rules.d/
+# copy the new udev rules definition file to /etc/udev/rules.d/
 sudo cp src/udev/99-alsa-rme-adi2-volume-control.rules /etc/udev/rules.d/
 
 # reload and trigger rules
