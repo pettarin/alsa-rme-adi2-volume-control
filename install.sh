@@ -2,7 +2,7 @@
 #
 # This file is part of the alsa-rme-adi2-volume-control project
 #
-# Usage: install.sh [options]
+# Usage: bash install.sh [options]
 #
 # Options:
 #   --compile-from-source          Compile the service executable from source
@@ -87,7 +87,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            echo "Usage: $0 [options]"
+            echo "Usage: bash $0 [options]"
             echo ""
             echo "Options:"
             echo "  --compile-from-source          Compile the service executable from source"
