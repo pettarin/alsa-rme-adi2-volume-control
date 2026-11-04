@@ -37,7 +37,11 @@ REMOTE_REPOSITORY_URL_PREFIX="https://www.albertopettarin.it"
 
 # Architecture of the current machine,
 # used to determine the pre-built executable to download
-# (supported values: aarch64, x86_64)
+#
+# Supported values:
+# - amd64, x86_64              -> amd64
+# - arm, armhf, armv7l, armv8l -> arm
+# - aarch64, arm64             -> arm64
 ARCHITECTURE="$(arch)"
 
 # Script and project directory absolute paths
@@ -65,13 +69,14 @@ SERVICE_EXECUTABLE_DESTINATION_FILE_PATH="/usr/local/bin/$SERVICE_EXECUTABLE_FIL
 SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH="/lib/systemd/system/$SERVICE_SYSTEMD_UNIT_FILE_NAME"
 SERVICE_UDEV_RULES_DESTINATION_FILE_PATH="/etc/udev/rules.d/$SERVICE_UDEV_RULES_FILE_NAME"
 
+# Keep track if either curl or wget is present
+USE_CURL=0
+USE_WGET=0
+
 # Script CLI defaults
 FROM_SOURCE=0
 INSTALL_BUILD_DEPENDENCIES=0
-INSTALL=1
 UNINSTALL=0
-USE_CURL=0
-USE_WGET=0
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -85,7 +90,6 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --uninstall)
-            INSTALL=0
             UNINSTALL=1
             shift
             ;;
@@ -111,7 +115,25 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-# Check we have either curl or wget if not installing from source
+# Check that the architecture is supported, if not installing from source
+if [[ $FROM_SOURCE -ne 1 ]]; then
+  if [[ $ARCHITECTURE == "amd64" ]] || [[ $ARCHITECTURE == "x86_64" ]]; then
+        ARCHITECTURE="amd64"
+    elif [[ $ARCHITECTURE == "arm" ]] || [[ $ARCHITECTURE == "armhf" ]] || [[ $ARCHITECTURE == "armv7l" ]] || [[ $ARCHITECTURE == "armv8l" ]]; then
+        ARCHITECTURE="arm"
+    elif [[ $ARCHITECTURE == "aarch64" ]] || [[ $ARCHITECTURE == "arm64" ]]; then
+        ARCHITECTURE="arm64"
+    else
+        echo "ERROR: architecture $ARCHITECTURE has no pre-built executable."
+        echo "Please try compiling from source instead (--compile-from-source)."
+        exit 2
+    fi
+
+    # update the URL accordingly
+    SERVICE_EXECUTABLE_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$SERVICE_NAME/$ARCHITECTURE/$SERVICE_EXECUTABLE_FILE_NAME"
+fi
+
+# Check that either curl or wget is present, if not installing from source
 if [[ $FROM_SOURCE -ne 1 ]]; then
     if command -v curl &>/dev/null; then
         USE_CURL=1
@@ -177,13 +199,6 @@ if [[ $FROM_SOURCE -eq 1 ]]; then
 else
 
     echo "Downloading pre-built executable ..."
-    # x86_64 == PC, aarch64 == Raspberry Pi
-    if [[ $ARCHITECTURE != "aarch64" ]] && [[ $ARCHITECTURE != "x86_64" ]]; then
-        echo "ERROR: architecture has no pre-built executable."
-        echo "Please try compiling from source instead (--compile-from-source)."
-        exit 2
-    fi
-
     if [[ $USE_CURL -eq 1 ]]; then
         curl -s -o "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH" "$SERVICE_EXECUTABLE_SOURCE_URL"
     elif [[ $USE_WGET -eq 1 ]]; then
