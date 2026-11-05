@@ -39,9 +39,8 @@ REMOTE_REPOSITORY_URL_PREFIX="https://www.albertopettarin.it"
 # used to determine the pre-built executable to download
 #
 # Supported values:
-# - amd64, x86_64              -> amd64
-# - arm, armhf, armv7l, armv8l -> arm
-# - aarch64, arm64             -> arm64
+# - amd64, x86_64                       -> amd64
+# - aarch64, arm, armhf, armv7l, armv8l -> arm
 ARCHITECTURE="$(arch)"
 
 # Script and project directory absolute paths
@@ -119,10 +118,8 @@ fi
 if [[ $FROM_SOURCE -ne 1 ]]; then
   if [[ $ARCHITECTURE == "amd64" ]] || [[ $ARCHITECTURE == "x86_64" ]]; then
         ARCHITECTURE="amd64"
-    elif [[ $ARCHITECTURE == "arm" ]] || [[ $ARCHITECTURE == "armhf" ]] || [[ $ARCHITECTURE == "armv7l" ]] || [[ $ARCHITECTURE == "armv8l" ]]; then
+    elif [[ $ARCHITECTURE == "aarch64" ]] || [[ $ARCHITECTURE == "arm" ]] || [[ $ARCHITECTURE == "armhf" ]] || [[ $ARCHITECTURE == "armv7l" ]] || [[ $ARCHITECTURE == "armv8l" ]]; then
         ARCHITECTURE="arm"
-    elif [[ $ARCHITECTURE == "aarch64" ]] || [[ $ARCHITECTURE == "arm64" ]]; then
-        ARCHITECTURE="arm64"
     else
         echo "ERROR: architecture $ARCHITECTURE has no pre-built executable."
         echo "Please try compiling from source instead (--compile-from-source)."
