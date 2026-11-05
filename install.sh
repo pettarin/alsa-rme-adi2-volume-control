@@ -76,9 +76,15 @@ SERVICE_UDEV_RULES_DESTINATION_FILE_PATH="/etc/udev/rules.d/$SERVICE_UDEV_RULES_
 USE_CURL=0
 USE_WGET=0
 
+# Keep track if a package manager is present
+USE_APT=0
+USE_DNF=0
+USE_PACMAN=0
+
 # Script CLI defaults
 FROM_SOURCE=0
 INSTALL_BUILD_DEPENDENCIES=0
+INSTALL_RUN_DEPENDENCIES=1
 UNINSTALL=1
 UNINSTALL_ONLY=0
 
@@ -91,6 +97,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --install-build-dependencies)
             INSTALL_BUILD_DEPENDENCIES=1
+            shift
+            ;;
+        --no-install-run-dependencies)
+            INSTALL_RUN_DEPENDENCIES=0
             shift
             ;;
         --no-uninstall-first)
@@ -108,6 +118,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --from-source                   Install from source, instead of downloading a released package"
             echo "  --install-build-dependencies    Install build dependencies"
+            echo "  --no-install-run-dependencies   Do not install run dependencies"
             echo "  --no-uninstall-first            Do not remove a previous installation before installing"
             echo "  --uninstall                     Remove a previous installation and exit"
             exit 0
@@ -154,6 +165,21 @@ if [[ $FROM_SOURCE -ne 1 ]]; then
     fi
 fi
 
+# Check that a package manager is present, if installing dependencies
+if [[ $INSTALL_BUILD_DEPENDENCIES -eq 1 ]] || [[ $INSTALL_RUN_DEPENDENCIES -eq 1 ]]; then
+    if command -v apt &>/dev/null; then
+        USE_APT=1
+    elif command -v dnf &>/dev/null; then
+        USE_DNF=1
+    elif command -v pacman &>/dev/null; then
+        USE_PACMAN=1
+    else
+        echo "ERROR: unable to find a package manager."
+        echo "Refer to the documentation to learn how to install the build and/or run dependencies."
+        exit 2
+    fi
+fi
+
 # Uninstall
 if [[ $UNINSTALL -eq 1 ]]; then
     echo "Uninstalling service $SERVICE_NAME ..."
@@ -179,20 +205,35 @@ if [[ $UNINSTALL -eq 1 ]]; then
     fi
 fi
 
+# Install run dependencies
+if [[ $INSTALL_RUN_DEPENDENCIES -eq 1 ]]; then
+    echo "Installing run dependencies ..."
+    if [[ $USE_APT -eq 1 ]]; then
+        apt install -y -qq libasound2-dev
+    elif [[ $USE_DNF -eq 1 ]]; then
+        dnf install -y alsa-lib-devel
+    elif [[ $USE_PACMAN -eq 1 ]]; then
+        pacman -S --noconfirm alsa-lib
+    else
+        # it should never happen...
+        exit 2
+    fi
+    echo "Installing run dependencies ... done"
+fi
+
 if [[ $FROM_SOURCE -eq 1 ]]; then
 
     # Install build dependencies
     if [[ $INSTALL_BUILD_DEPENDENCIES -eq 1 ]]; then
         echo "Installing build dependencies ..."
-        if command -v apt &>/dev/null; then
+        if [[ $USE_APT -eq 1 ]]; then
             apt install -y -qq build-essential cmake libasound2-dev pkg-config
-        elif command -v dnf &>/dev/null; then
+        elif [[ $USE_DNF -eq 1 ]]; then
             dnf install -y gcc cmake make alsa-lib-devel pkgconfig
-        elif command -v pacman &>/dev/null; then
+        elif [[ $USE_PACMAN -eq 1 ]]; then
             pacman -S --noconfirm gcc cmake make alsa-lib pkgconf
         else
-            echo "ERROR: package manager not found."
-            echo "Refer to the documentation to learn how to install the build dependencies."
+            # it should never happen...
             exit 2
         fi
         echo "Installing build dependencies ... done"
