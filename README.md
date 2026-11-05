@@ -90,8 +90,8 @@ and the same MIDI interface for setting mute/volume parameters.
 
 > [!WARNING]
 > The author tested the service with an RME ADI-2/4 Pro SE device,
-> on both Debian testing on a PC (`amd64`) and
-> Volumio 4.119 on a Raspberry Pi 5 (`armhf`).
+> on both Debian testing on a PC (`x86_64`) and
+> Volumio 4.119 on Raspberry Pi 3 (`armv7l`) and 5 (`aarch64`).
 >
 > Other RME ADI-2 devices should work,
 > but mind that they have not been tested directly by the author.
