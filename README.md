@@ -93,7 +93,7 @@ and the same MIDI interface for setting mute/volume parameters.
 > on the following OS/platforms:
 > - Debian testing on a Lenovo Thinkpad X260 (`x86_64`);
 > - Raspberry Pi OS 13 (trixie) 64-bit on a Raspberry Pi 5 (`aarch64`);
-> - Volumio 4.119 on a Raspberry Pi 3 (`armv7l`);
+> - Volumio 4.119 on a Raspberry Pi 3B+ (`armv7l`);
 > - Volumio 4.239 on a Raspberry Pi 5 (`aarch64` but actually `arm` 32-bit).
 >
 > Other RME ADI-2 devices should work,
@@ -146,7 +146,7 @@ The above commands will perform the following actions:
 > the latter will be selected depending on the architecture
 > of the machine as detected by the `arch` command.
 > This value can be overridden with option `--architecture`,
-> for example on a Raspberry Pi with Volumio 4,
+> for example on a Raspberry Pi 5 with Volumio 4,
 > `arch` returns `aarch64` but in fact you should use
 > the ARM 32-bit package by specifying `--architecture arm`.
 
