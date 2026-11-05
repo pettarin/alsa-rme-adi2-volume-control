@@ -7,19 +7,23 @@
 # Options:
 #   --from-source                   Install from source, instead of downloading a released package
 #   --install-build-dependencies    Install build dependencies
-#   --uninstall                     Remove installation
+#   --no-uninstall-first            Do not remove a previous installation before installing
+#   --uninstall                     Remove a previous installation and exit without installing
 #
 # Examples:
-#   # remove a previous installation
+#   # remove a previous installation and exit without installing
 #   bash install.sh --uninstall
 #
-#   # install service from a released package (including a pre-built executable)
+#   # install the service from a released package (including a pre-built executable)
 #   bash install.sh
 #
-#   # install service from source
+#   # as above, but skip uninstalling a previous installation (if it exists)
+#   bash install.sh --no-uninstall-first
+#
+#   # install the service from source (from a git clone, recompiling the executable)
 #   bash install.sh --from-source
 #
-#   # install the build dependencies and then install the service from source
+#   # as above, but install the build dependencies first
 #   bash install.sh --install-build-dependencies --from-source
 #
 
@@ -75,7 +79,8 @@ USE_WGET=0
 # Script CLI defaults
 FROM_SOURCE=0
 INSTALL_BUILD_DEPENDENCIES=0
-UNINSTALL=0
+UNINSTALL=1
+UNINSTALL_ONLY=0
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -88,8 +93,13 @@ while [[ $# -gt 0 ]]; do
             INSTALL_BUILD_DEPENDENCIES=1
             shift
             ;;
+        --no-uninstall-first)
+            UNINSTALL=0
+            shift
+            ;;
         --uninstall)
             UNINSTALL=1
+            UNINSTALL_ONLY=1
             shift
             ;;
         -h|--help)
@@ -98,7 +108,8 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --from-source                   Install from source, instead of downloading a released package"
             echo "  --install-build-dependencies    Install build dependencies"
-            echo "  --uninstall                     Remove installation"
+            echo "  --no-uninstall-first            Do not remove a previous installation before installing"
+            echo "  --uninstall                     Remove a previous installation and exit"
             exit 0
             ;;
         *)
@@ -161,7 +172,11 @@ if [[ $UNINSTALL -eq 1 ]]; then
     rm -f "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH"
 
     echo "Uninstalling service $SERVICE_NAME ... done"
-    exit 0
+
+    if [[ $UNINSTALL_ONLY -eq 1 ]]; then
+        echo "Uninstall only: exit without installing service $SERVICE_NAME"
+        exit 0
+    fi
 fi
 
 if [[ $FROM_SOURCE -eq 1 ]]; then

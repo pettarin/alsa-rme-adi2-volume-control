@@ -111,12 +111,12 @@ and the same MIDI interface for setting mute/volume parameters.
 To install the service from the latest released package:
 
 ```bash
-# always inspect the install.sh script before running it with sudo!
-curl -s -o "install.sh" "https://www.albertopettarin.it/alsa-rme-adi2-volume-control/repo/alsa-rme-adi2-volume-control/install.sh"
+# inspect the downloaded install.sh script before running it with sudo!
+curl -s -O "https://www.albertopettarin.it/alsa-rme-adi2-volume-control/repo/alsa-rme-adi2-volume-control/install.sh"
 sudo bash install.sh
 ```
 
-To install from a local clone of this Git repository,
+To install the service from a local clone of this Git repository,
 compiling the service executable locally:
 
 ```bash
@@ -125,13 +125,40 @@ cd alsa-rme-adi2-volume-control
 sudo bash install.sh --from-source
 ```
 
-To uninstall:
+The above commands will perform the following actions:
 
-```
+- uninstall a previous installation of the service, if present;
+- download (default) or compile (`--from-source`) the service executable;
+- install the service executable into `/usr/local/bin/`;
+- install the `systemd` service and start it;
+- install the `udev` rules allowing hot plugging RME ADI-2 devices.
+
+To uninstall a previous installation of the service
+(without trying to install it again):
+
+```bash
 sudo bash install.sh --uninstall
 ```
 
-The complete command line usage documentation can be found in the
+The following commands are useful to check
+whether the installation of `alsa-rme-adi2-volume-control`
+was successful:
+
+```bash
+# select the appropriate ALSA card: it is possible to mute/unmute
+# and to change the volume of the RME ADI-2 device.
+alsamixer
+
+# check the status of the systemd service
+# (it should say: "enabled" and "active (running)"
+systemctl status alsa-rme-adi2-volume-control
+
+# watch the systemd service log
+journalctl -n 100 -f -u alsa-rme-adi2-volume-control
+```
+
+The complete usage documentation of the service executable
+can be found in the
 [USAGE](docs/USAGE.md)
 file.
 
