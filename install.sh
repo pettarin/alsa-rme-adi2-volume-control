@@ -105,7 +105,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --no-uninstall-first            Do not remove a previous installation before installing"
             echo "  --uninstall                     Remove a previous installation and exit"
             echo ""
-            echo "Note: this script must be executed as root, for instance with sudo."
+            echo "Note: this script must be executed as root, for instance with sudo"
             exit 0
             ;;
         *)
@@ -141,6 +141,8 @@ if [[ $FROM_SOURCE -ne 1 ]]; then
 
     # update the URL accordingly
     SERVICE_EXECUTABLE_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$ARCHITECTURE/$SERVICE_EXECUTABLE_FILE_NAME"
+    echo "[INFO] Architecture is '$ARCHITECTURE'"
+    echo "[INFO] Service executable will be downloaded from URL '$SERVICE_EXECUTABLE_SOURCE_URL'"
 fi
 
 # Check that either curl or wget is present, if not installing from source
@@ -191,7 +193,7 @@ if [[ $UNINSTALL -eq 1 ]]; then
     echo "[INFO] Uninstalling service $SERVICE_NAME ... done"
 
     if [[ $UNINSTALL_ONLY -eq 1 ]]; then
-        echo "[INFO] Option --uninstall specified: exit without installing service $SERVICE_NAME ."
+        echo "[INFO] Option --uninstall specified: exit without installing service $SERVICE_NAME"
         exit 0
     fi
 fi
