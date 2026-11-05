@@ -25,7 +25,7 @@
 
 /* Program version */
 #define PROGRAM_VERSION                             "1.0.0"
-#define PROGRAM_BUILD_DATE                          "2026-11-04"
+#define PROGRAM_BUILD_DATE                          "2026-11-05"
 
 /* Boolean values */
 #define BOOL_FALSE                                  0
@@ -63,14 +63,19 @@
 
 /* ALSA User-defined control elements.
  *
- * The names must be "prefix Volume" and "prefix Switch"
+ * The names must be
+ * "prefix Playback Volume" and "prefix Playback Switch"
  * for ALSA to recognize them as
  * a single volume+mute switch combination named "prefix",
- * e.g. in how they appear in the alsamixer TUI. */
-#define UDCE_LINE12_VOLUME_NAME                     "Line Output 1/2 Volume"
-#define UDCE_LINE12_SWITCH_NAME                     "Line Output 1/2 Switch"
-#define UDCE_PHONES34_VOLUME_NAME                   "Phones Output 3/4 Volume"
-#define UDCE_PHONES34_SWITCH_NAME                   "Phones Output 3/4 Switch"
+ * e.g. in how they appear in the alsamixer TUI.
+ *
+ * Note that "Playback" is necessary, otherwise the controls
+ * will also act for capture (recording), not just playback.
+ * */
+#define UDCE_LINE12_VOLUME_NAME                     "Line Output 1/2 Playback Volume"
+#define UDCE_LINE12_SWITCH_NAME                     "Line Output 1/2 Playback Switch"
+#define UDCE_PHONES34_VOLUME_NAME                   "Phones Output 3/4 Playback Volume"
+#define UDCE_PHONES34_SWITCH_NAME                   "Phones Output 3/4 Playback Switch"
 
 /* Constants used in strn* functions and struct declarations */
 #define CARD_HW_MAX_LENGTH                          32                          /* Max length, in bytes, of an ALSA hw string */
