@@ -47,7 +47,7 @@ Some additional support files are provided in this repository:
 - a `udev` rules definition file that allows applications
   in user-space to interact with an RME ADI-2 device
   without requiring elevated privileges;
-- (TODO) a Bash script to automate installing and uninstalling
+- a Bash script to automate installing and uninstalling
   the required files on a modern Debian-based Linux distribution.
 
 > [!WARNING]
