@@ -63,6 +63,8 @@ USE_PACMAN=0
 FROM_SOURCE=0
 INSTALL_BUILD_DEPENDENCIES=0
 INSTALL_RUN_DEPENDENCIES=1
+INSTALL_SYSTEMD=1
+INSTALL_UDEV=1
 UNINSTALL=1
 UNINSTALL_ONLY=0
 
@@ -85,6 +87,14 @@ while [[ $# -gt 0 ]]; do
             INSTALL_RUN_DEPENDENCIES=0
             shift
             ;;
+        --no-install-systemd)
+            INSTALL_SYSTEMD=0
+            shift
+            ;;
+        --no-install-udev)
+            INSTALL_UDEV=0
+            shift
+            ;;
         --no-uninstall-first)
             UNINSTALL=0
             shift
@@ -101,6 +111,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --architecture STRING           Replace the architecture detected by command 'arch' with the provided STRING"
             echo "  --from-source                   Install from source, instead of downloading a released package"
             echo "  --install-build-dependencies    Install build dependencies"
+            echo "  --no-install-systemd            Do not install the systemd service"
+            echo "  --no-install-udev               Do not install the udev rules definition file"
             echo "  --no-install-run-dependencies   Do not install run dependencies"
             echo "  --no-uninstall-first            Do not remove a previous installation before installing"
             echo "  --uninstall                     Remove a previous installation and exit"
@@ -258,40 +270,44 @@ else
 
 fi
 
-echo "[INFO] Installing systemd service ..."
-if [[ $FROM_SOURCE -eq 1 ]]; then
-    cp "$SERVICE_SYSTEMD_UNIT_SOURCE_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH"
-else
-    if [[ $USE_CURL -eq 1 ]]; then
-        curl -s -o "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_SOURCE_URL"
-    elif [[ $USE_WGET -eq 1 ]]; then
-        wget -q -O "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_SOURCE_URL"
+if [[ $INSTALL_SYSTEMD -eq 1 ]]; then
+    echo "[INFO] Installing systemd service ..."
+    if [[ $FROM_SOURCE -eq 1 ]]; then
+        cp "$SERVICE_SYSTEMD_UNIT_SOURCE_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH"
     else
-        # it should never happen...
-        exit 3
+        if [[ $USE_CURL -eq 1 ]]; then
+            curl -s -o "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_SOURCE_URL"
+        elif [[ $USE_WGET -eq 1 ]]; then
+            wget -q -O "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_SOURCE_URL"
+        else
+            # it should never happen...
+            exit 3
+        fi
     fi
+    systemctl daemon-reload
+    systemctl enable "$SERVICE_NAME"
+    systemctl restart "$SERVICE_NAME"
+    echo "[INFO] Installing systemd service ... done"
 fi
-systemctl daemon-reload
-systemctl enable "$SERVICE_NAME"
-systemctl restart "$SERVICE_NAME"
-echo "[INFO] Installing systemd service ... done"
 
+if [[ $INSTALL_UDEV -eq 1 ]]; then
 echo "[INFO] Installing udev rules ..."
-if [[ $FROM_SOURCE -eq 1 ]]; then
-    cp "$SERVICE_UDEV_RULES_SOURCE_FILE_PATH" "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH"
-else
-    if [[ $USE_CURL -eq 1 ]]; then
-        curl -s -o "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH" "$SERVICE_UDEV_RULES_SOURCE_URL"
-    elif [[ $USE_WGET -eq 1 ]]; then
-        wget -q -O "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH" "$SERVICE_UDEV_RULES_SOURCE_URL"
+    if [[ $FROM_SOURCE -eq 1 ]]; then
+        cp "$SERVICE_UDEV_RULES_SOURCE_FILE_PATH" "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH"
     else
-        # it should never happen...
-        exit 3
+        if [[ $USE_CURL -eq 1 ]]; then
+            curl -s -o "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH" "$SERVICE_UDEV_RULES_SOURCE_URL"
+        elif [[ $USE_WGET -eq 1 ]]; then
+            wget -q -O "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH" "$SERVICE_UDEV_RULES_SOURCE_URL"
+        else
+            # it should never happen...
+            exit 3
+        fi
     fi
+    udevadm control --reload-rules
+    udevadm trigger
+    echo "[INFO] Installing udev rules ... done"
 fi
-udevadm control --reload-rules
-udevadm trigger
-echo "[INFO] Installing udev rules ... done"
 
 echo "[INFO] Installation of $SERVICE_NAME complete"
 exit 0

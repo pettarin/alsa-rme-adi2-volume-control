@@ -133,8 +133,19 @@ The above commands will perform the following actions:
   (can be skipped with `--no-run-dependencies`);
 - download (default) or compile (`--from-source`) the service executable;
 - install the service executable into `/usr/local/bin/`;
-- install the `systemd` service and start it;
-- install the `udev` rules allowing hot plugging RME ADI-2 devices.
+- install the `systemd` service and start it
+  (can be skipped with `--no-install-systemd`);
+- install the `udev` rules allowing hot plugging RME ADI-2 devices
+  (can be skipped with `--no-install-udev`).
+
+> [!NOTE]
+> When downloading a released package,
+> the latter will be selected depending on the architecture
+> of the machine as detected by the `arch` command.
+> This value can be overridden with option `--architecture`,
+> for example on a Raspberry Pi with Volumio 4,
+> `arch` returns `aarch64` but in fact you should use
+> the ARM 32-bit package by specifying `--architecture arm`.
 
 To uninstall a previous installation of the service
 (without trying to install it again):
@@ -143,14 +154,15 @@ To uninstall a previous installation of the service
 sudo bash install.sh --uninstall
 ```
 
-The following commands are useful to check
-whether the installation of `alsa-rme-adi2-volume-control`
-was successful:
+### Test Installation
+
+The following commands are useful to check whether
+the installation of `alsa-rme-adi2-volume-control` was successful:
 
 ```bash
-# select the appropriate ALSA card: it is possible to mute/unmute
-# and to change the volume of the RME ADI-2 device.
-alsamixer
+# check that the service executable has been installed
+alsa-rme-adi2-volume-control --version
+alsa-rme-adi2-volume-control --list-cards
 
 # check the status of the systemd service
 # (it should say: "enabled" and "active (running)"
@@ -158,10 +170,14 @@ systemctl status alsa-rme-adi2-volume-control
 
 # watch the systemd service log
 journalctl -n 100 -f -u alsa-rme-adi2-volume-control
+
+# select the appropriate ALSA card: it is possible to mute/unmute
+# and to change the volume of the RME ADI-2 device.
+alsamixer
 ```
 
 The complete usage documentation of the service executable
-can be found in the
+`alsa-rme-adi2-volume-control` can be found in the
 [USAGE](docs/USAGE.md)
 file.
 
