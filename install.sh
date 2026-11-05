@@ -7,8 +7,9 @@
 # Options:
 #   --from-source                   Install from source, instead of downloading a released package
 #   --install-build-dependencies    Install build dependencies
+#   --no-install-run-dependencies   Do not install run dependencies
 #   --no-uninstall-first            Do not remove a previous installation before installing
-#   --uninstall                     Remove a previous installation and exit without installing
+#   --uninstall                     Remove a previous installation and exit
 #
 # Examples:
 #   # remove a previous installation and exit without installing
@@ -19,6 +20,9 @@
 #
 #   # as above, but skip uninstalling a previous installation (if it exists)
 #   bash install.sh --no-uninstall-first
+#
+#   # as above, but skip installing the run dependencies
+#   bash install.sh --no-install-run-dependencies
 #
 #   # install the service from source (from a git clone, recompiling the executable)
 #   bash install.sh --from-source

@@ -127,7 +127,10 @@ sudo bash install.sh --from-source
 
 The above commands will perform the following actions:
 
-- uninstall a previous installation of the service, if present;
+- uninstall a previous installation of the service, if present
+  (can be skipped with `--no-uninstall-first`);
+- install the run dependencies
+  (can be skipped with `--no-run-dependencies`);
 - download (default) or compile (`--from-source`) the service executable;
 - install the service executable into `/usr/local/bin/`;
 - install the `systemd` service and start it;
