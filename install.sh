@@ -2,42 +2,15 @@
 #
 # This file is part of the alsa-rme-adi2-volume-control project
 #
-# Usage: bash install.sh [options]
+# To print the usage message, run: bash install.sh --help
 #
-# Options:
-#   --from-source                   Install from source, instead of downloading a released package
-#   --install-build-dependencies    Install build dependencies
-#   --no-install-run-dependencies   Do not install run dependencies
-#   --no-uninstall-first            Do not remove a previous installation before installing
-#   --uninstall                     Remove a previous installation and exit
-#
-# Examples:
-#   # remove a previous installation and exit without installing
-#   bash install.sh --uninstall
-#
-#   # install the service from a released package (including a pre-built executable)
-#   bash install.sh
-#
-#   # as above, but skip uninstalling a previous installation (if it exists)
-#   bash install.sh --no-uninstall-first
-#
-#   # as above, but skip installing the run dependencies
-#   bash install.sh --no-install-run-dependencies
-#
-#   # install the service from source (from a git clone, recompiling the executable)
-#   bash install.sh --from-source
-#
-#   # as above, but install the build dependencies first
-#   bash install.sh --install-build-dependencies --from-source
-#
-
 set -euo pipefail
 
 # Name of the service
 SERVICE_NAME="alsa-rme-adi2-volume-control"
 
 # Remote repository which the pre-built executable is downloaded from
-REMOTE_REPOSITORY_URL_PREFIX="https://www.albertopettarin.it"
+REMOTE_REPOSITORY_URL_PREFIX="https://www.albertopettarin.it/$SERVICE_NAME"
 
 # ###########################################################################
 # DO NOT MODIFY BELOW THIS LINE!
@@ -47,8 +20,9 @@ REMOTE_REPOSITORY_URL_PREFIX="https://www.albertopettarin.it"
 # used to determine the pre-built executable to download
 #
 # Supported values:
-# - amd64, x86_64                       -> amd64
-# - aarch64, arm, armhf, armv7l, armv8l -> arm
+# - amd64, x86_64              -> x86_64
+# - arm, armhf, armv7l, armv8l -> arm
+# - aarch64, arm64             -> aarch64
 ARCHITECTURE="$(arch)"
 
 # Script and project directory absolute paths
@@ -66,9 +40,9 @@ SERVICE_SYSTEMD_UNIT_SOURCE_FILE_PATH="$PROJECT_DIRECTORY_PATH/src/systemd/$SERV
 SERVICE_UDEV_RULES_SOURCE_FILE_PATH="$PROJECT_DIRECTORY_PATH/src/udev/$SERVICE_UDEV_RULES_FILE_NAME"
 
 # Absolute URLs of the files to be downloaded
-SERVICE_EXECUTABLE_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$SERVICE_NAME/$ARCHITECTURE/$SERVICE_EXECUTABLE_FILE_NAME"
-SERVICE_SYSTEMD_UNIT_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$SERVICE_NAME/repo/$SERVICE_NAME/src/systemd/$SERVICE_SYSTEMD_UNIT_FILE_NAME"
-SERVICE_UDEV_RULES_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$SERVICE_NAME/repo/$SERVICE_NAME/src/udev/$SERVICE_UDEV_RULES_FILE_NAME"
+SERVICE_EXECUTABLE_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$ARCHITECTURE/$SERVICE_EXECUTABLE_FILE_NAME"
+SERVICE_SYSTEMD_UNIT_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/repo/$SERVICE_NAME/src/systemd/$SERVICE_SYSTEMD_UNIT_FILE_NAME"
+SERVICE_UDEV_RULES_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/repo/$SERVICE_NAME/src/udev/$SERVICE_UDEV_RULES_FILE_NAME"
 
 # Absolute destination paths
 # (they do NOT depend on the structure of the source repository)
@@ -95,6 +69,10 @@ UNINSTALL_ONLY=0
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --architecture)
+            ARCHITECTURE="$2"
+            shift 2
+            ;;
         --from-source)
             FROM_SOURCE=1
             shift
@@ -120,15 +98,18 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: bash $0 [options]"
             echo ""
             echo "Options:"
+            echo "  --architecture STRING           Replace the architecture detected by command 'arch' with the provided STRING"
             echo "  --from-source                   Install from source, instead of downloading a released package"
             echo "  --install-build-dependencies    Install build dependencies"
             echo "  --no-install-run-dependencies   Do not install run dependencies"
             echo "  --no-uninstall-first            Do not remove a previous installation before installing"
             echo "  --uninstall                     Remove a previous installation and exit"
+            echo ""
+            echo "Note: this script must be executed as root, for instance with sudo."
             exit 0
             ;;
         *)
-            echo "Unknown option: $1"
+            echo "[ERRO] Unknown option: $1"
             exit 1
             ;;
     esac
@@ -136,24 +117,30 @@ done
 
 # Check root
 if [[ $EUID -ne 0 ]]; then
-    echo "This script must be run as root (sudo)"
-    exit 1
+    echo "[ERRO] This script must be executed as root, for instance with sudo."
+    exit 2
 fi
 
 # Check that the architecture is supported, if not installing from source
 if [[ $FROM_SOURCE -ne 1 ]]; then
-  if [[ $ARCHITECTURE == "amd64" ]] || [[ $ARCHITECTURE == "x86_64" ]]; then
-        ARCHITECTURE="amd64"
-    elif [[ $ARCHITECTURE == "aarch64" ]] || [[ $ARCHITECTURE == "arm" ]] || [[ $ARCHITECTURE == "armhf" ]] || [[ $ARCHITECTURE == "armv7l" ]] || [[ $ARCHITECTURE == "armv8l" ]]; then
+    if [[ $ARCHITECTURE == "amd64" ]] || [[ $ARCHITECTURE == "x86_64" ]]; then
+        # 64-bit OS on Intel/AMD 64-bit CPU (PC)
+        ARCHITECTURE="x86_64"
+    elif [[ $ARCHITECTURE == "arm" ]] || [[ $ARCHITECTURE == "armhf" ]] || [[ $ARCHITECTURE == "armv7l" ]] || [[ $ARCHITECTURE == "armv8l" ]]; then
+        # 32-bit OS, even on a 64-bit CPU (e.g., Raspberry Pi 3)
         ARCHITECTURE="arm"
+    elif [[ $ARCHITECTURE == "aarch64" ]] || [[ $ARCHITECTURE == "arm64" ]]; then
+        # 64-bit OS on ARM 64-bit CPU (e.g., Raspberry Pi 5)
+        ARCHITECTURE="aarch64"
     else
-        echo "ERROR: architecture $ARCHITECTURE has no pre-built executable."
-        echo "Please try compiling from source instead (--compile-from-source)."
-        exit 2
+        echo "[ERRO] Architecture $ARCHITECTURE has no pre-built executable."
+        echo "[ERRO] Supported architectures are: 'arm', 'arm64', 'x86_64'."
+        echo "[ERRO] Please try running this script again compiling from source with --compile-from-source or overriding the detected architecture with --architecture."
+        exit 3
     fi
 
     # update the URL accordingly
-    SERVICE_EXECUTABLE_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$SERVICE_NAME/$ARCHITECTURE/$SERVICE_EXECUTABLE_FILE_NAME"
+    SERVICE_EXECUTABLE_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$ARCHITECTURE/$SERVICE_EXECUTABLE_FILE_NAME"
 fi
 
 # Check that either curl or wget is present, if not installing from source
@@ -163,9 +150,9 @@ if [[ $FROM_SOURCE -ne 1 ]]; then
     elif command -v wget &>/dev/null; then
         USE_WGET=1
     else
-        echo "ERROR: unable to find either curl or wget to download a pre-built executable."
-        echo "Please install either curl or wget and try again."
-        exit 2
+        echo "[ERRO] Unable to find curl nor wget to download a released package."
+        echo "[ERRO] Please install curl or wget, and try running this script again."
+        exit 3
     fi
 fi
 
@@ -178,15 +165,15 @@ if [[ $INSTALL_BUILD_DEPENDENCIES -eq 1 ]] || [[ $INSTALL_RUN_DEPENDENCIES -eq 1
     elif command -v pacman &>/dev/null; then
         USE_PACMAN=1
     else
-        echo "ERROR: unable to find a package manager."
-        echo "Refer to the documentation to learn how to install the build and/or run dependencies."
-        exit 2
+        echo "[ERRO] Unable to find a package manager."
+        echo "[ERRO] Refer to the documentation to learn how to install the build and/or run dependencies."
+        exit 3
     fi
 fi
 
 # Uninstall
 if [[ $UNINSTALL -eq 1 ]]; then
-    echo "Uninstalling service $SERVICE_NAME ..."
+    echo "[INFO] Uninstalling service $SERVICE_NAME ..."
 
     # remove udev rules definition file
     rm -f "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH"
@@ -201,17 +188,17 @@ if [[ $UNINSTALL -eq 1 ]]; then
     # remove the executable
     rm -f "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH"
 
-    echo "Uninstalling service $SERVICE_NAME ... done"
+    echo "[INFO] Uninstalling service $SERVICE_NAME ... done"
 
     if [[ $UNINSTALL_ONLY -eq 1 ]]; then
-        echo "Uninstall only: exit without installing service $SERVICE_NAME"
+        echo "[INFO] Option --uninstall specified: exit without installing service $SERVICE_NAME ."
         exit 0
     fi
 fi
 
 # Install run dependencies
 if [[ $INSTALL_RUN_DEPENDENCIES -eq 1 ]]; then
-    echo "Installing run dependencies ..."
+    echo "[INFO] Installing run dependencies ..."
     if [[ $USE_APT -eq 1 ]]; then
         apt install -y -qq libasound2-dev
     elif [[ $USE_DNF -eq 1 ]]; then
@@ -220,16 +207,16 @@ if [[ $INSTALL_RUN_DEPENDENCIES -eq 1 ]]; then
         pacman -S --noconfirm alsa-lib
     else
         # it should never happen...
-        exit 2
+        exit 3
     fi
-    echo "Installing run dependencies ... done"
+    echo "[INFO] Installing run dependencies ... done"
 fi
 
 if [[ $FROM_SOURCE -eq 1 ]]; then
 
     # Install build dependencies
     if [[ $INSTALL_BUILD_DEPENDENCIES -eq 1 ]]; then
-        echo "Installing build dependencies ..."
+        echo "[INFO] Installing build dependencies ..."
         if [[ $USE_APT -eq 1 ]]; then
             apt install -y -qq build-essential cmake libasound2-dev pkg-config
         elif [[ $USE_DNF -eq 1 ]]; then
@@ -238,38 +225,38 @@ if [[ $FROM_SOURCE -eq 1 ]]; then
             pacman -S --noconfirm gcc cmake make alsa-lib pkgconf
         else
             # it should never happen...
-            exit 2
+            exit 3
         fi
-        echo "Installing build dependencies ... done"
+        echo "[INFO] Installing build dependencies ... done"
     fi
 
-    echo "Compiling executable from source ..."
+    echo "[INFO] Compiling service executable from source ..."
     cd "$PROJECT_DIRECTORY_PATH/src/alsa"
     cmake .
     make
-    echo "Compiling executable from source ... done"
+    echo "[INFO] Compiling service executable from source ... done"
 
-    echo "Installing executable ..."
+    echo "[INFO] Installing service executable ..."
     make install
-    echo "Installing executable ... done"
+    echo "[INFO] Installing service executable ... done"
 
 else
 
-    echo "Downloading pre-built executable ..."
+    echo "[INFO] Downloading pre-built service executable ..."
     if [[ $USE_CURL -eq 1 ]]; then
         curl -s -o "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH" "$SERVICE_EXECUTABLE_SOURCE_URL"
     elif [[ $USE_WGET -eq 1 ]]; then
         wget -q -O "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH" "$SERVICE_EXECUTABLE_SOURCE_URL"
     else
         # it should never happen...
-        exit 2
+        exit 3
     fi
     chmod +x "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH"
-    echo "Downloading pre-built executable ... done"
+    echo "[INFO] Downloading pre-built service executable ... done"
 
 fi
 
-echo "Installing systemd service ..."
+echo "[INFO] Installing systemd service ..."
 if [[ $FROM_SOURCE -eq 1 ]]; then
     cp "$SERVICE_SYSTEMD_UNIT_SOURCE_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH"
 else
@@ -279,15 +266,15 @@ else
         wget -q -O "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_SOURCE_URL"
     else
         # it should never happen...
-        exit 2
+        exit 3
     fi
 fi
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
-echo "Installing systemd service ... done"
+echo "[INFO] Installing systemd service ... done"
 
-echo "Installing udev rules ..."
+echo "[INFO] Installing udev rules ..."
 if [[ $FROM_SOURCE -eq 1 ]]; then
     cp "$SERVICE_UDEV_RULES_SOURCE_FILE_PATH" "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH"
 else
@@ -297,13 +284,13 @@ else
         wget -q -O "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH" "$SERVICE_UDEV_RULES_SOURCE_URL"
     else
         # it should never happen...
-        exit 2
+        exit 3
     fi
 fi
 udevadm control --reload-rules
 udevadm trigger
-echo "Installing udev rules ... done"
+echo "[INFO] Installing udev rules ... done"
 
-echo "Installation of $SERVICE_NAME complete"
+echo "[INFO] Installation of $SERVICE_NAME complete"
 exit 0
 
