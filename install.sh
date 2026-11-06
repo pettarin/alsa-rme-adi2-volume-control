@@ -36,6 +36,7 @@ SERVICE_UDEV_RULES_FILE_NAME="99-$SERVICE_NAME.rules"
 
 # Absolute source paths
 # (they depend on the structure of the source repository)
+SERVICE_EXECUTABLE_SOURCE_FILE_PATH="$PROJECT_DIRECTORY_PATH/src/alsa/bin/$SERVICE_EXECUTABLE_FILE_NAME"
 SERVICE_SYSTEMD_UNIT_SOURCE_FILE_PATH="$PROJECT_DIRECTORY_PATH/src/systemd/$SERVICE_SYSTEMD_UNIT_FILE_NAME"
 SERVICE_UDEV_RULES_SOURCE_FILE_PATH="$PROJECT_DIRECTORY_PATH/src/udev/$SERVICE_UDEV_RULES_FILE_NAME"
 
@@ -50,7 +51,7 @@ SERVICE_EXECUTABLE_DESTINATION_FILE_PATH="/usr/local/bin/$SERVICE_EXECUTABLE_FIL
 SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH="/lib/systemd/system/$SERVICE_SYSTEMD_UNIT_FILE_NAME"
 SERVICE_UDEV_RULES_DESTINATION_FILE_PATH="/etc/udev/rules.d/$SERVICE_UDEV_RULES_FILE_NAME"
 
-# Keep track if either curl or wget is present
+# Keep track if a downloader is present
 DOWNLOADER=""
 DOWNLOADER_COMMAND_LINE=""
 
@@ -61,6 +62,7 @@ PACKAGE_MANAGER_BUILD_DEPENDENCIES=""
 PACKAGE_MANAGER_RUN_DEPENDENCIES=""
 
 # Script CLI defaults
+COMPILE=1
 FROM_SOURCE=0
 INSTALL_BUILD_DEPENDENCIES=0
 INSTALL_RUN_DEPENDENCIES=1
@@ -83,6 +85,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --install-build-dependencies)
             INSTALL_BUILD_DEPENDENCIES=1
+            shift
+            ;;
+        --no-compile)
+            COMPILE=0
             shift
             ;;
         --no-install-run-dependencies)
@@ -117,6 +123,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --architecture STRING           Replace the architecture detected by command 'arch' with the provided STRING"
             echo "  --from-source                   Install from source, instead of downloading a released package"
             echo "  --install-build-dependencies    Install build dependencies"
+            echo "  --no-compile                    Do not compile the service executable"
             echo "  --no-install-systemd            Do not install the systemd service"
             echo "  --no-install-udev               Do not install the udev rules definition file"
             echo "  --no-install-run-dependencies   Do not install run dependencies"
@@ -140,8 +147,8 @@ if [[ $EUID -ne 0 ]]; then
     exit 2
 fi
 
-# Check that the architecture is supported, if not installing from source
-if [[ $FROM_SOURCE -ne 1 ]]; then
+# Check that the architecture is supported, if not compiling the service
+if [[ $COMPILE -ne 1 ]]; then
     if [[ $ARCHITECTURE == "amd64" ]] || [[ $ARCHITECTURE == "x86_64" ]]; then
         # 64-bit OS on Intel/AMD 64-bit CPU (PC)
         ARCHITECTURE="x86_64"
@@ -154,7 +161,7 @@ if [[ $FROM_SOURCE -ne 1 ]]; then
     else
         echo "[ERRO] Architecture $ARCHITECTURE has no pre-built executable."
         echo "[ERRO] Supported architectures are: 'arm', 'arm64', 'x86_64'."
-        echo "[ERRO] Please try running this script again compiling from source with --compile-from-source or overriding the detected architecture with --architecture."
+        echo "[ERRO] Please try running this script again compiling from source (remove --no-compile) or overriding the detected architecture with --architecture."
         exit 3
     fi
 
@@ -248,25 +255,38 @@ if [[ $FROM_SOURCE -eq 1 ]]; then
         echo "[INFO] Installing build dependencies ... done"
     fi
 
-    echo "[INFO] Compiling service executable from source ..."
-    cd "$PROJECT_DIRECTORY_PATH/src/alsa"
-    cmake .
-    make
-    echo "[INFO] Compiling service executable from source ... done"
+    if [[ $COMPILE -eq 1 ]]; then
+        echo "[INFO] Compiling service executable from source ..."
+        cd "$PROJECT_DIRECTORY_PATH/src/alsa"
+        cmake .
+        make
+        echo "[INFO] Compiling service executable from source ... done"
 
-    echo "[INFO] Installing service executable ..."
-    make install
-    echo "[INFO] Installing service executable ... done"
+        echo "[INFO] Installing service executable ..."
+        make install
+        echo "[INFO] Installing service executable ... done"
+    else
+
+        if [[ ! -f $SERVICE_EXECUTABLE_SOURCE_FILE_PATH ]]; then
+            echo "[ERRO] File '$SERVICE_EXECUTABLE_SOURCE_FILE_PATH' does not exist."
+            echo "[ERRO] Please try running this script again compiling from source (remove --no-compile)."
+            exit 3
+        fi
+        echo "[INFO] Copying service executable ..."
+        cp "$SERVICE_EXECUTABLE_SOURCE_FILE_PATH" "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH"
+        echo "[INFO] Copying service executable ... done"
+    fi
 
 else
 
     echo "[INFO] Downloading pre-built service executable ..."
     echo "[INFO] Pre-built service executable URL: '$SERVICE_EXECUTABLE_SOURCE_URL'"
     eval "$DOWNLOADER_COMMAND_LINE '$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH' '$SERVICE_EXECUTABLE_SOURCE_URL'"
-    chmod +x "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH"
     echo "[INFO] Downloading pre-built service executable ... done"
-
 fi
+
+# Make sure the service executable has the execution permission
+chmod +x "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH"
 
 if [[ $INSTALL_SYSTEMD -eq 1 ]]; then
     echo "[INFO] Installing systemd service ..."
