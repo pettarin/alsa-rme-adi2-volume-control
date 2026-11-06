@@ -65,6 +65,7 @@ INSTALL_BUILD_DEPENDENCIES=0
 INSTALL_RUN_DEPENDENCIES=1
 INSTALL_SYSTEMD=1
 INSTALL_UDEV=1
+RUN_ARGUMENTS=""
 UNINSTALL=1
 UNINSTALL_ONLY=0
 
@@ -99,6 +100,10 @@ while [[ $# -gt 0 ]]; do
             UNINSTALL=0
             shift
             ;;
+        --run-arguments)
+            RUN_ARGUMENTS="$2"
+            shift 2
+            ;;
         --uninstall)
             UNINSTALL=1
             UNINSTALL_ONLY=1
@@ -115,6 +120,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --no-install-udev               Do not install the udev rules definition file"
             echo "  --no-install-run-dependencies   Do not install run dependencies"
             echo "  --no-uninstall-first            Do not remove a previous installation before installing"
+            echo "  --run-arguments STRING          Append the provided STRING to the ExecStart command line of the systemd service"
             echo "  --uninstall                     Remove a previous installation and exit"
             echo ""
             echo "Note: this script must be executed as root, for instance with sudo"
@@ -284,6 +290,15 @@ if [[ $INSTALL_SYSTEMD -eq 1 ]]; then
             exit 3
         fi
     fi
+
+    if [[ $RUN_ARGUMENTS != "" ]]; then
+        echo "[INFO] Injecting additional run arguments ..."
+        echo "[INFO] Run arguments: '$RUN_ARGUMENTS'"
+        export RUN_ARGUMENTS_EXPORTED="$RUN_ARGUMENTS"
+        sed -i -e "s/\(ExecStart=.*\)$/\1 $RUN_ARGUMENTS_EXPORTED/" "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH"
+        echo "[INFO] Injecting additional run arguments ... done"
+    fi
+
     systemctl daemon-reload
     systemctl enable "$SERVICE_NAME"
     systemctl restart "$SERVICE_NAME"

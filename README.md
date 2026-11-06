@@ -128,17 +128,17 @@ cd alsa-rme-adi2-volume-control
 sudo bash install.sh --from-source
 ```
 
-The above commands will perform the following actions:
+Either of the two commands above performs the following actions:
 
-- uninstall a previous installation of the service, if present
+- it uninstalls a previous installation of the service, if present
   (can be skipped with `--no-uninstall-first`);
-- install the run dependencies
+- it installs the run dependencies
   (can be skipped with `--no-install-run-dependencies`);
-- download (default) or compile (`--from-source`) the service executable;
-- install the service executable into `/usr/local/bin/`;
-- install the `systemd` service and start it
+- it downloads (default) or compiles (`--from-source`) the service executable;
+- it installs the service executable into `/usr/local/bin/`;
+- it installs the `systemd` service and start it
   (can be skipped with `--no-install-systemd`);
-- install the `udev` rules allowing hot plugging RME ADI-2 devices
+- it installs the `udev` rules allowing hot plugging RME ADI-2 devices
   (can be skipped with `--no-install-udev`).
 
 > [!NOTE]
@@ -150,6 +150,17 @@ The above commands will perform the following actions:
 > `arch` returns `aarch64` but in fact you should use
 > the ARM 32-bit package by specifying `--architecture arm`.
 
+By default, the `systemd` service just runs the
+`alsa-rme-adi2-volume-control` program with no arguments.
+To pass additional run arguments at install time,
+it is possible to specify them with the `--run-arguments` option,
+for example
+`--run-arguments="--verbose --line12-min-db -40.0 --line12-max-db -20.0")`.
+The complete usage documentation of the service executable
+`alsa-rme-adi2-volume-control` can be found in the
+[USAGE](docs/USAGE.md)
+file.
+
 To uninstall a previous installation of the service
 (without trying to install it again):
 
@@ -157,7 +168,7 @@ To uninstall a previous installation of the service
 sudo bash install.sh --uninstall
 ```
 
-### Test Installation
+### Test
 
 The following commands are useful to check whether
 the installation of `alsa-rme-adi2-volume-control` was successful:
@@ -178,11 +189,6 @@ journalctl -n 100 -f -u alsa-rme-adi2-volume-control
 # and to change the volume of the RME ADI-2 device.
 alsamixer
 ```
-
-The complete usage documentation of the service executable
-`alsa-rme-adi2-volume-control` can be found in the
-[USAGE](docs/USAGE.md)
-file.
 
 
 ## License

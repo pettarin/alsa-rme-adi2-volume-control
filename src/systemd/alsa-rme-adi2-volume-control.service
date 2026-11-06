@@ -8,7 +8,7 @@ Before=mpd.service
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/alsa-rme-adi2-volume-control --verbose
+ExecStart=/usr/local/bin/alsa-rme-adi2-volume-control
 Restart=on-failure
 RestartSec=5
 
