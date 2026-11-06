@@ -51,13 +51,14 @@ SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH="/lib/systemd/system/$SERVICE_SYSTEMD
 SERVICE_UDEV_RULES_DESTINATION_FILE_PATH="/etc/udev/rules.d/$SERVICE_UDEV_RULES_FILE_NAME"
 
 # Keep track if either curl or wget is present
-USE_CURL=0
-USE_WGET=0
+DOWNLOADER=""
+DOWNLOADER_COMMAND_LINE=""
 
 # Keep track if a package manager is present
-USE_APT=0
-USE_DNF=0
-USE_PACMAN=0
+PACKAGE_MANAGER=""
+PACKAGE_MANAGER_COMMAND_LINE=""
+PACKAGE_MANAGER_BUILD_DEPENDENCIES=""
+PACKAGE_MANAGER_RUN_DEPENDENCIES=""
 
 # Script CLI defaults
 FROM_SOURCE=0
@@ -159,36 +160,51 @@ if [[ $FROM_SOURCE -ne 1 ]]; then
 
     # update the URL accordingly
     SERVICE_EXECUTABLE_SOURCE_URL="$REMOTE_REPOSITORY_URL_PREFIX/$ARCHITECTURE/$SERVICE_EXECUTABLE_FILE_NAME"
-    echo "[INFO] Architecture is '$ARCHITECTURE'"
-    echo "[INFO] Service executable will be downloaded from URL '$SERVICE_EXECUTABLE_SOURCE_URL'"
 fi
+
+echo "[INFO] Running as:      '$EUID' (root)"
+echo "[INFO] Run arguments:   '$RUN_ARGUMENTS'"
+echo "[INFO] Architecture:    '$ARCHITECTURE'"
 
 # Check that either curl or wget is present, if not installing from source
 if [[ $FROM_SOURCE -ne 1 ]]; then
     if command -v curl &>/dev/null; then
-        USE_CURL=1
+        DOWNLOADER="curl"
+        DOWNLOADER_COMMAND_LINE="curl -s -o"
     elif command -v wget &>/dev/null; then
-        USE_WGET=1
+        DOWNLOADER="wget"
+        DOWNLOADER_COMMAND_LINE="wget -q -O"
     else
         echo "[ERRO] Unable to find curl nor wget to download a released package."
         echo "[ERRO] Please install curl or wget, and try running this script again."
         exit 3
     fi
+    echo "[INFO] Downloader:      '$DOWNLOADER'"
 fi
 
 # Check that a package manager is present, if installing dependencies
 if [[ $INSTALL_BUILD_DEPENDENCIES -eq 1 ]] || [[ $INSTALL_RUN_DEPENDENCIES -eq 1 ]]; then
     if command -v apt &>/dev/null; then
-        USE_APT=1
+        PACKAGE_MANAGER="apt"
+        PACKAGE_MANAGER_COMMAND_LINE="apt install -y -qq"
+        PACKAGE_MANAGER_BUILD_DEPENDENCIES="gcc cmake make libasound2-dev pkg-config"
+        PACKAGE_MANAGER_RUN_DEPENDENCIES="libasound2-dev"
     elif command -v dnf &>/dev/null; then
-        USE_DNF=1
+        PACKAGE_MANAGER="dnf"
+        PACKAGE_MANAGER_COMMAND_LINE="dnf install -y"
+        PACKAGE_MANAGER_BUILD_DEPENDENCIES="alsa-lib-devel"
+        PACKAGE_MANAGER_RUN_DEPENDENCIES="gcc cmake make alsa-lib-devel pkgconfig"
     elif command -v pacman &>/dev/null; then
-        USE_PACMAN=1
+        PACKAGE_MANAGER="pacman"
+        PACKAGE_MANAGER_COMMAND_LINE="pacman -S --noconfirm"
+        PACKAGE_MANAGER_BUILD_DEPENDENCIES="alsa-lib"
+        PACKAGE_MANAGER_RUN_DEPENDENCIES="gcc cmake make alsa-lib pkgconf"
     else
         echo "[ERRO] Unable to find a package manager."
         echo "[ERRO] Refer to the documentation to learn how to install the build and/or run dependencies."
         exit 3
     fi
+    echo "[INFO] Package manager: '$PACKAGE_MANAGER'"
 fi
 
 # Uninstall
@@ -219,16 +235,7 @@ fi
 # Install run dependencies
 if [[ $INSTALL_RUN_DEPENDENCIES -eq 1 ]]; then
     echo "[INFO] Installing run dependencies ..."
-    if [[ $USE_APT -eq 1 ]]; then
-        apt install -y -qq libasound2-dev
-    elif [[ $USE_DNF -eq 1 ]]; then
-        dnf install -y alsa-lib-devel
-    elif [[ $USE_PACMAN -eq 1 ]]; then
-        pacman -S --noconfirm alsa-lib
-    else
-        # it should never happen...
-        exit 3
-    fi
+    eval "$PACKAGE_MANAGER_COMMAND_LINE $PACKAGE_MANAGER_RUN_DEPENDENCIES"
     echo "[INFO] Installing run dependencies ... done"
 fi
 
@@ -237,16 +244,7 @@ if [[ $FROM_SOURCE -eq 1 ]]; then
     # Install build dependencies
     if [[ $INSTALL_BUILD_DEPENDENCIES -eq 1 ]]; then
         echo "[INFO] Installing build dependencies ..."
-        if [[ $USE_APT -eq 1 ]]; then
-            apt install -y -qq build-essential cmake libasound2-dev pkg-config
-        elif [[ $USE_DNF -eq 1 ]]; then
-            dnf install -y gcc cmake make alsa-lib-devel pkgconfig
-        elif [[ $USE_PACMAN -eq 1 ]]; then
-            pacman -S --noconfirm gcc cmake make alsa-lib pkgconf
-        else
-            # it should never happen...
-            exit 3
-        fi
+        eval "$PACKAGE_MANAGER_COMMAND_LINE $PACKAGE_MANAGER_BUILD_DEPENDENCIES"
         echo "[INFO] Installing build dependencies ... done"
     fi
 
@@ -263,14 +261,8 @@ if [[ $FROM_SOURCE -eq 1 ]]; then
 else
 
     echo "[INFO] Downloading pre-built service executable ..."
-    if [[ $USE_CURL -eq 1 ]]; then
-        curl -s -o "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH" "$SERVICE_EXECUTABLE_SOURCE_URL"
-    elif [[ $USE_WGET -eq 1 ]]; then
-        wget -q -O "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH" "$SERVICE_EXECUTABLE_SOURCE_URL"
-    else
-        # it should never happen...
-        exit 3
-    fi
+    echo "[INFO] Pre-built service executable URL: '$SERVICE_EXECUTABLE_SOURCE_URL'"
+    eval "$DOWNLOADER_COMMAND_LINE '$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH' '$SERVICE_EXECUTABLE_SOURCE_URL'"
     chmod +x "$SERVICE_EXECUTABLE_DESTINATION_FILE_PATH"
     echo "[INFO] Downloading pre-built service executable ... done"
 
@@ -281,14 +273,8 @@ if [[ $INSTALL_SYSTEMD -eq 1 ]]; then
     if [[ $FROM_SOURCE -eq 1 ]]; then
         cp "$SERVICE_SYSTEMD_UNIT_SOURCE_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH"
     else
-        if [[ $USE_CURL -eq 1 ]]; then
-            curl -s -o "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_SOURCE_URL"
-        elif [[ $USE_WGET -eq 1 ]]; then
-            wget -q -O "$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH" "$SERVICE_SYSTEMD_UNIT_SOURCE_URL"
-        else
-            # it should never happen...
-            exit 3
-        fi
+        echo "[INFO] Systemd service URL: '$SERVICE_SYSTEMD_UNIT_SOURCE_URL'"
+        eval "$DOWNLOADER_COMMAND_LINE '$SERVICE_SYSTEMD_UNIT_DESTINATION_FILE_PATH' '$SERVICE_SYSTEMD_UNIT_SOURCE_URL'"
     fi
 
     if [[ $RUN_ARGUMENTS != "" ]]; then
@@ -310,14 +296,8 @@ echo "[INFO] Installing udev rules ..."
     if [[ $FROM_SOURCE -eq 1 ]]; then
         cp "$SERVICE_UDEV_RULES_SOURCE_FILE_PATH" "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH"
     else
-        if [[ $USE_CURL -eq 1 ]]; then
-            curl -s -o "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH" "$SERVICE_UDEV_RULES_SOURCE_URL"
-        elif [[ $USE_WGET -eq 1 ]]; then
-            wget -q -O "$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH" "$SERVICE_UDEV_RULES_SOURCE_URL"
-        else
-            # it should never happen...
-            exit 3
-        fi
+        echo "[INFO] Udev rules URL: '$SERVICE_UDEV_RULES_SOURCE_URL'"
+        eval "$DOWNLOADER_COMMAND_LINE '$SERVICE_UDEV_RULES_DESTINATION_FILE_PATH' '$SERVICE_UDEV_RULES_SOURCE_URL'"
     fi
     udevadm control --reload-rules
     udevadm trigger

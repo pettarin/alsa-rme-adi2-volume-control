@@ -16,13 +16,15 @@
 
 - [ALSA](https://www.alsa-project.org/wiki/Main_Page)
 - [CMake](https://cmake.org/)
-- [GNU C Compiler (GCC)](https://gcc.gnu.org/)
+- [GNU C Compiler (GCC)](https://www.gnu.org/software/gcc/)
+- [GNU Make](https://www.gnu.org/software/make/)
+- [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/)
 
 On `deb`-based Linux distributions (e.g., Debian, RaspiOS, Ubuntu)
 the above requirements can be installed with the following command:
 
 ```bash
-sudo apt install build-essential cmake libasound2-dev
+sudo apt install gcc cmake make libasound2-dev pkg-config
 ```
 
 > [!WARNING]

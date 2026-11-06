@@ -128,7 +128,7 @@ cd alsa-rme-adi2-volume-control
 sudo bash install.sh --from-source
 ```
 
-Either of the two commands above performs the following actions:
+Either of the two install commands above performs the following actions:
 
 - it uninstalls a previous installation of the service, if present
   (can be skipped with `--no-uninstall-first`);
