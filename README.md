@@ -158,7 +158,7 @@ Either of the two install commands above performs the following actions:
 > However, it is also possible to pass additional run arguments
 > to the installation script with the `--run-arguments` option,
 > for example
-> `--run-arguments="--verbose --line12-min-db -40.0 --line12-max-db -20.0"`.
+> `--run-arguments "--verbose --line12-min-db -40.0 --line12-max-db -20.0"`.
 >
 > The complete usage documentation of the service executable
 > `alsa-rme-adi2-volume-control` can be found in the
