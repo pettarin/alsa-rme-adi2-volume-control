@@ -150,16 +150,19 @@ Either of the two install commands above performs the following actions:
 > `arch` returns `aarch64` but in fact you should use
 > the ARM 32-bit package by specifying `--architecture arm`.
 
-By default, the `systemd` service just runs the
-`alsa-rme-adi2-volume-control` program with no arguments.
-To pass additional run arguments at install time,
-it is possible to specify them with the `--run-arguments` option,
-for example
-`--run-arguments="--verbose --line12-min-db -40.0 --line12-max-db -20.0")`.
-The complete usage documentation of the service executable
-`alsa-rme-adi2-volume-control` can be found in the
-[USAGE](docs/USAGE.md)
-file.
+> [!TIP]
+> By default, the `systemd` service just runs the
+> `alsa-rme-adi2-volume-control` program with no arguments:
+> this behavior should be fine for most users.
+>
+> However, it is also possible to pass additional run arguments
+> to the installation script with the `--run-arguments` option,
+> for example
+> `--run-arguments="--verbose --line12-min-db -40.0 --line12-max-db -20.0"`.
+>
+> The complete usage documentation of the service executable
+> `alsa-rme-adi2-volume-control` can be found in the
+> [USAGE](docs/USAGE.md) file.
 
 To uninstall a previous installation of the service
 (without trying to install it again):
