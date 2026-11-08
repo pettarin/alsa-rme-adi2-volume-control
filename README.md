@@ -193,6 +193,13 @@ journalctl -n 100 -f -u alsa-rme-adi2-volume-control
 alsamixer
 ```
 
+## Releases And Changelog
+
+The list of releases and their changes is contained
+in the
+[CHANGELOG](https://github.com/pettarin/alsa-rme-adi2-volume-control/blob/main/docs/CHANGELOG.md)
+document.
+
 
 ## License
 
