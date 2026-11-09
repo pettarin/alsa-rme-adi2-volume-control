@@ -14,11 +14,11 @@ of an RME ADI-2 device via its MIDI interface.
 > on how to install and operate the plugin.
 
 > [!WARNING]
-> TODO remove this warning box once the plugin is available on the main branch.
->
 > The Volumio plugin is not publicly available yet,
 > but it can be installed from source files, available on
 > [this feature branch](https://github.com/pettarin/volumio-plugins-sources-bookworm/tree/feat/add_alsa_rme_adi2_volume_control/alsa_rme_adi2_volume_control).
+>
+> TODO remove this warning box once the plugin is available on the main branch.
 
 
 ## Overview
