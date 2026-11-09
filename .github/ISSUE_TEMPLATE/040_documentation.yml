@@ -47,31 +47,36 @@ body:
       default: 3
     validations:
       required: true
-  - type: textarea
+  - type: input
     id: platform
     attributes:
       label: Platform
       description: Is the documentation change specific to a platform (PC, Raspberry Pi, etc.)? If so, please specify it.
-      placeholder: "'Any' or 'amd64' or 'Raspberry Pi 5' etc."
-      value: Any
+      placeholder: "'Any', 'amd64', 'Raspberry Pi 5', etc."
     validations:
       required: false
-  - type: textarea
+  - type: input
     id: os
     attributes:
       label: Operating System
       description: Is the documentation change specific to a certain operating systems? If so, please specify it.
-      placeholder: "'Any' or 'Ubuntu 26.04' or 'Debian' or 'Volumio OS 4.119' etc."
-      value: Any
+      placeholder: "'Any', 'Ubuntu 26.04', 'Debian', 'Volumio OS 4.119', etc."
     validations:
       required: false
-  - type: textarea
+  - type: input
     id: alsa_version
     attributes:
       label: Operating System
       description: Is the documentation change specific to a certain ALSA version? If so, please specify it.
-      placeholder: "'Any' or 'k6.1.0-3-amd64' etc."
-      value: Any
+      placeholder: "'Any', 'k6.1.0-3-amd64', etc."
+    validations:
+      required: false
+  - type: input
+    id: service_version
+    attributes:
+      label: Operating System
+      description: Is the documentation change specific to a certain service version? If so, please specify it.
+      placeholder: "'1.0.0', '1.0.1', 'devel', 'latest', 'main', etc."
     validations:
       required: false
   - type: checkboxes
