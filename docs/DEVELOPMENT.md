@@ -27,22 +27,40 @@
 ├── README.md                                       <- main README file
 ├── res                                             <- additional resources for this project
 ...
-├─── src                                            <- source files
-│    ├── alsa                                       <- source files for the executable
-│    │   ├── bin                                    <- the compiled executable will be written here
-│    │   │   └── .keep
-│    │   ├── CMakeLists.txt                         <- CMake project
-│    │   ├── inc
-│    │   │   ├── alsa-rme-adi2-volume-control.h     <- main C header file
-│    │   │   └── rme-adi2.h                         <- C header containing RME ADI-2 specific declarations
-│    │   └── src
-│    │       └── alsa-rme-adi2-volume-control.c     <- main C source file
-│    ├── systemd
-│    │   └── alsa-rme-adi2-volume-control.service   <- systemd unit file
-│    └── udev
-│        └── 99-alsa-rme-adi2-volume-control.rules  <- udev rules definition file
+├── src                                            <- source files
+│   ├── alsa                                       <- source files for the executable
+│   │   ├── bin                                    <- the compiled executable will be written here
+│   │   │   └── .keep
+│   │   ├── CMakeLists.txt                         <- CMake project
+│   │   ├── inc
+│   │   │   ├── alsa-rme-adi2-volume-control.h     <- main C header file
+│   │   │   └── rme-adi2.h                         <- C header containing RME ADI-2 specific declarations
+│   │   └── src
+│   │       └── alsa-rme-adi2-volume-control.c     <- main C source file
+│   ├── systemd
+│   │   ├── 99-alsa-rme-adi2-volume-control.preset <- systemd preset file
+│   │   └── alsa-rme-adi2-volume-control.service   <- systemd service unit file
+│   ├── systemd
+│   └── udev
+│       └── 99-alsa-rme-adi2-volume-control.rules  <- udev rules definition file
 └── VERSION                                         <- current version of this project
 ```
+
+The main contents of this repository are:
+
+- in the `src/alsa/` directory: the C source files
+  for the executable `alsa-rme-adi2-volume-control`,
+  along with the CMake project to compile them;
+- in the `src/systemd/` directory: the `systemd` service unit file
+  to run the service in background
+  on modern Debian-based Linux distributions;
+- in the `src/udev/` directory:  a `udev` rules definition file
+  that restarts the `systemd` service whenever
+  an RME ADI-2 device is connected,
+  thus handling the case where a device is turned off and on again,
+  or physically disconnected and connected again;
+- `install.sh` a Bash script to automate installing and uninstalling
+  the required files on a modern Debian-based Linux distribution.
 
 
 ## Branching And Versioning Policy
@@ -230,3 +248,148 @@ sudo cp src/udev/99-alsa-rme-adi2-volume-control.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
+
+## How The `alsa-rme-adi2-volume-control` Executable Works
+
+This section explains how the `alsa-rme-adi2-volume-control` executable works.
+
+First, the command line arguments are parsed,
+and if any unknown option or invalid values are provided,
+the execution terminates with an error (non-zero) exit code.
+
+If one of the following options is provided,
+the corresponding action is performed,
+and the execution terminates with the success (zero) exit code:
+
+- `--help`,
+- `--license`,
+- `--list-cards`,
+- `--list-device-ids`,
+- `--list-device-names`,
+- `--list-midi-devices`, or
+- `--version`.
+
+Then, the program determines
+the actual RME device ID and ALSA card number to be used:
+if the user provided them with options
+`--device-name / --device-id` and `--card-number`,
+the provided values will be used.
+If the user provided only `--device-name` but not `--card-number`,
+or `--device-name` is `autodetect` (default),
+then the program will use the device
+corresponding to the ALSA card with lowest number
+whose name matches the provided `--device-name`
+(and, if `--device-name` is `autodetect` (default),
+then the know RME ADI-2 device names will be attempted in this order:
+first `ADI-2/4 Pro`, then `ADI-2 Pro`, and finally `ADI-2 DAC`).
+If no ALSA card can be found matching the provided RME device
+or ALSA card number (e.g., no RME ADI-2 device connected,
+or wrong command line arguments have been provided),
+the execution terminates with an error.
+
+Then, any ALSA user-defined control elements from a prior execution
+are removed from the determined ALSA card.
+
+If the `--uninstall` option is provided, the execution terminates
+with the success (zero) exit code.
+Otherwise, the program tries to open the MIDI device associated
+with the selected ALSA card: either the one explicitly provided by the user
+with the `--midi-device` option, or,
+if `--midi-device` is `autodetect` (default),
+it will open the first (lowest-index) available MIDI device with name
+`hw:N,x,y`, `hw:N,x`, or `hw:N`
+where `N` is the ALSA card number.
+
+If no such MIDI device can be opened
+(e.g., because the device is already controlled by another process,
+or wrong command line arguments have been provided),
+the execution terminates with an error.
+
+> [!NOTE]
+> Running the `alsa-rme-adi2-volume-control` program
+> without arguments implies the autodetection of all three:
+> RME device ID, ALSA card number, and MIDI device,
+> which should work for most users, chiefly those
+> with only one RME ADI-2 device connected.
+>
+> For a more detailed discussion and usage examples of the options
+> to override this autodetection mechanism, please refer to the
+> [Usage](USAGE.md) document.
+
+If the ALSA card and MIDI device have been successfully opened,
+the program registers ALSA user-defined control elements,
+two for each of the controlled outputs:
+
+- a boolean switch, for muting/unmuting the output;
+- an integer value with range `[0, 100]` representing the volume
+  of the output.
+
+The controlled outputs are two:
+
+- `Line Output 1/2`, and
+- `Phones Output 3/4`,
+
+unless one of `--no-line12` or `--no-phones34` options were specified
+(in that case, the mentioned output is not controlled, meaning
+the corresponding ALSA user-defined control elements are not registered).
+
+Specifically, the names (IDs) of the control elements are
+(see the main C header `alsa-rme-adi2-volume-control.h`):
+
+- `Line Output 1/2 Playback Switch`,
+- `Line Output 1/2 Playback Volume`,
+- `Phones Output 3/4 Playback Switch`, and
+- `Phones Output 3/4 Playback Volume`,
+
+resulting in the "unified" (mute/unmute + volume value)
+controls `Line Output 1/2` and `Phones Output 3/4` in `alsamixer`.
+
+Finally, a monitor loop is started.
+The loop watches any ALSA event, and it consumes those events
+related to the registered ALSA user-defined control elements.
+One such event can be
+ "Line Output 1/2 Playback Switch (new) value is 1"
+or
+"Phones Output 3/4 Playback Volume (new) value is 70".
+
+The program logic translates each of the relevant ALSA events
+into the appropriate MIDI SysEx call, which is sent
+to the RME ADI-2 device, thus achieving hardware-based
+control of mute and volume state.
+
+The monitor loop terminates whenever the RME ADI-2 device
+is disconnected or the program receives a `SIGTERM` interrupt
+(or it is killed).
+Clean-up logic uninstalls the ALSA user-defined control elements,
+unless the `--no-uninstall-on-exit` option was specified.
+
+Note that the ALSA volume values are always between `0` and `100`.
+They are translated to the corresponding dB level on the RME ADI-2 device
+by linear interpolation between the values specified by options:
+
+- `--line12-min-db` (default: `-60.0` dB) and
+- `--line12-max-db` (default: `-10.0` dB) for `Line Output 1/2`, and
+- `--phones34-min-db` (default: `-60.0` dB) and
+- `--phones34-max-db` (default: `-10.0` dB) for `Phones Output 3/4`.
+
+The initial mute/unmute state and volume value can be set using options:
+
+- `--line12-switch` (default: `1 == unmuted`),
+- `--line12-volume` (default: `50` == 50%),
+- `--phones34-switch` (default: `1 == unmuted`),
+- `--phones34-volume` (default: `50` == 50%).
+
+Please refer to the
+[Usage](USAGE.md)
+document for a more detailed discussion and examples of these options.
+
+> [!NOTE]
+> In the current version of the service
+> the synchronization of the state is one-way only:
+> from ALSA to the physical RME ADI-2 device.
+> If the user changes the mute or volume state on the RME ADI-2 device
+> (e.g., using the volume knob or the IR remote),
+> the ALSA controls will not be updated accordingly.
+>
+> This is a known limitation which will be addressed in a future release.
+

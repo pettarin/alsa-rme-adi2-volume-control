@@ -4,6 +4,22 @@ A background service providing ALSA controls
 to change the mute and volume state
 of an RME ADI-2 device via its MIDI interface.
 
+> [!NOTE]
+> The source code of the Volumio plugin
+> that installs the `alsa-rme-adi2-volume-control` service
+> on a running Volumio device can be found in the
+> [Volumio (Bookworm) Plugins](https://github.com/volumio/volumio-plugins-sources-bookworm)
+> repository.
+> Consult the documentation there for the details
+> on how to install and operate the plugin.
+
+> [!WARNING]
+> TODO remove this warning box once the plugin is available on the main branch.
+>
+> The Volumio plugin is not publicly available yet,
+> but it can be installed from source files, available on
+> [this feature branch](https://github.com/pettarin/volumio-plugins-sources-bookworm/tree/feat/add_alsa_rme_adi2_volume_control/alsa_rme_adi2_volume_control).
+
 
 ## Overview
 
@@ -40,24 +56,10 @@ which might impact the quality of the reproduced audio stream.
 >
 > This is a known limitation which will be addressed in a future release.
 
-Some additional support files are provided in this repository:
-
-- a `systemd` service manifest to run the service in background
-  on modern Debian-based Linux distributions;
-- a `udev` rules definition file that allows applications
-  in user-space to interact with an RME ADI-2 device
-  without requiring elevated privileges;
-- a Bash script to automate installing and uninstalling
-  the required files on a modern Debian-based Linux distribution.
-
-> [!WARNING]
-> The source code of the Volumio plugin
-> that installs the `alsa-rme-adi2-volume-control` service
-> on a running Volumio device can be found in the
-> [Volumio (Bookworm) Plugins](https://github.com/volumio/volumio-plugins-sources-bookworm)
-> repository.
-> Consult the documentation there for the details
-> on how to install and operate the plugin.
+A detailed explanation of how the service executable works
+can be found in the last section of the
+[DEVELOPMENT](docs/DEVELOPMENT.md)
+document.
 
 ### Screenshots
 
