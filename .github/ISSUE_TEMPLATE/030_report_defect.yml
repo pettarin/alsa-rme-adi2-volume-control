@@ -1,0 +1,92 @@
+name: Report a defect (bug)
+description: File a report for a defect.
+title: "[Defect]: "
+labels: ["bug", "defect", "triage"]
+projects: []
+assignees: []
+type: bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this defect report!
+  - type: textarea
+    id: symptoms
+    attributes:
+      label: Symptoms
+      description: Describe what went wrong, along with the steps to reproduce it.
+      placeholder: I did this and that, and this problem happened.
+      value: I did this and that, and this problem happened.
+    validations:
+      required: true
+  - type: textarea
+    id: expectations
+    attributes:
+      label: Expected Behavior
+      description: Describe what you expected to happen instead.
+      placeholder: I expected this to happen instead.
+      value: I expected this to happen instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: devices
+    attributes:
+      label: What RME ADI-2 device are you using? Select one or more options.
+      multiple: true
+      options:
+        - "ADI-2 DAC"
+        - "ADI-2 Pro"
+        - "ADI-2/4 Pro"
+        - "(any)"
+        - "(other)"
+      default: 3
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: What platform are you using?
+      placeholder: "'PC', 'amd64', 'Raspberry Pi 5', etc."
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      placeholder: "'Any', 'Ubuntu 26.04', 'Debian', 'Volumio OS 4.119', etc."
+    validations:
+      required: true
+  - type: input
+    id: alsa_version
+    attributes:
+      label: ALSA Version
+      description: What version of ALSA are you using?
+      placeholder: "'Any', 'k6.1.0-3-amd64', etc."
+    validations:
+      required: true
+  - type: input
+    id: service_version
+    attributes:
+      label: Service Version
+      description: What version of alsa-rme-adi2-volume control are you using?
+      placeholder: "'1.0.0', '1.0.1', 'devel', 'latest', 'main', '<git commit hash>', etc."
+    validations:
+      required: true
+  - type: checkboxes
+    id: agreetococ
+    attributes:
+      label: Code Of Conduct
+      description: By submitting this report, you agree to follow the [Code of Conduct of dolfin](https://github.com/pettarin/dolfin?tab=coc-ov-file).
+      options:
+        - label: I agree to follow the Code of Conduct of dolfin
+          required: true
+  - type: upload
+    id: screenshotsorvideos
+    attributes:
+      label: Upload Screenshots/Videos
+      description: If possible, please upload screenshots and/or videos to help explain the problem.
+    validations:
+      required: false
+

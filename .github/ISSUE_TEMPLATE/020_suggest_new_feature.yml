@@ -1,0 +1,90 @@
+name: Suggest a new feature or enhancement
+description: File a report suggesting a new feature or enhancement.
+title: "[NewFeature]: "
+labels: ["enhancement", "feature", "idea", "triage"]
+projects: []
+assignees: []
+type: enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a new feature or enhancement!
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the new feature or enhancement you would like to suggest.
+      placeholder: I would like to be able to do this and that.
+      value: I would like to be able to do this and that.
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Rationale
+      description: Describe why you think the new feature or enhancement should be implemented.
+      placeholder: This new feature would help me with this and that.
+      value: This new feature would help me with this and that.
+    validations:
+      required: true
+  - type: dropdown
+    id: roles
+    attributes:
+      label: Is the new feature or enhancement specific to certain roles of alsa-rme-adi2-volume-control? Select one or more options.
+      multiple: true
+      options:
+        - Maintainers
+        - Users
+        - Perspective Users
+        - (any)
+        - (other)
+      default: 3
+    validations:
+      required: true
+  - type: dropdown
+    id: devices
+    attributes:
+      label: Is the new feature or enhancement specific to certain RME ADI-2 devices? Select one or more options.
+      multiple: true
+      options:
+        - "ADI-2 DAC"
+        - "ADI-2 Pro"
+        - "ADI-2/4 Pro"
+        - "(any)"
+        - "(other)"
+      default: 3
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Is the new feature or enhancement specific to a platform (PC, Raspberry Pi, etc.)? If so, please specify it.
+      placeholder: "'Any', 'amd64', 'Raspberry Pi 5', etc."
+    validations:
+      required: false
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      description: Is the new feature or enhancement specific to a certain operating systems? If so, please specify it.
+      placeholder: "'Any', 'Ubuntu 26.04', 'Debian', 'Volumio OS 4.119', etc."
+    validations:
+      required: false
+  - type: checkboxes
+    id: agreetococ
+    attributes:
+      label: Code Of Conduct
+      description: By submitting this report, you agree to follow the [Code of Conduct of alsa-rme-adi2-volume-control](https://github.com/pettarin/alsa-rme-adi2-volume-control?tab=coc-ov-file).
+      options:
+        - label: I agree to follow the Code of Conduct of alsa-rme-adi2-volume-control
+          required: true
+  - type: upload
+    id: screenshotsorvideos
+    attributes:
+      label: Upload Screenshots/Videos
+      description: If relevant, please upload screenshots and/or videos to help explain the new feature or enhancement.
+    validations:
+      required: false
+
