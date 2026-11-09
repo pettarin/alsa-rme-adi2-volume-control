@@ -25,25 +25,25 @@ body:
       label: Is the documentation change specific to certain roles of alsa-rme-adi2-volume-control? Select one or more options.
       multiple: true
       options:
-        - Maintainers
-        - Users
-        - Perspective Users
-        - (any)
-        - (other)
+        - "Maintainers"
+        - "Users"
+        - "Perspective Users"
+        - "(any)"
+        - "(other)"
       default: 3
     validations:
       required: true
   - type: dropdown
-    id: browsers
+    id: devices
     attributes:
       label: Is the documentation change specific to certain RME ADI-2 devices? Select one or more options.
       multiple: true
       options:
-        - ADI-2 DAC
-        - ADI-2 Pro
-        - ADI-2/4 Pro
-        - (any)
-        - (other)
+        - "ADI-2 DAC"
+        - "ADI-2 Pro"
+        - "ADI-2/4 Pro"
+        - "(any)"
+        - "(other)"
       default: 3
     validations:
       required: true
@@ -66,7 +66,7 @@ body:
     validations:
       required: false
   - type: textarea
-    id: os
+    id: alsa_version
     attributes:
       label: Operating System
       description: Is the documentation change specific to a certain ALSA version? If so, please specify it.
