@@ -51,9 +51,6 @@ Some additional support files are provided in this repository:
   the required files on a modern Debian-based Linux distribution.
 
 > [!WARNING]
-> The Volumio plugin is not available yet.
-> TODO: when it is, change this WARNING into a NOTE.
->
 > The source code of the Volumio plugin
 > that installs the `alsa-rme-adi2-volume-control` service
 > on a running Volumio device can be found in the
@@ -67,12 +64,12 @@ Some additional support files are provided in this repository:
 Service running in foreground,
 with `alsamixer` showing the registered ALSA controls:
 
-![Service running in foreground](res/screenshot_service_running.png)
+![Service running in foreground](imgs/screenshot_service_running.png)
 
 Service after its termination,
 with `alsamixer` no longer showing the registered ALSA controls:
 
-![Service after its termination](res/screenshot_service_exited.png)
+![Service after its termination](imgs/screenshot_service_exited.png)
 
 ### Supported RME ADI-2 Devices
 

@@ -20,6 +20,8 @@
 │   ├── DEVELOPMENT.md                              <- this file
 │   ├── ROADMAP.md                                  <- planned work, broken down by future milestone
 │   └── SECURITY.md                                 <- supported versions and how to report a vulnerability
+├── imgs                                            <- images for the main README file
+...
 ├── install.sh                                      <- install script
 ├── LICENSE                                         <- full text of the license for this project
 ├── README.md                                       <- main README file
