@@ -3,17 +3,17 @@
 The table below reports the hardware/software configurations
 that have been tested working (or not):
 
-| RME ADI-2 Device | Architecture | OS         | OS Version | ALSA Version     | Service Version | Working?           | Date       | Tester    | Notes                |
-| ---------------- | ------------ | ---------- | ---------- | ---------------- | --------------- | ------------------ | ---------- | --------- | -------------------- |
-| ADI-2/4 Pro SE   | `x86_64`     | Debian     | `testing ` | `k6.1.0-3-amd64` | `1.0.0`         | :white_check_mark: | 2026-11-05 | @pettarin | Lenovo ThinkPad X260 |
-| ADI-2/4 Pro SE   | `x86_64`     | Volumio OS | `4.239`    |                  | `1.0.0`         | :white_check_mark: | 2026-11-05 | @pettarin | VM in Proxmox VM     |
-| ADI-2/4 Pro SE   | `armhf`      | Volumio OS | `4.239`    |                  | `1.0.0`         | :white_check_mark: | 2026-11-05 | @pettarin | Raspberry Pi 3B+     |
-| ADI-2/4 Pro SE   | `aarch64`    | Volumio OS | `4.239`    |                  | `1.0.0`         | :white_check_mark: | 2026-11-05 | @pettarin | Raspberry Pi 5       |
+| RME ADI-2 Device | Architecture | OS         | OS Version | ALSA Version     | Service Version | Working?           | Date       | Tester     | Notes                |
+| ---------------- | ------------ | ---------- | ---------- | ---------------- | --------------- | ------------------ | ---------- | ---------- | -------------------- |
+| ADI-2/4 Pro SE   | `x86_64`     | Debian     | `testing ` | `k6.1.0-3-amd64` | `1.0.0`         | :white_check_mark: | 2026-11-05 | `pettarin` | Lenovo ThinkPad X260 |
+| ADI-2/4 Pro SE   | `x86_64`     | Volumio OS | `4.239`    |                  | `1.0.0`         | :white_check_mark: | 2026-11-05 | `pettarin` | VM in Proxmox VM     |
+| ADI-2/4 Pro SE   | `armhf`      | Volumio OS | `4.239`    |                  | `1.0.0`         | :white_check_mark: | 2026-11-05 | `pettarin` | Raspberry Pi 3B+     |
+| ADI-2/4 Pro SE   | `aarch64`    | Volumio OS | `4.239`    |                  | `1.0.0`         | :white_check_mark: | 2026-11-05 | `pettarin` | Raspberry Pi 5       |
 
 Notes
 
 - A :white_check_mark: under the `Working?` column means that
-  the service copiles, installs, and is able to control
+  the service compiles, installs, and is able to control
   the mute and volume state of the RME ADI-2 device.
 - The values in the `Architecture` column are output by
   `arch`, `uname -m` or `dpkg --print-architecture` commands.
