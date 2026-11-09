@@ -46,31 +46,31 @@ body:
     id: platform
     attributes:
       label: Platform
-      description: What platform are you using?
-      placeholder: "'PC', 'amd64', 'Raspberry Pi 5', etc."
+      description: What platform are you using? (Run `uname -m` to know.)
+      placeholder: "'amd64', 'arm64', 'PC', 'Raspberry Pi 5', etc."
     validations:
       required: true
   - type: input
     id: os
     attributes:
       label: Operating System
-      description: What operating system are you using?
-      placeholder: "'Any', 'Ubuntu 26.04', 'Debian', 'Volumio OS 4.119', etc."
+      description: What operating system are you using? (Run `lsb_release` -a to know.)
+      placeholder: "'Ubuntu 26.04', 'Debian', 'Volumio OS 4.119', etc."
     validations:
       required: true
   - type: input
     id: alsa_version
     attributes:
       label: ALSA Version
-      description: What version of ALSA are you using?
-      placeholder: "'Any', 'k6.1.0-3-amd64', etc."
+      description: What version of ALSA are you using? (Run `cat /proc/asound/version` to know.)
+      placeholder: "'k6.1.0-3-amd64', etc."
     validations:
       required: true
   - type: input
     id: service_version
     attributes:
       label: Service Version
-      description: What version of alsa-rme-adi2-volume control are you using?
+      description: What version of alsa-rme-adi2-volume control are you using? (Run `alsa-rme-adi2-volume-control --version` to know.)
       placeholder: "'1.0.0', '1.0.1', 'devel', 'latest', 'main', '<git commit hash>', etc."
     validations:
       required: true
