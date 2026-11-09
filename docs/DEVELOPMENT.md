@@ -356,6 +356,15 @@ The program logic translates each of the relevant ALSA events
 into the appropriate MIDI SysEx call, which is sent
 to the RME ADI-2 device, thus achieving hardware-based
 control of mute and volume state.
+RME documents the MIDI protocol to control their ADI-2 devices
+in a document titled
+["ADI-2 Series Remote MIDI protocol (for developers)"](https://www.rme-audio.de/downloads/adi2remote_midi_protocol.zip)
+that can be freely downloaded from
+[RME Downloads page](https://rme-audio.de/downloads.html)
+by selecting "ADI-2/4 Pro SE" (or another ADI-2 device) -> "Windows" -> "Compatible Software".
+A copy of the 2023-10-01 version of that document
+can be found in the
+[res/ directory](../res/).
 
 The monitor loop terminates whenever the RME ADI-2 device
 is disconnected or the program receives a `SIGTERM` interrupt
