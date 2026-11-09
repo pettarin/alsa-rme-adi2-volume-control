@@ -1,0 +1,84 @@
+name: Suggest a documentation change
+description: File a report suggesting a change to the documentation.
+title: "[Docs]: "
+labels: ["documentation", "docs", "triage"]
+projects: []
+assignees: []
+type: documentation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a change to the documentation!
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the change to the documentation you would like to suggest.
+      placeholder: I would like to have this bit of information described in place X and/or file Y.
+      value: I would like to have this bit of information described in place X and/or file Y.
+    validations:
+      required: true
+  - type: dropdown
+    id: roles
+    attributes:
+      label: Is the documentation change specific to certain roles of alsa-rme-adi2-volume-control? Select one or more options.
+      multiple: true
+      options:
+        - Maintainers
+        - Users
+        - Perspective Users
+        - (any)
+        - (other)
+      default: 3
+    validations:
+      required: true
+  - type: dropdown
+    id: browsers
+    attributes:
+      label: Is the documentation change specific to certain RME ADI-2 devices? Select one or more options.
+      multiple: true
+      options:
+        - ADI-2 DAC
+        - ADI-2 Pro
+        - ADI-2/4 Pro
+        - (any)
+        - (other)
+      default: 3
+    validations:
+      required: true
+  - type: textarea
+    id: platform
+    attributes:
+      label: Platform
+      description: Is the documentation change specific to a platform (PC, Raspberry Pi, etc.)? If so, please specify it.
+      placeholder: "'Any' or 'amd64' or 'Raspberry Pi 5' etc."
+      value: Any
+    validations:
+      required: false
+  - type: textarea
+    id: os
+    attributes:
+      label: Operating System
+      description: Is the documentation change specific to a certain operating systems? If so, please specify it.
+      placeholder: "'Any' or 'Ubuntu 26.04' or 'Debian' or 'Volumio OS 4.119' etc."
+      value: Any
+    validations:
+      required: false
+  - type: textarea
+    id: os
+    attributes:
+      label: Operating System
+      description: Is the documentation change specific to a certain ALSA version? If so, please specify it.
+      placeholder: "'Any' or 'k6.1.0-3-amd64' etc."
+      value: Any
+    validations:
+      required: false
+  - type: checkboxes
+    id: agreetococ
+    attributes:
+      label: Code Of Conduct
+      description: By submitting this report, you agree to follow the [Code of Conduct of alsa-rme-adi2-volume-control](https://github.com/pettarin/alsa-rme-adi2-volume-control?tab=coc-ov-file).
+      options:
+        - label: I agree to follow the Code of Conduct of alsa-rme-adi2-volume-control
+          required: true
