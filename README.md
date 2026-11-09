@@ -95,7 +95,7 @@ and the same MIDI interface for setting mute/volume parameters.
 > but keep in mind that they have not been tested directly by the author.
 >
 > Refer to the
-> [Tested Hardware/Software Configurations](docs/TESTED_CONFIGURATIONS)
+> [Tested Hardware/Software Configurations](docs/TESTED_CONFIGURATIONS.md)
 > document for details.
 
 
@@ -196,7 +196,7 @@ alsamixer
 
 The list of releases and their changes is contained
 in the
-[CHANGELOG](https://github.com/pettarin/alsa-rme-adi2-volume-control/blob/main/docs/CHANGELOG.md)
+[CHANGELOG](docs/CHANGELOG.md)
 document.
 
 
@@ -206,7 +206,7 @@ This project is licensed under
 the GNU General Public License v3.0 (GPLv3).
 
 See the
-[LICENSE](https://github.com/pettarin/alsa-rme-adi2-volume-control/blob/main/LICENSE)
+[LICENSE](LICENSE)
 file for details.
 
 
