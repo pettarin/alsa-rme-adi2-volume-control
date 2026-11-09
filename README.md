@@ -88,15 +88,15 @@ since they share the same RME device ID
 and the same MIDI interface for setting mute/volume parameters.
 
 > [!WARNING]
-> The author tested the service with an RME ADI-2/4 Pro SE device,
-> on the following OS/platforms:
-> - Debian testing on a Lenovo Thinkpad X260 (`x86_64`);
-> - Raspberry Pi OS 13 (trixie) 64-bit on a Raspberry Pi 5 (`aarch64`);
-> - Volumio 4.119 on a Raspberry Pi 3B+ (`armv7l`);
-> - Volumio 4.239 on a Raspberry Pi 5 (`aarch64` but actually `arm` 32-bit).
+> The author owns an RME ADI-2/4 Pro SE device, and the service
+> has been extensively tested with it on different platforms.
+> Given the design of the RME ADI-2 MIDI protocol,
+> other RME ADI-2 devices should work out-of-the-box,
+> but keep in mind that they have not been tested directly by the author.
 >
-> Other RME ADI-2 devices should work,
-> but mind that they have not been tested directly by the author.
+> Refer to the
+> [Tested Hardware/Software Configurations](docs/TESTED_CONFIGURATIONS)
+> document for details.
 
 
 ## Installation
