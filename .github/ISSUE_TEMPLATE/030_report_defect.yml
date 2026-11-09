@@ -78,9 +78,9 @@ body:
     id: agreetococ
     attributes:
       label: Code Of Conduct
-      description: By submitting this report, you agree to follow the [Code of Conduct of dolfin](https://github.com/pettarin/dolfin?tab=coc-ov-file).
+      description: By submitting this report, you agree to follow the [Code of Conduct of alsa-rme-adi2-volume-control](https://github.com/pettarin/alsa-rme-adi2-volume-control?tab=coc-ov-file).
       options:
-        - label: I agree to follow the Code of Conduct of dolfin
+        - label: I agree to follow the Code of Conduct of alsa-rme-adi2-volume-control
           required: true
   - type: upload
     id: screenshotsorvideos
