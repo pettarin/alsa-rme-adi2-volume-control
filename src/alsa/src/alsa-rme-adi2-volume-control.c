@@ -78,6 +78,7 @@ typedef struct {
     int bListDeviceIDs;
     int bListDeviceNames;
     int bListMIDIDevices;
+    int bPrintExitCodes;
     int bPrintLicense;
     int bPrintUsage;
     int bPrintVersion;
@@ -135,6 +136,7 @@ static ServiceConfiguration gpConfiguration = {
     .bListDeviceIDs = DEFAULT_LIST_DEVICE_IDS,
     .bListDeviceNames = DEFAULT_LIST_DEVICE_NAMES,
     .bListMIDIDevices = DEFAULT_LIST_MIDI_DEVICES,
+    .bPrintExitCodes = DEFAULT_PRINT_EXIT_CODES,
     .bPrintLicense = DEFAULT_PRINT_LICENSE,
     .bPrintUsage = DEFAULT_PRINT_USAGE,
     .bPrintVersion = DEFAULT_PRINT_VERSION,
@@ -1424,7 +1426,7 @@ static int monitor_loop(
              * If run by systemd, a new execution can be attempted,
              * in case the ALSA card returns available later. */
             log_error("The ALSA card was disconnected");
-            return ERR_ERROR_SOUND_CARD_DISCONNECTED;
+            return ERR_ERROR_CARD_DISCONNECTED;
         }
         if (!(usRevents & POLLIN)) {
             /* no data to be read:
@@ -1735,6 +1737,7 @@ static void print_usage(const char *prog) {
     printf("  -C, --card-number INTEGER       Use the ALSA card with the given number; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones\n");
     printf("  -d, --device-name STRING        RME device name (case sensitive, default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
     printf("  -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones\n");
+    printf("      --exit-codes                Print the exit codes\n");
     printf("  -h, --help                      Print this help\n");
     printf("      --license                   Print the license\n");
     printf("  -k, --line12-switch INTEGER     Initial state for line output 1/2 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stLine12.bStartupSwitch);
@@ -1765,6 +1768,21 @@ static void print_usage(const char *prog) {
     printf("  %s --card-number 1 --device-id 0x%02X --line12-min-db -25.0 --line12-max-db 0.0 --line12-volume 70 --line12-switch 1 --no-phones34\n", prog, RME_DEVICE_FAMILY_ADI24_PRO);
 }
 
+static void print_exit_codes() {
+    printf("Code\tDescription\n");
+    printf("%d\t%s\n", EXIT_OK,                            "Generic success code");
+    printf("%d\t%s\n", EXIT_ERROR_GENERIC,                 "Generic failure or unspecified error");
+    printf("%d\t%s\n", EXIT_ERROR_INVALID_ARGUMENTS,       "Invalid or excess arguments");
+    printf("%d\t%s\n", EXIT_ERROR_CANNOT_FIND_CARD,        "Cannot find ALSA card");
+    printf("%d\t%s\n", EXIT_ERROR_CANNOT_OPEN_CARD,        "Cannot open ALSA card");
+    printf("%d\t%s\n", EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE, "Cannot find MIDI device");
+    printf("%d\t%s\n", EXIT_ERROR_CANNOT_OPEN_MIDI_DEVICE, "Cannot open MIDI device");
+    printf("%d\t%s\n", EXIT_ERROR_CANNOT_ADD_CONTROL,      "Cannot add controls to ALSA card");
+    printf("%d\t%s\n", EXIT_ERROR_GENERIC_IN_MONITOR_LOOP, "Generic error in monitor loop");
+    printf("%d\t%s\n", EXIT_ERROR_EVENT_POLL,              "Event poll error in monitor loop");
+    printf("%d\t%s\n", EXIT_ERROR_CARD_DISCONNECTED,       "ALSA card disconnected");
+}
+
 static void print_version(const char *prog) {
     printf("%s %s (build %s)\n", prog, PROGRAM_VERSION, PROGRAM_BUILD_DATE);
 }
@@ -1793,6 +1811,7 @@ static int parse_args(int argc, char *argv[]) {
         {"card-number",          required_argument, 0, 'C'},
         {"device-id",            required_argument, 0, 'D'},
         {"device-name",          required_argument, 0, 'd'},
+        {"exit-codes",           no_argument,       0, 'E'},    /* the short form is not public */
         {"help",                 no_argument,       0, 'h'},
         {"license",              no_argument,       0, 'R'},
         {"line12-max-db",        required_argument, 0, 'L'},
@@ -1823,7 +1842,7 @@ static int parse_args(int argc, char *argv[]) {
         (opt = getopt_long(
             argc,
             argv,
-            "C:d:D:hk:K:l:L:M:o:O:p:P:QRSTuUvVXYZ",
+            "C:d:D:Ehk:K:l:L:M:o:O:p:P:QRSTuUvVXYZ",
             long_opts,
             NULL
         )) != -1
@@ -1839,6 +1858,9 @@ static int parse_args(int argc, char *argv[]) {
             case 'D':
                 gpConfiguration.iDeviceID = (int)strtol(optarg, NULL, 0);
                 bDeviceIDWasSet = BOOL_TRUE;
+                break;
+            case 'E':
+                gpConfiguration.bPrintExitCodes = BOOL_TRUE;
                 break;
             case 'h':
                 gpConfiguration.bPrintUsage = BOOL_TRUE;
@@ -1977,6 +1999,14 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
+    /* Print the usage and exit */
+    if (BOOL_IS_TRUE(gpConfiguration.bPrintUsage)) {
+        gpConfiguration.bVerboseLog = BOOL_FALSE;
+        print_usage(argv[0]);
+        iExitCode = EXIT_OK;
+        goto cleanup;
+    }
+
     /* Print the version and exit */
     if (BOOL_IS_TRUE(gpConfiguration.bPrintVersion)) {
         gpConfiguration.bVerboseLog = BOOL_FALSE;
@@ -1985,18 +2015,18 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
-    /* Print the usage and exit */
-    if (BOOL_IS_TRUE(gpConfiguration.bPrintLicense)) {
+    /* Print the exit codes and exit */
+    if (BOOL_IS_TRUE(gpConfiguration.bPrintExitCodes)) {
         gpConfiguration.bVerboseLog = BOOL_FALSE;
-        print_license();
+        print_exit_codes();
         iExitCode = EXIT_OK;
         goto cleanup;
     }
 
-    /* Print the usage and exit */
-    if (BOOL_IS_TRUE(gpConfiguration.bPrintUsage)) {
+    /* Print the license and exit */
+    if (BOOL_IS_TRUE(gpConfiguration.bPrintLicense)) {
         gpConfiguration.bVerboseLog = BOOL_FALSE;
-        print_usage(argv[0]);
+        print_license();
         iExitCode = EXIT_OK;
         goto cleanup;
     }
@@ -2135,8 +2165,8 @@ int main(int argc, char *argv[]) {
             case ERR_ERROR_EVENT_POLL:
                 iExitCode = EXIT_ERROR_EVENT_POLL;
                 break;
-            case ERR_ERROR_SOUND_CARD_DISCONNECTED:
-                iExitCode = EXIT_ERROR_SOUND_CARD_DISCONNECTED;
+            case ERR_ERROR_CARD_DISCONNECTED:
+                iExitCode = EXIT_ERROR_CARD_DISCONNECTED;
                 break;
             default:
                 iExitCode = EXIT_ERROR_GENERIC_IN_MONITOR_LOOP;

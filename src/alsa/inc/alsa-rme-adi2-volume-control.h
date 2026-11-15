@@ -38,7 +38,7 @@
 #define ERR_OK                                      0
 #define ERR_ERROR_GENERIC                           (-1)
 #define ERR_ERROR_EVENT_POLL                        (-2)
-#define ERR_ERROR_SOUND_CARD_DISCONNECTED           (-3)
+#define ERR_ERROR_CARD_DISCONNECTED                 (-3)
 #define ERR_CODE_IS_OK(x)                           ((x) == ERR_OK)
 #define ERR_CODE_IS_ERROR(x)                        (! ERR_CODE_IS_OK(x))
 
@@ -101,7 +101,7 @@
 #define EXIT_ERROR_CANNOT_ADD_CONTROL               154
 #define EXIT_ERROR_GENERIC_IN_MONITOR_LOOP          155
 #define EXIT_ERROR_EVENT_POLL                       156
-#define EXIT_ERROR_SOUND_CARD_DISCONNECTED          157
+#define EXIT_ERROR_CARD_DISCONNECTED                157
 
 /* ALSA User-defined control elements.
  *
@@ -154,6 +154,7 @@
 #define DEFAULT_LIST_DEVICE_NAMES                   BOOL_FALSE
 #define DEFAULT_LIST_MIDI_DEVICES                   BOOL_FALSE
 #define DEFAULT_MIDI_DEVICE                         MIDI_DEVICE_AUTODETECT
+#define DEFAULT_PRINT_EXIT_CODES                    BOOL_FALSE
 #define DEFAULT_PRINT_LICENSE                       BOOL_FALSE
 #define DEFAULT_PRINT_USAGE                         BOOL_FALSE
 #define DEFAULT_PRINT_VERSION                       BOOL_FALSE
