@@ -14,10 +14,12 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Build types `dbg`, `dbg_asan`, `dbg_tsan`, `dbg_ubsan`, and `rls`
+- Option `--exit-codes` to print the exit codes
 
 ### Changed
 
 - Install script `install.sh` now uses the build type `rls`
+- Service exit codes are now aligned to systemd/LSB semantics
 
 ### Fixed
 

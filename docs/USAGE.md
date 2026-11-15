@@ -4,6 +4,7 @@ Run with `--help` to print the full usage message:
 
 ```bash
 alsa-rme-adi2-volume-control --help
+
 Usage: alsa-rme-adi2-volume-control [options]
 
 Creates ALSA mute and volume controls for RME ADI-2 devices.
@@ -12,6 +13,7 @@ Options:
   -C, --card-number INTEGER       Use the ALSA card with the given number; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones
   -d, --device-name STRING        RME device name (case sensitive, default: 'autodetect'); option --list-device-names prints the supported ones
   -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones
+      --exit-codes                Print the exit codes
   -h, --help                      Print this help
       --license                   Print the license
   -k, --line12-switch INTEGER     Initial state for line output 1/2 (0=muted, 1=unmuted, default: 1)
@@ -55,7 +57,25 @@ Examples:
 
 ```bash
 alsa-rme-adi2-volume-control --version
-alsa-rme-adi2-volume-control 1.0.0 (build 2026-11-04)
+alsa-rme-adi2-volume-control 1.0.1 (build 2026-11-15)
+```
+
+### Print The Exit Codes
+
+```bash
+alsa-rme-adi2-volume-control --exit-codes
+Code    Description
+0       Generic success code
+1       Generic failure or unspecified error
+2       Invalid or excess arguments
+150     Cannot find ALSA card
+151     Cannot open ALSA card
+152     Cannot find MIDI device
+153     Cannot open MIDI device
+154     Cannot add controls to ALSA card
+155     Generic error in monitor loop
+156     Event poll error in monitor loop
+157     ALSA card disconnected
 ```
 
 ### List All Supported Devices
