@@ -20,7 +20,7 @@ add_executable(alsa-rme-adi2-volume-control src/alsa-rme-adi2-volume-control.c)
 if(CMAKE_BUILD_TYPE MATCHES "dbg")
     set(
         CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS} -g"
+        "${CMAKE_C_FLAGS} -g -Werror"
     )
 endif()
 if(CMAKE_BUILD_TYPE MATCHES "dbg_asan")
