@@ -258,7 +258,7 @@ if [[ $FROM_SOURCE -eq 1 ]]; then
     if [[ $COMPILE -eq 1 ]]; then
         echo "[INFO] Compiling service executable from source ..."
         cd "$PROJECT_DIRECTORY_PATH/src/alsa"
-        cmake .
+        cmake -DCMAKE_BUILD_TYPE=rls .
         make
         echo "[INFO] Compiling service executable from source ... done"
 
