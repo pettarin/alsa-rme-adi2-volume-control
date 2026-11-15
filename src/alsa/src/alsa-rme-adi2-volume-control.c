@@ -1187,11 +1187,13 @@ static int init_output_control(
         pOutputParameters->szUDCEVolumeName,
         UDCE_NAME_MAX_LENGTH - 1
     );
+    pOutputControl->szUDCEVolumeName[UDCE_NAME_MAX_LENGTH - 1] = '\0';
     strncpy(
         pOutputControl->szUDCESwitchName,
         pOutputParameters->szUDCESwitchName,
         UDCE_NAME_MAX_LENGTH - 1
     );
+    pOutputControl->szUDCESwitchName[UDCE_NAME_MAX_LENGTH - 1] = '\0';
 
     /* Allocate and create volume UDCE */
     iRet = snd_ctl_elem_id_malloc(&(pOutputControl->pVolumeID));
@@ -1832,6 +1834,7 @@ static int parse_args(int argc, char *argv[]) {
                 break;
             case 'd':
                 strncpy(gpConfiguration.szDeviceName, optarg, DEVICE_NAME_MAX_LENGTH - 1);
+                gpConfiguration.szDeviceName[DEVICE_NAME_MAX_LENGTH - 1] = '\0';
                 break;
             case 'D':
                 gpConfiguration.iDeviceID = (int)strtol(optarg, NULL, 0);
@@ -1854,6 +1857,7 @@ static int parse_args(int argc, char *argv[]) {
                 break;
             case 'M':
                 strncpy(gpConfiguration.szMIDIDevice, optarg, MIDI_DEVICE_MAX_LENGTH - 1);
+                gpConfiguration.szMIDIDevice[MIDI_DEVICE_MAX_LENGTH - 1] = '\0';
                 break;
             case 'o':
                 gpConfiguration.stPhones34.bStartupSwitch = atoi(optarg);
