@@ -26,11 +26,31 @@ endif()
 if(CMAKE_BUILD_TYPE MATCHES "dbg_asan")
     set(
         CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS} -g -Werror -fsanitize=undefined -fsanitize=address"
+        "${CMAKE_C_FLAGS} -g -Werror -fno-omit-frame-pointer -fsanitize=address"
     )
     target_link_options(
         alsa-rme-adi2-volume-control
-        BEFORE PUBLIC -fsanitize=undefined PUBLIC -fsanitize=address
+        PUBLIC -fno-omit-frame-pointer -fsanitize=address
+    )
+endif()
+if(CMAKE_BUILD_TYPE MATCHES "dbg_tsan")
+    set(
+        CMAKE_C_FLAGS
+        "${CMAKE_C_FLAGS} -g -Werror -fsanitize=thread"
+    )
+    target_link_options(
+        alsa-rme-adi2-volume-control
+        PUBLIC -fsanitize=thread
+    )
+endif()
+if(CMAKE_BUILD_TYPE MATCHES "dbg_ubsan")
+    set(
+        CMAKE_C_FLAGS
+        "${CMAKE_C_FLAGS} -g -Werror -fsanitize=undefined"
+    )
+    target_link_options(
+        alsa-rme-adi2-volume-control
+        PUBLIC -fsanitize=undefined
     )
 endif()
 if(CMAKE_BUILD_TYPE MATCHES "rls")

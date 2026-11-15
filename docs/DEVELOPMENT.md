@@ -141,6 +141,8 @@ The following build types are available:
 
 - `dbg`: debug;
 - `dbg_asan`: debug with address sanitizer;
+- `dbg_tsan`: debug with thread sanitizer;
+- `dbg_ubsan`: debug with undefined behavior sanitizer;
 - `rls`: release.
 
 The executable is written to `src/alsa/bin/alsa-rme-adi2-volume-control`.
