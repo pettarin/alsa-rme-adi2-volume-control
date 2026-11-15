@@ -9,23 +9,20 @@ All notable changes to this project will be documented in this file.
 > [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [1.0.1] - DEVEL
+## [1.0.1] - 2026-11-15
 
 ### Added
 
-- TODO (or delete this subsection)
+- Build types `dbg`, `dbg_asan`, and `rls`
 
 ### Changed
 
-- TODO (or delete this subsection)
+- Install script `install.sh` now uses the build type `rls`
 
 ### Fixed
 
-- TODO (or delete this subsection)
-
-### Removed
-
-- TODO (or delete this subsection)
+- A potential heap-buffer-overflow in `strnstr()` own reimplementation
+- A pedantic warning about potentially truncated `strncpy`-ed buffers
 
 
 ## [1.0.0] - 2026-11-05

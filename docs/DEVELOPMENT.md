@@ -133,9 +133,15 @@ sudo apt install gcc cmake make libasound2-dev pkg-config
 
 ```bash
 cd src/alsa
-cmake .
+cmake -DCMAKE_BUILD_TYPE=dbg .
 make
 ```
+
+The following build types are available:
+
+- `dbg`: debug;
+- `dbg_asan`: debug with address sanitizer;
+- `rls`: release.
 
 The executable is written to `src/alsa/bin/alsa-rme-adi2-volume-control`.
 
