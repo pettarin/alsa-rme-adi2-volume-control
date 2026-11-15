@@ -47,19 +47,61 @@
 #define ERR_ALSA_CODE_IS_OK(x)                      ((x) == ERR_ALSA_OK)
 #define ERR_ALSA_CODE_IS_ERROR(x)                   ((x) < ERR_ALSA_OK)
 
-/* Exit codes for the whole service (0 OK, >1 error) */
-#define EXIT_OK                                     0
-#define EXIT_ERROR_GENERIC                          1
-#define EXIT_ERROR_USAGE_BAD_OPTION                 2
-#define EXIT_ERROR_USAGE_BAD_VALUE                  3
-#define EXIT_ERROR_CANNOT_FIND_CARD                 4
-#define EXIT_ERROR_CANNOT_OPEN_CARD                 5
-#define EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE          6
-#define EXIT_ERROR_CANNOT_OPEN_MIDI_DEVICE          7
-#define EXIT_ERROR_CANNOT_ADD_CONTROL               8
-#define EXIT_ERROR_GENERIC_IN_MONITOR_LOOP          9
-#define EXIT_ERROR_EVENT_POLL                       10
-#define EXIT_ERROR_SOUND_CARD_DISCONNECTED          11
+/* Exit codes from the systemd and LSB specifications, see
+ * https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#Process%20Exit%20Codes
+ * and
+ * https://refspecs.linuxbase.org/LSB_5.0.0/LSB-Core-generic/LSB-Core-generic/iniscrptact.html */
+
+/* generic success code */
+#ifndef EXIT_SUCCESS
+#define EXIT_SUCCESS                                0
+#endif
+/* generic failure or unspecified error */
+#ifndef EXIT_FAILURE
+#define EXIT_FAILURE                                1
+#endif
+/* invalid or excess arguments */
+#ifndef EXIT_INVALIDARGUMENT
+#define EXIT_INVALIDARGUMENT                        2
+#endif
+/* unimplemeted feature */
+#ifndef EXIT_NOTIMPLEMENTED
+#define EXIT_NOTIMPLEMENTED                         3
+#endif
+/* the user has insufficient privileges */
+#ifndef EXIT_NOPERMISSION
+#define EXIT_NOPERMISSION                           4
+#endif
+/* the program is not installed */
+#ifndef EXIT_NOTINSTALLED
+#define EXIT_NOTINSTALLED                           5
+#endif
+/* the program is not configured */
+#ifndef EXIT_NOTCONFIGURED
+#define EXIT_NOTCONFIGURED                          6
+#endif
+/* the program is not running */
+#ifndef EXIT_NOTRUNNING
+#define EXIT_NOTRUNNING                             7
+#endif
+/* codes 8-99 are reserved for future LSB use */
+/* codes 100-149 are reserved for distribution use */
+/* codes 150-199 are reserved for application use */
+/* codes 200-254 are reserved */
+
+/* Exit codes for the whole service (0 OK, >1 error);
+ * only these symbolic names must be used in the program source code */
+#define EXIT_OK                                     EXIT_SUCCESS
+#define EXIT_ERROR_GENERIC                          EXIT_FAILURE
+#define EXIT_ERROR_INVALID_ARGUMENTS                EXIT_INVALIDARGUMENT
+#define EXIT_ERROR_CANNOT_FIND_CARD                 150
+#define EXIT_ERROR_CANNOT_OPEN_CARD                 151
+#define EXIT_ERROR_CANNOT_FIND_MIDI_DEVICE          152
+#define EXIT_ERROR_CANNOT_OPEN_MIDI_DEVICE          153
+#define EXIT_ERROR_CANNOT_ADD_CONTROL               154
+#define EXIT_ERROR_GENERIC_IN_MONITOR_LOOP          155
+#define EXIT_ERROR_EVENT_POLL                       156
+#define EXIT_ERROR_SOUND_CARD_DISCONNECTED          157
 
 /* ALSA User-defined control elements.
  *

@@ -1905,36 +1905,36 @@ static int parse_args(int argc, char *argv[]) {
                 gpConfiguration.bListDeviceNames = BOOL_TRUE;
                 break;
             default:
-                return EXIT_ERROR_USAGE_BAD_OPTION;
+                return EXIT_ERROR_INVALID_ARGUMENTS;
         } /* end switch opt */
     } /* end while opt */
 
     if (BOOL_IS_FALSE(validate_no_output_options())) {
-        return EXIT_ERROR_USAGE_BAD_OPTION;
+        return EXIT_ERROR_INVALID_ARGUMENTS;
     }
 
     if (BOOL_IS_FALSE(validate_device_name())) {
-        return EXIT_ERROR_USAGE_BAD_VALUE;
+        return EXIT_ERROR_INVALID_ARGUMENTS;
     }
 
     if (BOOL_IS_FALSE(validate_device_id(bDeviceIDWasSet))) {
-        return EXIT_ERROR_USAGE_BAD_VALUE;
+        return EXIT_ERROR_INVALID_ARGUMENTS;
     }
 
     if (BOOL_IS_FALSE(validate_midi_device())) {
-        return EXIT_ERROR_USAGE_BAD_VALUE;
+        return EXIT_ERROR_INVALID_ARGUMENTS;
     }
 
     if (BOOL_IS_FALSE(validate_min_max_db_values())) {
-        return EXIT_ERROR_USAGE_BAD_VALUE;
+        return EXIT_ERROR_INVALID_ARGUMENTS;
     }
 
     if (BOOL_IS_FALSE(validate_initial_volume_values())) {
-        return EXIT_ERROR_USAGE_BAD_VALUE;
+        return EXIT_ERROR_INVALID_ARGUMENTS;
     }
 
     if (BOOL_IS_FALSE(validate_initial_switch_values())) {
-        return EXIT_ERROR_USAGE_BAD_VALUE;
+        return EXIT_ERROR_INVALID_ARGUMENTS;
     }
 
     return ERR_OK;
