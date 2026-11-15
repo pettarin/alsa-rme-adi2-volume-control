@@ -194,7 +194,7 @@ static char *strnstr(const char *haystack, const char *needle, size_t len) {
         return (char *)haystack;
     }
     while (len >= needle_len && *haystack) {
-        if (memcmp(haystack, needle, needle_len) == 0) {
+        if (strncmp(haystack, needle, needle_len) == 0) {
             return (char *)haystack;
         }
         haystack++;
