@@ -58,18 +58,49 @@
 #define RME_VALUE_MUTE_OFF              0x00
 #define RME_VALUE_MUTE_ON               0x01
 
+/* RME parameter containers (3 bytes each), as sent by the device:
+ *
+ * byte 1: output (RME_PARAM_LINE or RME_PARAM_PHONES)
+ * byte 2: bits 6..5 select the parameter (volume or mute),
+ *         bits 4..0 are the upper 5 bits of the value
+ * byte 3: lower 7 bits of the value
+ *
+ * The value is a 12-bit two's complement integer;
+ * for the volume, it is expressed in tenths of dB. */
+#define RME_PARAM_CONTAINER_LENGTH      3
+#define RME_PARAM_SELECTOR_MASK         0x60
+#define RME_PARAM_VOLUME                0x00
+#define RME_PARAM_VALUE_HIGH_MASK       0x1F
+#define RME_PARAM_VALUE_LOW_MASK        0x7F
+
 /* RME SysEx constants */
 #define RME_SYSEX_START                 0xF0
 #define RME_SYSEX_MANUFACTURER_ID_0     0x00        /* RME manufacturer ID spans 3 bytes */
 #define RME_SYSEX_MANUFACTURER_ID_1     0x20
 #define RME_SYSEX_MANUFACTURER_ID_2     0x0D
-#define RME_SYSEX_COMMAND_SET           0x02
-#define RME_SYSEX_COMMAND_GET           0x03
+#define RME_SYSEX_COMMAND_PARAMETERS    0x01        /* device -> remote: parameter(s) in 3-byte containers */
+#define RME_SYSEX_COMMAND_SET           0x02        /* remote -> device: parameter(s) in 3-byte containers */
+#define RME_SYSEX_COMMAND_GET           0x03        /* remote -> device: request, followed by a request code */
+#define RME_SYSEX_REQUEST_ALL_SETTINGS  0x09        /* request code: send all settings */
 #define RME_SYSEX_END                   0xF7
+#define RME_SYSEX_REALTIME_MIN          0xF8        /* MIDI real-time bytes (>= 0xF8) can be interleaved in a SysEx */
+#define RME_SYSEX_STATUS_BIT            0x80        /* any other byte with this bit set is not SysEx payload */
+#define RME_SYSEX_HEADER_LENGTH         6           /* start + manufacturer ID (3 bytes) + device ID + command */
+#define RME_SYSEX_MAX_LENGTH            256         /* max length, in bytes, of a SysEx message sent by the device */
 
-/* RME volume min/max values */
-#define RME_VALUE_VOLUME_MIN_DB         (-93.8)
-#define RME_VALUE_VOLUME_MIN            3158        /* 3158 == -93.8 * 10 + 4096 */
+/* RME volume min/max values.
+ *
+ * The MIDI protocol table published by RME lists -114.5 dB
+ * as the minimum volume (RME_PROTOCOL_VOLUME_MIN_DB), noting that
+ * lower volumes are set "in resolution related steps".
+ * However, the lowest volume actually reported by the device
+ * (observed on line 1/2 of an ADI-2/4 Pro SE, with the volume knob
+ * turned all the way down) is -96.5 dB: this is the value used
+ * as the minimum when validating and sending volume values.
+ * RME_PROTOCOL_VOLUME_MIN_DB is defined for reference only. */
+#define RME_PROTOCOL_VOLUME_MIN_DB      (-114.5)
+#define RME_VALUE_VOLUME_MIN_DB         (-96.5)
+#define RME_VALUE_VOLUME_MIN            3131        /* 3131 == -96.5 * 10 + 4096 */
 #define RME_VALUE_VOLUME_MAX_DB         (6.0)
 #define RME_VALUE_VOLUME_MAX            4156        /* 4156 == 6.0 * 10 + 4096 */
 

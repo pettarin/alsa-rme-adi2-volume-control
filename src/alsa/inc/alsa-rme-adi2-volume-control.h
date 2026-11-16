@@ -24,8 +24,8 @@
 #define ALSA_RME_ADI2_VOLUME_CONTROL_H
 
 /* Program version */
-#define PROGRAM_VERSION                             "1.0.1"
-#define PROGRAM_BUILD_DATE                          "2026-11-15"
+#define PROGRAM_VERSION                             "2.0.0"
+#define PROGRAM_BUILD_DATE                          "2026-11-16"
 
 /* Boolean values */
 #define BOOL_FALSE                                  0
@@ -127,6 +127,9 @@
 #define MIDI_DEVICE_PROBE_MIN_INDEX                 0                           /* Min index for MIDI device/subdevice to probe, included */
 #define MIDI_DEVICE_PROBE_MAX_INDEX                 9                           /* Max index for MIDI device/subdevice to probe, included */
 #define UDCE_NAME_MAX_LENGTH                        128                         /* Max length, in bytes, of an ALSA user-defined control element */
+#define SYSEX_PARSER_BUFFER_LENGTH                  (2 * RME_SYSEX_MAX_LENGTH)  /* Length, in bytes, of the buffer used to parse SysEx messages from the device */
+#define MIDI_READ_BUFFER_LENGTH                     256                         /* Length, in bytes, of the buffer used to read from the MIDI device */
+#define GET_INITIAL_STATE_TIMEOUT_MS                2000                        /* Max time, in ms, to wait for the device to report its initial state */
 
 /* Volume ranges for the ALSA user-defined control elements */
 #define VOL_MIN                                     0                           /* Min volume for the ALSA user-defined control elements */
@@ -149,6 +152,7 @@
 #define DEFAULT_CARD_NUMBER                         CARD_NUMBER_NOT_SET
 #define DEFAULT_DEVICE_ID                           DEVICE_ID_NOT_SET
 #define DEFAULT_DEVICE_NAME                         DEVICE_NAME_AUTODETECT
+#define DEFAULT_GET_INITIAL_VOLUME_FROM_DEVICE      BOOL_FALSE
 #define DEFAULT_LIST_CARDS                          BOOL_FALSE
 #define DEFAULT_LIST_DEVICE_IDS                     BOOL_FALSE
 #define DEFAULT_LIST_DEVICE_NAMES                   BOOL_FALSE
@@ -158,19 +162,20 @@
 #define DEFAULT_PRINT_LICENSE                       BOOL_FALSE
 #define DEFAULT_PRINT_USAGE                         BOOL_FALSE
 #define DEFAULT_PRINT_VERSION                       BOOL_FALSE
+#define DEFAULT_SYNC_STATE                          BOOL_FALSE
 #define DEFAULT_UNINSTALL                           BOOL_FALSE
 #define DEFAULT_UNINSTALL_ON_EXIT                   BOOL_TRUE
 #define DEFAULT_VERBOSE_LOG                         BOOL_FALSE
 
 #define DEFAULT_LINE12_CONTROL                      BOOL_TRUE                   /* Default value of the line 1/2 output control: true (create) or false (do not create) */
-#define DEFAULT_LINE12_STARTUP_VOLUME_VALUE         50                          /* Default statup volume for line 1/2 output (50 == 50% of [0, 100]); use -1 to read device state */
-#define DEFAULT_LINE12_STARTUP_SWITCH_VALUE         BOOL_TRUE                   /* Default value of the line 1/2 output switch: true (mute off) or false (mute on); use -1 to read device state */
+#define DEFAULT_LINE12_STARTUP_VOLUME_VALUE         50                          /* Default statup volume for line 1/2 output (50 == 50% of [0, 100]); ignored if the initial state is read from the device */
+#define DEFAULT_LINE12_STARTUP_SWITCH_VALUE         BOOL_TRUE                   /* Default value of the line 1/2 output switch: true (mute off) or false (mute on); ignored if the initial state is read from the device */
 #define DEFAULT_LINE12_VOLUME_MAX_DB                (-10.0)                     /* Default max volume, in dB, for line 1/2 output */
 #define DEFAULT_LINE12_VOLUME_MIN_DB                (-60.0)                     /* Default min volume, in dB, for line 1/2 output */
 
 #define DEFAULT_PHONES34_CONTROL                    BOOL_TRUE                   /* Default value of the phones 3/4 output control: true (create) or false (do not create) */
-#define DEFAULT_PHONES34_STARTUP_VOLUME_VALUE       50                          /* Default statup volume for phones 3/4 output (50 == 50% of [0, 100]); use -1 to read device state */
-#define DEFAULT_PHONES34_STARTUP_SWITCH_VALUE       BOOL_TRUE                   /* Default value of the phones 3/4 output switch: true (mute off) or false (mute on); use -1 to read device state */
+#define DEFAULT_PHONES34_STARTUP_VOLUME_VALUE       50                          /* Default statup volume for phones 3/4 output (50 == 50% of [0, 100]); ignored if the initial state is read from the device */
+#define DEFAULT_PHONES34_STARTUP_SWITCH_VALUE       BOOL_TRUE                   /* Default value of the phones 3/4 output switch: true (mute off) or false (mute on); ignored if the initial state is read from the device */
 #define DEFAULT_PHONES34_VOLUME_MAX_DB              (-10.0)                     /* Default max volume, in dB, for phones 3/4 output */
 #define DEFAULT_PHONES34_VOLUME_MIN_DB              (-60.0)                     /* Default min volume, in dB, for phones 3/4 output */
 
