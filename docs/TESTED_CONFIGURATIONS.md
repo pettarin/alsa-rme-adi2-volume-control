@@ -5,6 +5,11 @@ that have been tested working (or not):
 
 | RME ADI-2 Device | Architecture (2) | OS              | OS Version          | ALSA Version (3) | Service Version (4) | Working? (1)       | Date       | Tester     | Notes                |
 | ---------------- | ---------------- | --------------- | ------------------- | ---------------- | ------------------- | ------------------ | ---------- | ---------- | -------------------- |
+| ADI-2/4 Pro SE   | `aarch64`        | Raspberry Pi OS | `trixie 2026-10-06` |                  | `1.0.1`             | :white_check_mark: | 2026-11-15 | `pettarin` | Raspberry Pi 5       |
+| ADI-2/4 Pro SE   | `aarch64` (5)    | Volumio OS      | `4.245`             |                  | `1.0.1`             | :white_check_mark: | 2026-11-15 | `pettarin` | Raspberry Pi 5       |
+| ADI-2/4 Pro SE   | `armhf`   (5)    | Volumio OS      | `4.239`             |                  | `1.0.1`             | :white_check_mark: | 2026-11-15 | `pettarin` | Raspberry Pi 3B+     |
+| ADI-2/4 Pro SE   | `x86_64`         | Debian          | `testing`           | `k6.1.0-3-amd64` | `1.0.1`             | :white_check_mark: | 2026-11-15 | `pettarin` | Lenovo ThinkPad X260 |
+| ADI-2/4 Pro SE   | `x86_64`         | Volumio OS      | `4.239`             |                  | `1.0.1`             | :white_check_mark: | 2026-11-15 | `pettarin` | VM in Proxmox VM     |
 | ADI-2/4 Pro SE   | `aarch64`        | Raspberry Pi OS | `trixie 2026-10-06` |                  | `1.0.0`             | :white_check_mark: | 2026-11-05 | `pettarin` | Raspberry Pi 5       |
 | ADI-2/4 Pro SE   | `aarch64` (5)    | Volumio OS      | `4.239`             |                  | `1.0.0`             | :white_check_mark: | 2026-11-05 | `pettarin` | Raspberry Pi 5       |
 | ADI-2/4 Pro SE   | `armhf`   (5)    | Volumio OS      | `4.239`             |                  | `1.0.0`             | :white_check_mark: | 2026-11-05 | `pettarin` | Raspberry Pi 3B+     |
