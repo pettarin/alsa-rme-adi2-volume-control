@@ -485,7 +485,7 @@ static int ensure_card_number_is_set() {
             bCardFound = find_card_and_set_configuration_rme_adi2_pro();
             break;
         case RME_DEVICE_FAMILY_ADI2_DAC:
-            bCardFound = find_card_and_set_configuration_rme_adi2_pro();
+            bCardFound = find_card_and_set_configuration_rme_adi2_dac();
             break;
         default:
             log_verbose(
