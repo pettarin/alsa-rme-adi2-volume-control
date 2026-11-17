@@ -24,8 +24,8 @@
 #define ALSA_RME_ADI2_VOLUME_CONTROL_H
 
 /* Program version */
-#define PROGRAM_VERSION                             "1.0.1"
-#define PROGRAM_BUILD_DATE                          "2026-11-15"
+#define PROGRAM_VERSION                             "1.0.2"
+#define PROGRAM_BUILD_DATE                          "2026-11-18"
 
 /* Boolean values */
 #define BOOL_FALSE                                  0
