@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- A defect that prevented ADI-2 DAC devices to be autodetected
 - Some minor issues in error and cleanup execution paths, and logging
 
 
