@@ -11,13 +11,9 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.2] - To Be Released
 
-### Added
-
-### Changed
-
 ### Fixed
 
-### Removed
+- Some minor issues in error and cleanup execution paths, and logging
 
 
 ## [1.0.1] - 2026-11-15

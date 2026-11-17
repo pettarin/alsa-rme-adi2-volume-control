@@ -256,7 +256,7 @@ static int find_card_by_name(const char *szQuery) {
         );
 
         /* NOTE: matching szQuery as substring of szCardName */
-        if (strnstr(szCardName, szQuery, CARD_NAME_MAX_LENGTH) != NULL) {
+        if (strnstr(szCardName, szQuery, DEVICE_NAME_MAX_LENGTH) != NULL) {
             log_verbose(
                 "ALSA card number '%d' with name '%s' "
                 "matches the query '%s': returning it",
@@ -300,6 +300,7 @@ static int find_card_and_set_configuration(
         szDeviceName,
         DEVICE_NAME_MAX_LENGTH - 1
     );
+    gpConfiguration.szDeviceName[DEVICE_NAME_MAX_LENGTH - 1] = '\0';
     log_verbose(
         "Found ALSA card number '%d' for device ID '0x%02X' (%s)",
         iCardNumber,
@@ -556,7 +557,7 @@ static void uninstall_all_alsa_udce_s(snd_ctl_t *ctl) {
         }
     }
     log_verbose(
-        "Removed %d out of %d user-defined control element(s)",
+        "Removed %d out of %zu user-defined control element(s)",
         iRemovedCount,
         cCount
     );
@@ -660,18 +661,6 @@ static int install_control_element(
     iRet = ERR_OK;
 
 cleanup:
-    if (ERR_CODE_IS_ERROR(iRet)) {
-        /* NOTE: call the snd_ctl_elem_*_free() only in case of errors,
-         *       otherwise the removal of the control elements
-         *       during the cleanup of the main()
-         *       will produce a double-free! */
-        if (value) {
-            snd_ctl_elem_value_free(value);
-        }
-        if (info) {
-            snd_ctl_elem_info_free(info);
-        }
-    }
     return iRet;
 }
 
@@ -1356,7 +1345,8 @@ static int monitor_loop(
     OutputControl *pOutputControls[],
     size_t cOutputControls
 ) {
-    int iCount = 0;
+    int iPollDescriptorsCount = 0;
+    int iPollDescriptorsReadCount = 0;
     int iRet = ERR_OK;
     int iVolumeNewValue = 0;
     int bSwitchNewValue = 0;
@@ -1375,13 +1365,22 @@ static int monitor_loop(
     }
 
     /* Get poll descriptors */
-    iCount = snd_ctl_poll_descriptors_count(ctl);
-    if (iCount <= 0) {
-        log_error("Invalid poll descriptor count: %d", iCount);
+    iPollDescriptorsCount = snd_ctl_poll_descriptors_count(ctl);
+    if (iPollDescriptorsCount < 1) {
+        log_error("Invalid poll descriptor count: %d", iPollDescriptorsCount);
         return ERR_ERROR_GENERIC;
     }
-    struct pollfd pfd[iCount];
-    snd_ctl_poll_descriptors(ctl, pfd, iCount);
+    struct pollfd pPollDescriptors[iPollDescriptorsCount];
+    memset(pPollDescriptors, 0, sizeof(pPollDescriptors));
+    iPollDescriptorsReadCount = snd_ctl_poll_descriptors(ctl, pPollDescriptors, iPollDescriptorsCount);
+    if (iPollDescriptorsReadCount != iPollDescriptorsCount) {
+        log_error(
+            "Not all poll descriptors were read. Expected '%d' but got '%d'.",
+            iPollDescriptorsCount,
+            iPollDescriptorsReadCount
+        );
+        return ERR_ERROR_GENERIC;
+    }
 
     /* Send initial state */
     for (size_t i = 0; i < cOutputControls; i++) {
@@ -1404,7 +1403,7 @@ static int monitor_loop(
     while (BOOL_IS_TRUE(gbServiceIsRunning)) {
 
         /* Wait for the next event or signal */
-        iRet = poll(pfd, iCount, -1);
+        iRet = poll(pPollDescriptors, iPollDescriptorsCount, -1);
         if (iRet < 0) {
             /* poll returned an error: inspect errno */
             if (errno == EINTR) {
@@ -1418,7 +1417,12 @@ static int monitor_loop(
         }
 
         /* Check poll result */
-        snd_ctl_poll_descriptors_revents(ctl, pfd, iCount, &usRevents);
+        snd_ctl_poll_descriptors_revents(
+            ctl,
+            pPollDescriptors,
+            iPollDescriptorsCount,
+            &usRevents
+        );
         if (usRevents & (POLLERR | POLLHUP | POLLNVAL)) {
             /* The ALSA card was disconnected and/or powered off:
              * error out so that the service terminates
