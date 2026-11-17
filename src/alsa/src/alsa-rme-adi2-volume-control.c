@@ -993,7 +993,7 @@ static void convert_db_value_to_sysex_bytes(
     }
 
     /* assign to the two byte output arguments */
-    *pchHigh = (raw >> 7) & 0x7F;
+    *pchHigh = (raw >> 7) & 0x1F;
     *pchLow = raw & 0x7F;
 }
 
