@@ -24,6 +24,7 @@
 #include <getopt.h>                         /* for getopt_long() */
 #include <poll.h>                           /* for poll() */
 #include <errno.h>                          /* for errno, EINTR */
+#include <math.h>                           /* for isfinite() */
 #include <alsa/asoundlib.h>                 /* for snd* */
 
 #include "rme-adi2.h"                       /* RME ADI-2 specific constants */
@@ -1694,6 +1695,17 @@ static int validate_min_max_db_values() {
     size_t cCount = sizeof(pstPairs) / sizeof(pstPairs[0]);
 
     for (size_t i = 0; i < cCount; i++) {
+        if (BOOL_IS_TRUE(!isfinite(pstPairs[i].dValue))) {
+            log_error(
+                "Invalid value '%0.1f' for option '%s': "
+                "it must be (a finite number) between '%0.1f' dB and '%0.1f' dB",
+                pstPairs[i].dValue,
+                pstPairs[i].szOptionName,
+                RME_VALUE_VOLUME_MIN_DB,
+                RME_VALUE_VOLUME_MAX_DB
+            );
+            return BOOL_FALSE;
+        }
         if (BOOL_IS_TRUE(
             (pstPairs[i].dValue < RME_VALUE_VOLUME_MIN_DB) ||
             (pstPairs[i].dValue > RME_VALUE_VOLUME_MAX_DB)
