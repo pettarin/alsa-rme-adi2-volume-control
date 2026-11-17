@@ -269,6 +269,7 @@ If one of the following options is provided,
 the corresponding action is performed,
 and the execution terminates with the success (zero) exit code:
 
+- `--exit-codes`,
 - `--help`,
 - `--license`,
 - `--list-cards`,
