@@ -153,7 +153,7 @@ static ServiceConfiguration gpConfiguration = {
 static void log_info(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    fprintf(stderr, "[INFO] ");
+    fprintf(stdout, "[INFO] ");
     vfprintf(stdout, fmt, ap);
     fprintf(stdout, "\n");
     fflush(stdout);
@@ -176,7 +176,7 @@ static void log_verbose(const char *fmt, ...) {
     }
     va_list ap;
     va_start(ap, fmt);
-    fprintf(stderr, "[DEBU] ");
+    fprintf(stdout, "[DEBU] ");
     vfprintf(stdout, fmt, ap);
     fprintf(stdout, "\n");
     fflush(stdout);
