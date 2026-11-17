@@ -982,7 +982,7 @@ static void convert_db_value_to_sysex_bytes(
     unsigned char *pchHigh,
     unsigned char *pchLow
 ) {
-    int raw = (int)(dValueDB * 10) + 4096;
+    int raw = (int)lround(dValueDB * 10) + 4096;
 
     /* Ensure the raw value is in the allowed range */
     if (raw < RME_VALUE_VOLUME_MIN) {
@@ -993,7 +993,7 @@ static void convert_db_value_to_sysex_bytes(
     }
 
     /* assign to the two byte output arguments */
-    *pchHigh = (raw >> 7) & 0x1F;
+    *pchHigh = (raw >> 7) & 0x7F;
     *pchLow = raw & 0x7F;
 }
 

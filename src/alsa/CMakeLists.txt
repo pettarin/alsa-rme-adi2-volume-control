@@ -72,11 +72,13 @@ if(
     target_link_libraries(
         alsa-rme-adi2-volume-control
         atomic
+        m
         ${ALSA_LIBRARIES}
     )
 else()
     target_link_libraries(
         alsa-rme-adi2-volume-control
+        m
         ${ALSA_LIBRARIES}
     )
 endif()
