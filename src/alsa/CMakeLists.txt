@@ -17,51 +17,71 @@ pkg_check_modules(ALSA REQUIRED alsa)
 # Main executable
 add_executable(alsa-rme-adi2-volume-control src/alsa-rme-adi2-volume-control.c)
 
-if(CMAKE_BUILD_TYPE MATCHES "dbg")
+if(CMAKE_BUILD_TYPE MATCHES "^dbg")
     set(
         CMAKE_C_FLAGS
         "${CMAKE_C_FLAGS} -g -Werror"
     )
 endif()
+
 if(CMAKE_BUILD_TYPE MATCHES "dbg_asan")
     set(
         CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS} -g -Werror -fno-omit-frame-pointer -fsanitize=address"
+        "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -fsanitize=address"
     )
     target_link_options(
         alsa-rme-adi2-volume-control
         PUBLIC -fno-omit-frame-pointer -fsanitize=address
     )
-endif()
-if(CMAKE_BUILD_TYPE MATCHES "dbg_tsan")
+elseif(CMAKE_BUILD_TYPE MATCHES "dbg_tsan")
     set(
         CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS} -g -Werror -fsanitize=thread"
+        "${CMAKE_C_FLAGS} -fsanitize=thread"
     )
     target_link_options(
         alsa-rme-adi2-volume-control
         PUBLIC -fsanitize=thread
     )
-endif()
-if(CMAKE_BUILD_TYPE MATCHES "dbg_ubsan")
+elseif(CMAKE_BUILD_TYPE MATCHES "dbg_ubsan")
     set(
         CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS} -g -Werror -fsanitize=undefined"
+        "${CMAKE_C_FLAGS} -fsanitize=undefined"
     )
     target_link_options(
         alsa-rme-adi2-volume-control
         PUBLIC -fsanitize=undefined
     )
-endif()
-if(CMAKE_BUILD_TYPE MATCHES "rls")
+elseif(CMAKE_BUILD_TYPE MATCHES "rls")
+    set(
+        CMAKE_C_FLAGS
+        "${CMAKE_C_FLAGS} -O2"
+    )
+else()
+    # defaults to a rls build
     set(
         CMAKE_C_FLAGS
         "${CMAKE_C_FLAGS} -O2"
     )
 endif()
 
+if(
+    (CMAKE_BUILD_TYPE MATCHES "dbg_asan") OR
+    (CMAKE_BUILD_TYPE MATCHES "dbg_tsan") OR
+    (CMAKE_BUILD_TYPE MATCHES "dbg_ubsan")
+)
+    target_link_libraries(
+        alsa-rme-adi2-volume-control
+        atomic
+        ${ALSA_LIBRARIES}
+    )
+else()
+    target_link_libraries(
+        alsa-rme-adi2-volume-control
+        ${ALSA_LIBRARIES}
+    )
+endif()
+
 target_include_directories(alsa-rme-adi2-volume-control PRIVATE ${ALSA_INCLUDE_DIRS})
-target_link_libraries(alsa-rme-adi2-volume-control ${ALSA_LIBRARIES})
 target_compile_options(alsa-rme-adi2-volume-control PRIVATE -Wall -Wextra)
 
 # Install
