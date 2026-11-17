@@ -188,10 +188,47 @@ static void log_verbose(const char *fmt, ...) {
  * String helpers
  * ************************************************************************* */
 
-/* strnstr is not part of the GNU stdlib, but from the BSD stdlib:
- * define it here instead of depending on the latter */
+/* Copy at most (cbDest - 1) bytes of szSrc into szDest,
+ * always setting the NUL terminator on the last byte of szDest.
+ *
+ * cbDest must be the full size, in bytes, of the destination buffer.
+ * If szSrc is longer than (cbDest - 1) bytes, it is truncated.
+ *
+ * NOTE: noinline is required because, when this function is inlined
+ *       at -O2 or higher, GCC emits a false-positive
+ *       -Wstringop-truncation warning, which breaks the build
+ *       since warnings are treated as errors. */
+__attribute__((noinline))
+static void safe_strncpy(char *szDest, const char *szSrc, size_t cbDest) {
+    if ((szDest == NULL) || (szSrc == NULL) || (cbDest == 0)) {
+        return;
+    }
+    strncpy(szDest, szSrc, cbDest - 1);
+    szDest[cbDest - 1] = '\0';
+}
+
+/* Find the first occurrence of needle in haystack,
+ * examining at most len bytes of haystack
+ * and stopping at its NUL terminator, if found earlier.
+ *
+ * Return a pointer to the first byte of the match inside haystack,
+ * or NULL if needle does not occur in the examined bytes.
+ * If needle is the empty string, return haystack.
+ *
+ * Both haystack and needle must be non-NULL, NUL-terminated strings.
+ * The whole needle must be contained in the examined bytes:
+ * if needle is longer than len bytes, NULL is returned.
+ * At most (len + 1) bytes of needle are read.
+ *
+ * NOTE: strnstr is not part of the GNU stdlib, but from the BSD stdlib:
+ *       define it here, with the same behavior,
+ *       instead of depending on the latter. */
 static char *strnstr(const char *haystack, const char *needle, size_t len) {
     size_t needle_len = strnlen(needle, len);
+    if (needle[needle_len] != '\0') {
+        /* needle is longer than len bytes: it cannot match */
+        return NULL;
+    }
     if (needle_len == 0) {
         return (char *)haystack;
     }
@@ -295,12 +332,11 @@ static int find_card_and_set_configuration(
     /* card found */
     gpConfiguration.iDeviceID = iDeviceID;
     gpConfiguration.iCardNumber = iCardNumber;
-    strncpy(
+    safe_strncpy(
         gpConfiguration.szDeviceName,
         szDeviceName,
-        DEVICE_NAME_MAX_LENGTH - 1
+        DEVICE_NAME_MAX_LENGTH
     );
-    gpConfiguration.szDeviceName[DEVICE_NAME_MAX_LENGTH - 1] = '\0';
     log_verbose(
         "Found ALSA card number '%d' for device ID '0x%02X' (%s)",
         iCardNumber,
@@ -1173,18 +1209,16 @@ static int init_output_control(
     pOutputControl->dVolumeMaxDB = pOutputParameters->dMaxDB;
 
     /* copy the UDCE names, they will be used for logging and querying */
-    strncpy(
+    safe_strncpy(
         pOutputControl->szUDCEVolumeName,
         pOutputParameters->szUDCEVolumeName,
-        UDCE_NAME_MAX_LENGTH - 1
+        UDCE_NAME_MAX_LENGTH
     );
-    pOutputControl->szUDCEVolumeName[UDCE_NAME_MAX_LENGTH - 1] = '\0';
-    strncpy(
+    safe_strncpy(
         pOutputControl->szUDCESwitchName,
         pOutputParameters->szUDCESwitchName,
-        UDCE_NAME_MAX_LENGTH - 1
+        UDCE_NAME_MAX_LENGTH
     );
-    pOutputControl->szUDCESwitchName[UDCE_NAME_MAX_LENGTH - 1] = '\0';
 
     /* Allocate and create volume UDCE */
     iRet = snd_ctl_elem_id_malloc(&(pOutputControl->pVolumeID));
@@ -1856,8 +1890,7 @@ static int parse_args(int argc, char *argv[]) {
                 gpConfiguration.iCardNumber = atoi(optarg);
                 break;
             case 'd':
-                strncpy(gpConfiguration.szDeviceName, optarg, DEVICE_NAME_MAX_LENGTH - 1);
-                gpConfiguration.szDeviceName[DEVICE_NAME_MAX_LENGTH - 1] = '\0';
+                safe_strncpy(gpConfiguration.szDeviceName, optarg, DEVICE_NAME_MAX_LENGTH);
                 break;
             case 'D':
                 gpConfiguration.iDeviceID = (int)strtol(optarg, NULL, 0);
@@ -1882,8 +1915,7 @@ static int parse_args(int argc, char *argv[]) {
                 gpConfiguration.stLine12.dMaxDB = atof(optarg);
                 break;
             case 'M':
-                strncpy(gpConfiguration.szMIDIDevice, optarg, MIDI_DEVICE_MAX_LENGTH - 1);
-                gpConfiguration.szMIDIDevice[MIDI_DEVICE_MAX_LENGTH - 1] = '\0';
+                safe_strncpy(gpConfiguration.szMIDIDevice, optarg, MIDI_DEVICE_MAX_LENGTH);
                 break;
             case 'o':
                 gpConfiguration.stPhones34.bStartupSwitch = atoi(optarg);
