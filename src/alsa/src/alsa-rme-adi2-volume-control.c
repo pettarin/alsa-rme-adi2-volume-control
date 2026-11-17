@@ -224,7 +224,7 @@ static void safe_strncpy(char *szDest, const char *szSrc, size_t cbDest) {
  * NOTE: strnstr is not part of the GNU stdlib, but from the BSD stdlib:
  *       define it here, with the same behavior,
  *       instead of depending on the latter. */
-static char *strnstr(const char *haystack, const char *needle, size_t len) {
+static char *safe_strnstr(const char *haystack, const char *needle, size_t len) {
     size_t needle_len = strnlen(needle, len);
     if (needle[needle_len] != '\0') {
         /* needle is longer than len bytes: it cannot match */
@@ -294,7 +294,7 @@ static int find_card_by_name(const char *szQuery) {
         );
 
         /* NOTE: matching szQuery as substring of szCardName */
-        if (strnstr(szCardName, szQuery, DEVICE_NAME_MAX_LENGTH) != NULL) {
+        if (safe_strnstr(szCardName, szQuery, DEVICE_NAME_MAX_LENGTH) != NULL) {
             log_verbose(
                 "ALSA card number '%d' with name '%s' "
                 "matches the query '%s': returning it",
