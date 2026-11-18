@@ -24,7 +24,10 @@ if(CMAKE_BUILD_TYPE MATCHES "^dbg")
     )
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "dbg_asan")
+if(CMAKE_BUILD_TYPE MATCHES "dbg")
+    # empty case just to prevent falling into the default one (rls),
+    # which applies optimizations
+elseif(CMAKE_BUILD_TYPE MATCHES "dbg_asan")
     set(
         CMAKE_C_FLAGS
         "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -fsanitize=address"
@@ -56,8 +59,6 @@ elseif(CMAKE_BUILD_TYPE MATCHES "rls")
         CMAKE_C_FLAGS
         "${CMAKE_C_FLAGS} -O2"
     )
-elseif(CMAKE_BUILD_TYPE MATCHES "dbg")
-    # empty branch just to prevent falling into the default case
 else()
     # the default case is rls, just to be safe
     set(

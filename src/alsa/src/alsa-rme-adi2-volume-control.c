@@ -150,7 +150,7 @@ static ServiceConfiguration gpConfiguration = {
 
 /* Supported RME ADI-2 product families.
  *
- * The order of the entries in the table must be the same
+ * The order of the entries in the table is the order
  * used by the functions that print the list of device IDs and names.
  *
  * The iProbeOrder is the order in which the families are probed
