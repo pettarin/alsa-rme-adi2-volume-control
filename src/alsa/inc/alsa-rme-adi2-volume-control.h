@@ -39,6 +39,7 @@
 #define ERR_ERROR_GENERIC                           (-1)
 #define ERR_ERROR_EVENT_POLL                        (-2)
 #define ERR_ERROR_CARD_DISCONNECTED                 (-3)
+#define ERR_ERROR_INVALID_ARGUMENT                  (-4)
 #define ERR_CODE_IS_OK(x)                           ((x) == ERR_OK)
 #define ERR_CODE_IS_ERROR(x)                        (! ERR_CODE_IS_OK(x))
 

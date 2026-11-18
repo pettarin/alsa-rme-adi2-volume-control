@@ -1978,36 +1978,36 @@ static int parse_args(int argc, char *argv[]) {
                 gpConfiguration.bListDeviceNames = BOOL_TRUE;
                 break;
             default:
-                return EXIT_ERROR_INVALID_ARGUMENTS;
+                return ERR_ERROR_INVALID_ARGUMENT;
         } /* end switch opt */
     } /* end while opt */
 
     if (BOOL_IS_FALSE(validate_no_output_options())) {
-        return EXIT_ERROR_INVALID_ARGUMENTS;
+        return ERR_ERROR_INVALID_ARGUMENT;
     }
 
     if (BOOL_IS_FALSE(validate_device_name())) {
-        return EXIT_ERROR_INVALID_ARGUMENTS;
+        return ERR_ERROR_INVALID_ARGUMENT;
     }
 
     if (BOOL_IS_FALSE(validate_device_id(bDeviceIDWasSet))) {
-        return EXIT_ERROR_INVALID_ARGUMENTS;
+        return ERR_ERROR_INVALID_ARGUMENT;
     }
 
     if (BOOL_IS_FALSE(validate_midi_device())) {
-        return EXIT_ERROR_INVALID_ARGUMENTS;
+        return ERR_ERROR_INVALID_ARGUMENT;
     }
 
     if (BOOL_IS_FALSE(validate_min_max_db_values())) {
-        return EXIT_ERROR_INVALID_ARGUMENTS;
+        return ERR_ERROR_INVALID_ARGUMENT;
     }
 
     if (BOOL_IS_FALSE(validate_initial_volume_values())) {
-        return EXIT_ERROR_INVALID_ARGUMENTS;
+        return ERR_ERROR_INVALID_ARGUMENT;
     }
 
     if (BOOL_IS_FALSE(validate_initial_switch_values())) {
-        return EXIT_ERROR_INVALID_ARGUMENTS;
+        return ERR_ERROR_INVALID_ARGUMENT;
     }
 
     return ERR_OK;
@@ -2046,7 +2046,7 @@ int main(int argc, char *argv[]) {
     if (ERR_CODE_IS_ERROR(iRet)) {
         log_error("Cannot parse command line arguments: exit error %d", iRet);
         print_usage(argv[0]);
-        iExitCode = iRet;
+        iExitCode = EXIT_ERROR_INVALID_ARGUMENTS;
         goto cleanup;
     }
 
