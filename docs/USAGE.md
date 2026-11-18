@@ -204,7 +204,19 @@ alsa-rme-adi2-volume-control --card-number 1 --device-name "ADI-2/4 Pro"
 
 # use the ADI-2 DAC (0x71) connected as ALSA card #5, using MIDI device hw:5,0,1
 alsa-rme-adi2-volume-control --card-number 5 --device-id 0x71 --midi-device hw:5,0,1
+
 ```
+> [!NOTE]
+> If both `--card-number` and `--device-id` are specified,
+> they are used without checking that the ALSA card name
+> actually matches the RME device ID.
+>
+> This is an intentional choice, to allow overcoming
+> any potential bug in the autodetection logic.
+>
+> If both `--card-number` and `--device-name` are specified,
+> the ALSA card name must actually match the provided device name,
+> otherwise an error will terminate the execution immediately.
 
 ### Control Only One Output
 
