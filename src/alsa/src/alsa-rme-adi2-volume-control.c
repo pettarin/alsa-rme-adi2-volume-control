@@ -18,6 +18,7 @@
 
 #include <stdio.h>                          /* for stderr, stdout, etc. */
 #include <stdlib.h>                         /* for atof, atoi, etc. */
+#include <stdarg.h>                         /* for va_list */
 #include <string.h>                         /* for str* */
 #include <signal.h>                         /* for sig* */
 #include <unistd.h>                         /* for optarg */
@@ -95,7 +96,7 @@ typedef struct {
 
 typedef struct {
     char szOptionName[64];
-    double iValue;
+    int iValue;
 } StringIntegerPair;
 
 
@@ -151,6 +152,7 @@ static ServiceConfiguration gpConfiguration = {
  * Log helpers
  * ************************************************************************* */
 
+__attribute__((format(printf, 1, 2)))
 static void log_info(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
@@ -161,6 +163,7 @@ static void log_info(const char *fmt, ...) {
     va_end(ap);
 }
 
+__attribute__((format(printf, 1, 2)))
 static void log_error(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
@@ -171,6 +174,7 @@ static void log_error(const char *fmt, ...) {
     va_end(ap);
 }
 
+__attribute__((format(printf, 1, 2)))
 static void log_verbose(const char *fmt, ...) {
     if (BOOL_IS_FALSE(gpConfiguration.bVerboseLog)) {
         return;
@@ -249,7 +253,7 @@ static char *safe_strnstr(const char *haystack, const char *needle, size_t len) 
  * ************************************************************************* */
 
 /* Print the list of cards as a table with colums (Index, ID, Name). */
-static void print_cards() {
+static void print_cards(void) {
     int iCard = -1;
     char *szCardName;
 
@@ -348,28 +352,28 @@ static int find_card_and_set_configuration(
 }
 
 /* Partials for the various ADI-2 product families. */
-static int find_card_and_set_configuration_rme_adi24_pro() {
+static int find_card_and_set_configuration_rme_adi24_pro(void) {
     return find_card_and_set_configuration(
         DEVICE_NAME_RME_ADI24_PRO,
         RME_DEVICE_FAMILY_ADI24_PRO
     );
 }
 
-static int find_card_and_set_configuration_rme_adi2_pro() {
+static int find_card_and_set_configuration_rme_adi2_pro(void) {
     return find_card_and_set_configuration(
         DEVICE_NAME_RME_ADI2_PRO,
         RME_DEVICE_FAMILY_ADI2_PRO
     );
 }
 
-static int find_card_and_set_configuration_rme_adi2_dac() {
+static int find_card_and_set_configuration_rme_adi2_dac(void) {
     return find_card_and_set_configuration(
         DEVICE_NAME_RME_ADI2_DAC,
         RME_DEVICE_FAMILY_ADI2_DAC
     );
 }
 
-static int device_name_is_autodetect_or_rme_adi24_pro() {
+static int device_name_is_autodetect_or_rme_adi24_pro(void) {
     return (
         (strncmp(
             gpConfiguration.szDeviceName,
@@ -384,7 +388,7 @@ static int device_name_is_autodetect_or_rme_adi24_pro() {
     );
 }
 
-static int device_name_is_autodetect_or_rme_adi2_pro() {
+static int device_name_is_autodetect_or_rme_adi2_pro(void) {
     return (
         (strncmp(
             gpConfiguration.szDeviceName,
@@ -399,7 +403,7 @@ static int device_name_is_autodetect_or_rme_adi2_pro() {
     );
 }
 
-static int device_name_is_autodetect_or_rme_adi2_dac() {
+static int device_name_is_autodetect_or_rme_adi2_dac(void) {
     return (
         (strncmp(
             gpConfiguration.szDeviceName,
@@ -423,7 +427,7 @@ static int device_name_is_autodetect_or_rme_adi2_dac() {
  * The first matching card found (lowest card number) is set and used.
  *
  * Return true if a matching card is found; otherwise return false. */
-static int ensure_device_id_is_set() {
+static int ensure_device_id_is_set(void) {
     if (gpConfiguration.iDeviceID >= 0) {
         log_verbose(
             "Device ID '0x%02X' explicitly specified by the user",
@@ -465,7 +469,7 @@ static int ensure_device_id_is_set() {
  * searching for a card whose name matches the device ID.
  *
  * Return true if a matching card is found; otherwise return false. */
-static int ensure_card_number_is_set() {
+static int ensure_card_number_is_set(void) {
     int bCardFound = BOOL_FALSE;
 
     if (gpConfiguration.iCardNumber >= 0) {
@@ -510,7 +514,7 @@ static int ensure_card_number_is_set() {
  *
  * Return ERR_OK if both the device ID and the card number
  * could be determined, otherwise return an error. */
-static int ensure_device_id_and_card_number() {
+static int ensure_device_id_and_card_number(void) {
     int bCardFound = BOOL_FALSE;
 
     bCardFound = ensure_device_id_is_set();
@@ -535,7 +539,7 @@ static int ensure_device_id_and_card_number() {
 }
 
 /* Set the card hw string from the card number */
-static void set_card_hw_string() {
+static void set_card_hw_string(void) {
     snprintf(
         gpConfiguration.szCardHw,
         CARD_HW_MAX_LENGTH,
@@ -621,7 +625,6 @@ static int install_control_element(
     snd_ctl_elem_info_set_id(info, id);
 
     /* Create new control */
-    snd_ctl_elem_info_set_id(info, id);
     if (BOOL_IS_TRUE(bElementIsSwitch)) {
         iRet = snd_ctl_add_boolean_elem_set(
             ctl,
@@ -908,7 +911,7 @@ static int probe_midi_devices_for_card(
  * (e.g., hw:0,0,0), possibly autodetecting it if not explicitly specified.
  *
  * Return ERR_OK if a valid MIDI device is found, or an error otherwise. */
-static int ensure_midi_device() {
+static int ensure_midi_device(void) {
     if (
         strncmp(
             gpConfiguration.szMIDIDevice,
@@ -946,7 +949,7 @@ static int ensure_midi_device() {
 
 /* Print the list of MIDI devices as a table
  * with colums (MIDI Device, Card Name). */
-static void print_midi_devices() {
+static void print_midi_devices(void) {
     int iCard = -1;
     char *szCardName;
 
@@ -1543,7 +1546,7 @@ static int monitor_loop(
 /* Return true if at least one output is selected
  * (that is, at most one of --no-line12 and --no-phones34 was provided),
  * and false otherwise. */
-static int validate_no_output_options() {
+static int validate_no_output_options(void) {
     if (
         BOOL_IS_TRUE(gpConfiguration.stLine12.bControl) ||
         BOOL_IS_TRUE(gpConfiguration.stPhones34.bControl)
@@ -1575,7 +1578,7 @@ static int validate_device_id(int bDeviceIDWasSet) {
 
 /* Return true if the device name in the configuration is supported
  * (or it was not set), and false otherwise. */
-static int validate_device_name() {
+static int validate_device_name(void) {
     const char *szDeviceName = gpConfiguration.szDeviceName;
     size_t cbDeviceName = sizeof(gpConfiguration.szDeviceName);
     if (BOOL_IS_TRUE(
@@ -1592,7 +1595,7 @@ static int validate_device_name() {
 
 /* Return true if the MIDI device in the configuration is supported
  * (or it was not set), and false otherwise. */
-static int validate_midi_device() {
+static int validate_midi_device(void) {
     /* NOTE: not checking if szMIDIDevice is in the form "hw:X[,Y[,Z]]"
      *       since the value might be provided by the user and
      *       it is not clear that that form is the only one accepted by ALSA. */
@@ -1625,7 +1628,7 @@ static int validate_initial_volume_value(int iVolume, const char *szOption) {
     );
     return BOOL_FALSE;
 }
-static int validate_initial_volume_values() {
+static int validate_initial_volume_values(void) {
     StringIntegerPair pstPairs[] = {
         {"--line12-volume", gpConfiguration.stLine12.iStartupVolume},
         {"--phones34-volume", gpConfiguration.stPhones34.iStartupVolume},
@@ -1662,7 +1665,7 @@ static int validate_initial_switch_value(int iValue, const char *szOption) {
     );
     return BOOL_FALSE;
 }
-static int validate_initial_switch_values() {
+static int validate_initial_switch_values(void) {
     StringIntegerPair pstPairs[] = {
         {"--line12-switch", gpConfiguration.stLine12.bStartupSwitch},
         {"--phones34-switch", gpConfiguration.stPhones34.bStartupSwitch},
@@ -1685,7 +1688,7 @@ static int validate_initial_switch_values() {
 /* Return true if the line12/phones34 min/max DB values
  * in the configuration are supported (or they were not set),
  * and false otherwise. */
-static int validate_min_max_db_values() {
+static int validate_min_max_db_values(void) {
     StringDoublePair pstPairs[] = {
         {"--line12-min-db", gpConfiguration.stLine12.dMinDB},
         {"--line12-max-db", gpConfiguration.stLine12.dMaxDB},
@@ -1742,7 +1745,7 @@ static int validate_min_max_db_values() {
     return BOOL_TRUE;
 }
 
-static void print_device_names() {
+static void print_device_names(void) {
     const char *szDeviceNames[] = {
         DEVICE_NAME_AUTODETECT,
         DEVICE_NAME_RME_ADI2_DAC,
@@ -1760,7 +1763,7 @@ static void print_device_names() {
     }
 }
 
-static void print_device_ids() {
+static void print_device_ids(void) {
     DeviceIDWithName pszDeviceIDs[] = {
         {DEVICE_NAME_RME_ADI2_DAC, RME_DEVICE_FAMILY_ADI2_DAC},
         {DEVICE_NAME_RME_ADI2_PRO, RME_DEVICE_FAMILY_ADI2_PRO},
@@ -1818,7 +1821,7 @@ static void print_usage(const char *prog) {
     printf("  %s --card-number 1 --device-id 0x%02X --line12-min-db -25.0 --line12-max-db 0.0 --line12-volume 70 --line12-switch 1 --no-phones34\n", prog, RME_DEVICE_FAMILY_ADI24_PRO);
 }
 
-static void print_exit_codes() {
+static void print_exit_codes(void) {
     printf("Code\tDescription\n");
     printf("%d\t%s\n", EXIT_OK,                            "Generic success code");
     printf("%d\t%s\n", EXIT_ERROR_GENERIC,                 "Generic failure or unspecified error");
@@ -1837,7 +1840,7 @@ static void print_version(const char *prog) {
     printf("%s %s (build %s)\n", prog, PROGRAM_VERSION, PROGRAM_BUILD_DATE);
 }
 
-static void print_license() {
+static void print_license(void) {
     printf("alsa-rme-adi2-volume-control - Service exposing ALSA mute/volume controls on an RME ADI-2 device via MIDI\n");
     printf("Copyright (C) 2026  Alberto Pettarin\n");
     printf("\n");
