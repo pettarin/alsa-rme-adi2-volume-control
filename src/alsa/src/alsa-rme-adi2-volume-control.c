@@ -1781,44 +1781,44 @@ static void print_device_ids(void) {
     }
 }
 
-static void print_usage(const char *prog) {
-    printf("Usage: %s [options]\n", prog);
-    printf("\n");
-    printf("Creates ALSA mute and volume controls for RME ADI-2 devices.\n");
-    printf("\n");
-    printf("Options:\n"); /* keep sorted by short option, then lexicographically */
-    printf("  -C, --card-number INTEGER       Use the ALSA card with the given number; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones\n");
-    printf("  -d, --device-name STRING        RME device name (case sensitive, default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
-    printf("  -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones\n");
-    printf("      --exit-codes                Print the exit codes\n");
-    printf("  -h, --help                      Print this help\n");
-    printf("      --license                   Print the license\n");
-    printf("  -k, --line12-switch INTEGER     Initial state for line output 1/2 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stLine12.bStartupSwitch);
-    printf("  -K, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", gpConfiguration.stLine12.iStartupVolume);
-    printf("  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stLine12.dMinDB);
-    printf("  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stLine12.dMaxDB);
-    printf("      --list-cards                List all ALSA cards and exit\n");
-    printf("      --list-device-ids           List all supported device IDs\n");
-    printf("      --list-device-names         List all supported device names\n");
-    printf("      --list-midi-devices         List all supported MIDI devices\n");
-    printf("  -M, --midi-device STRING        Use the specified MIDI device: 'autodetect' (default) or 'hw:X[,Y[,Z]]'; option --list-midi-devices prints the detected ones\n");
-    printf("      --no-line12                 Do not install controls for line output 1/2\n");
-    printf("      --no-phones34               Do not install controls for phones output 3/4\n");
-    printf("      --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
-    printf("  -o, --phones34-switch INTEGER   Initial state for phones output 3/4 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stPhones34.bStartupSwitch);
-    printf("  -O, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", gpConfiguration.stPhones34.iStartupVolume);
-    printf("  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stPhones34.dMinDB);
-    printf("  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stPhones34.dMaxDB);
-    printf("      --uninstall                 Uninstall ALSA user-defined control elements and exit\n");
-    printf("  -v, --verbose                   Enable verbose output\n");
-    printf("  -V, --version                   Print the name and version of this program and exit\n");
-    printf("\n");
-    printf("Examples:\n");
-    printf("  %s --list-cards\n", prog);
-    printf("  %s --list-midi-devices\n", prog);
-    printf("  %s --uninstall\n", prog);
-    printf("  %s --verbose --device-name \"%s\"\n", prog, DEVICE_NAME_RME_ADI2_DAC);
-    printf("  %s --card-number 1 --device-id 0x%02X --line12-min-db -25.0 --line12-max-db 0.0 --line12-volume 70 --line12-switch 1 --no-phones34\n", prog, RME_DEVICE_FAMILY_ADI24_PRO);
+static void print_usage(const char *prog, FILE *stream) {
+    fprintf(stream, "Usage: %s [options]\n", prog);
+    fprintf(stream, "\n");
+    fprintf(stream, "Creates ALSA mute and volume controls for RME ADI-2 devices.\n");
+    fprintf(stream, "\n");
+    fprintf(stream, "Options:\n"); /* keep sorted by short option, then lexicographically */
+    fprintf(stream, "  -C, --card-number INTEGER       Use the ALSA card with the given number; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones\n");
+    fprintf(stream, "  -d, --device-name STRING        RME device name (case sensitive, default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
+    fprintf(stream, "  -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones\n");
+    fprintf(stream, "      --exit-codes                Print the exit codes\n");
+    fprintf(stream, "  -h, --help                      Print this help\n");
+    fprintf(stream, "      --license                   Print the license\n");
+    fprintf(stream, "  -k, --line12-switch INTEGER     Initial state for line output 1/2 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stLine12.bStartupSwitch);
+    fprintf(stream, "  -K, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", gpConfiguration.stLine12.iStartupVolume);
+    fprintf(stream, "  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stLine12.dMinDB);
+    fprintf(stream, "  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stLine12.dMaxDB);
+    fprintf(stream, "      --list-cards                List all ALSA cards and exit\n");
+    fprintf(stream, "      --list-device-ids           List all supported device IDs\n");
+    fprintf(stream, "      --list-device-names         List all supported device names\n");
+    fprintf(stream, "      --list-midi-devices         List all supported MIDI devices\n");
+    fprintf(stream, "  -M, --midi-device STRING        Use the specified MIDI device: 'autodetect' (default) or 'hw:X[,Y[,Z]]'; option --list-midi-devices prints the detected ones\n");
+    fprintf(stream, "      --no-line12                 Do not install controls for line output 1/2\n");
+    fprintf(stream, "      --no-phones34               Do not install controls for phones output 3/4\n");
+    fprintf(stream, "      --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
+    fprintf(stream, "  -o, --phones34-switch INTEGER   Initial state for phones output 3/4 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stPhones34.bStartupSwitch);
+    fprintf(stream, "  -O, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", gpConfiguration.stPhones34.iStartupVolume);
+    fprintf(stream, "  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stPhones34.dMinDB);
+    fprintf(stream, "  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stPhones34.dMaxDB);
+    fprintf(stream, "      --uninstall                 Uninstall ALSA user-defined control elements and exit\n");
+    fprintf(stream, "  -v, --verbose                   Enable verbose output\n");
+    fprintf(stream, "  -V, --version                   Print the name and version of this program and exit\n");
+    fprintf(stream, "\n");
+    fprintf(stream, "Examples:\n");
+    fprintf(stream, "  %s --list-cards\n", prog);
+    fprintf(stream, "  %s --list-midi-devices\n", prog);
+    fprintf(stream, "  %s --uninstall\n", prog);
+    fprintf(stream, "  %s --verbose --device-name \"%s\"\n", prog, DEVICE_NAME_RME_ADI2_DAC);
+    fprintf(stream, "  %s --card-number 1 --device-id 0x%02X --line12-min-db -25.0 --line12-max-db 0.0 --line12-volume 70 --line12-switch 1 --no-phones34\n", prog, RME_DEVICE_FAMILY_ADI24_PRO);
 }
 
 static void print_exit_codes(void) {
@@ -2044,8 +2044,8 @@ int main(int argc, char *argv[]) {
     /* Parse command line arguments */
     iRet = parse_args(argc, argv);
     if (ERR_CODE_IS_ERROR(iRet)) {
-        log_error("Cannot parse command line arguments: exit error %d", iRet);
-        print_usage(argv[0]);
+        log_error("Invalid or excess command line arguments");
+        print_usage(argv[0], stderr);
         iExitCode = EXIT_ERROR_INVALID_ARGUMENTS;
         goto cleanup;
     }
@@ -2053,7 +2053,7 @@ int main(int argc, char *argv[]) {
     /* Print the usage and exit */
     if (BOOL_IS_TRUE(gpConfiguration.bPrintUsage)) {
         gpConfiguration.bVerboseLog = BOOL_FALSE;
-        print_usage(argv[0]);
+        print_usage(argv[0], stdout);
         iExitCode = EXIT_OK;
         goto cleanup;
     }
