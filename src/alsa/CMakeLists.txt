@@ -11,9 +11,10 @@ set(CMAKE_COMPILE_WARNING_AS_ERROR true)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
 
 # Configure custom properties
-set(ALL_BUILD_TYPES dbg dbg_asan dbg_tsan dbg_ubsan rls)
-set(DBG_BUILD_TYPES dbg dbg_asan dbg_tsan dbg_ubsan)
 set(DBG_SANITIZED_BUILD_TYPES dbg_asan dbg_tsan dbg_ubsan)
+set(DBG_BUILD_TYPES dbg ${DBG_SANITIZED_BUILD_TYPES})
+set(ALL_BUILD_TYPES ${DBG_BUILD_TYPES} rls)
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${ALL_BUILD_TYPES})
 
 # Find ALSA
 find_package(PkgConfig REQUIRED)
@@ -22,11 +23,9 @@ pkg_check_modules(ALSA REQUIRED alsa)
 # Main executable
 add_executable(alsa-rme-adi2-volume-control src/alsa-rme-adi2-volume-control.c)
 
-if(CMAKE_BUILD_TYPE STREQUAL "")
-    set(CMAKE_BUILD_TYPE "rls")
-endif()
 if(NOT (CMAKE_BUILD_TYPE IN_LIST ALL_BUILD_TYPES))
     message(WARNING "Build type '${CMAKE_BUILD_TYPE}' is not supported. Defaulting to 'rls'")
+    set(CMAKE_BUILD_TYPE "rls" CACHE STRING "Supported build types: ${ALL_BUILD_TYPES}" FORCE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
