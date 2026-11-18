@@ -5,7 +5,7 @@ Run with `--help` to print the full usage message:
 ```bash
 alsa-rme-adi2-volume-control --help
 
-Usage: alsa-rme-adi2-volume-control [options]
+Usage: /alsa-rme-adi2-volume-control [options]
 
 Creates ALSA mute and volume controls for RME ADI-2 devices.
 
@@ -30,8 +30,8 @@ Options:
       --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits
   -o, --phones34-switch INTEGER   Initial state for phones output 3/4 (0=muted, 1=unmuted, default: 1)
   -O, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: 50)
-  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to 0% volume (in [-93.8, 6.0], default: -60.0 dB)
-  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100% volume (in [-93.8, 6.0], default: -10.0 dB)
+  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to 0% volume (in [-93.8, 6.0], default: -90.0 dB)
+  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100% volume (in [-93.8, 6.0], default: -40.0 dB)
       --uninstall                 Uninstall ALSA user-defined control elements and exit
   -v, --verbose                   Enable verbose output
   -V, --version                   Print the name and version of this program and exit
@@ -236,8 +236,8 @@ with the following options:
 |--------------|---------------------|-------------------|----------------|--------------------|-----------------------------|
 | `-l`         | `--line12-min-db`   | Line Output 1/2   | `[-93.8, 6.0]` | `-60.0`            | Corresponds to volume `0`   |
 | `-L`         | `--line12-max-db`   | Line Output 1/2   | `[-93.8, 6.0]` | `-10.0`            | Corresponds to volume `100` |
-| `-p`         | `--phones34-min-db` | Phones Output 3/4 | `[-93.8, 6.0]` | `-60.0`            | Corresponds to volume `0`   |
-| `-P`         | `--phones34-max-db` | Phones Output 3/4 | `[-93.8, 6.0]` | `-10.0`            | Corresponds to volume `100` |
+| `-p`         | `--phones34-min-db` | Phones Output 3/4 | `[-93.8, 6.0]` | `-90.0`            | Corresponds to volume `0`   |
+| `-P`         | `--phones34-max-db` | Phones Output 3/4 | `[-93.8, 6.0]` | `-40.0`            | Corresponds to volume `100` |
 
 Examples:
 

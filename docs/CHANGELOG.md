@@ -9,7 +9,12 @@ All notable changes to this project will be documented in this file.
 > [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [1.0.2] - To Be Released
+## [1.0.2] - 2026-11-18
+
+### Changed
+
+- Default value of --phones34-min-db option to `-90.0`
+- Default value of --phones34-max-db option to `-40.0`
 
 ### Fixed
 
@@ -26,8 +31,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Install script `install.sh` now uses the build type `rls`
-- Service exit codes are now aligned to systemd/LSB semantics
+- Install script `install.sh` to use the build type `rls`
+- Service exit codes to be aligned to systemd/LSB semantics
 
 ### Fixed
 
