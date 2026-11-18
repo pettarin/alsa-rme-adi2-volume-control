@@ -1000,7 +1000,10 @@ static void convert_db_value_to_sysex_bytes(
     unsigned char *pchHigh,
     unsigned char *pchLow
 ) {
-    int raw = (int)lround(dValueDB * RME_VALUE_RAW_VOLUME_MULTIPLIER) + RME_VALUE_RAW_VOLUME_OFFSET;
+    int raw = (
+        RME_VALUE_RAW_VOLUME_OFFSET
+        + (int)lround(dValueDB * RME_VALUE_RAW_VOLUME_MULTIPLIER)
+    );
 
     /* Ensure the raw value is in the allowed range */
     if (raw < RME_VALUE_VOLUME_MIN) {
@@ -1010,7 +1013,12 @@ static void convert_db_value_to_sysex_bytes(
         raw = RME_VALUE_VOLUME_MAX;
     }
 
-    /* assign to the two byte output arguments */
+    /* Assign to the two byte output arguments.
+     *
+     * NOTE: the following masks are CORRECT,
+     *       in particular the computation of pchHigh:
+     *       positive dB values wrap to 00 xx
+     *       as the 12-bit encoding requires. */
     *pchHigh = (raw >> 7) & 0x1F;
     *pchLow = raw & 0x7F;
 }
