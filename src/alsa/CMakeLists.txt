@@ -10,6 +10,11 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_COMPILE_WARNING_AS_ERROR true)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
 
+# Configure custom properties
+set(ALL_BUILD_TYPES dbg dbg_asan dbg_tsan dbg_ubsan rls)
+set(DBG_BUILD_TYPES dbg dbg_asan dbg_tsan dbg_ubsan)
+set(DBG_SANITIZED_BUILD_TYPES dbg_asan dbg_tsan dbg_ubsan)
+
 # Find ALSA
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(ALSA REQUIRED alsa)
@@ -17,14 +22,22 @@ pkg_check_modules(ALSA REQUIRED alsa)
 # Main executable
 add_executable(alsa-rme-adi2-volume-control src/alsa-rme-adi2-volume-control.c)
 
-if(CMAKE_BUILD_TYPE MATCHES "^dbg")
+if(CMAKE_BUILD_TYPE STREQUAL "")
+    set(CMAKE_BUILD_TYPE "rls")
+endif()
+if(NOT (CMAKE_BUILD_TYPE IN_LIST ALL_BUILD_TYPES))
+    message(WARNING "Build type '${CMAKE_BUILD_TYPE}' is not supported. Defaulting to 'rls'")
+endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
+if(CMAKE_BUILD_TYPE IN_LIST DBG_BUILD_TYPES)
     set(
         CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS} -g -Werror -Wextra -Wpedantic -Wmissing-format-attribute"
+        "${CMAKE_C_FLAGS} -g -Wpedantic -Wmissing-format-attribute"
     )
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "dbg_asan")
+if(CMAKE_BUILD_TYPE STREQUAL "dbg_asan")
     set(
         CMAKE_C_FLAGS
         "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -fsanitize=address"
@@ -33,7 +46,7 @@ if(CMAKE_BUILD_TYPE MATCHES "dbg_asan")
         alsa-rme-adi2-volume-control
         PUBLIC -fno-omit-frame-pointer -fsanitize=address
     )
-elseif(CMAKE_BUILD_TYPE MATCHES "dbg_tsan")
+elseif(CMAKE_BUILD_TYPE STREQUAL "dbg_tsan")
     set(
         CMAKE_C_FLAGS
         "${CMAKE_C_FLAGS} -fsanitize=thread"
@@ -42,7 +55,7 @@ elseif(CMAKE_BUILD_TYPE MATCHES "dbg_tsan")
         alsa-rme-adi2-volume-control
         PUBLIC -fsanitize=thread
     )
-elseif(CMAKE_BUILD_TYPE MATCHES "dbg_ubsan")
+elseif(CMAKE_BUILD_TYPE STREQUAL "dbg_ubsan")
     set(
         CMAKE_C_FLAGS
         "${CMAKE_C_FLAGS} -fsanitize=undefined"
@@ -51,27 +64,16 @@ elseif(CMAKE_BUILD_TYPE MATCHES "dbg_ubsan")
         alsa-rme-adi2-volume-control
         PUBLIC -fsanitize=undefined
     )
-elseif(CMAKE_BUILD_TYPE MATCHES "rls")
-    set(
-        CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS} -O2"
-    )
-elseif(CMAKE_BUILD_TYPE MATCHES "dbg")
-    # empty case just to prevent falling into the default one (rls),
-    # which applies optimizations
-else()
-    # the default case is rls, just to be safe
+elseif(CMAKE_BUILD_TYPE STREQUAL "rls")
     set(
         CMAKE_C_FLAGS
         "${CMAKE_C_FLAGS} -O2"
     )
 endif()
 
-if(
-    (CMAKE_BUILD_TYPE MATCHES "dbg_asan") OR
-    (CMAKE_BUILD_TYPE MATCHES "dbg_tsan") OR
-    (CMAKE_BUILD_TYPE MATCHES "dbg_ubsan")
-)
+# m (math) and ALSA are needed on all platforms
+if(CMAKE_BUILD_TYPE IN_LIST DBG_SANITIZED_BUILD_TYPES)
+    # atomic is needed on armhf
     target_link_libraries(
         alsa-rme-adi2-volume-control
         atomic
