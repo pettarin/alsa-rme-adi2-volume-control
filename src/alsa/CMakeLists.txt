@@ -20,7 +20,7 @@ add_executable(alsa-rme-adi2-volume-control src/alsa-rme-adi2-volume-control.c)
 if(CMAKE_BUILD_TYPE MATCHES "^dbg")
     set(
         CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS} -g -Werror"
+        "${CMAKE_C_FLAGS} -g -Werror -Wextra -Wpedantic -Wmissing-format-attribute"
     )
 endif()
 
@@ -52,9 +52,10 @@ elseif(CMAKE_BUILD_TYPE MATCHES "dbg_ubsan")
         PUBLIC -fsanitize=undefined
     )
 elseif(CMAKE_BUILD_TYPE MATCHES "dbg")
+    # just to prevent falling in the default case
     set(
         CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS} -Wextra -Wpedantic -Wmissing-format-attribute"
+        "${CMAKE_C_FLAGS}"
     )
 elseif(CMAKE_BUILD_TYPE MATCHES "rls")
     set(
