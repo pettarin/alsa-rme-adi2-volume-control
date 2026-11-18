@@ -425,23 +425,132 @@ static int find_card_and_set_configuration(const RMEDeviceFamily *pFamily) {
     return BOOL_TRUE;
 }
 
-/* Determine the device ID if the user did not specify it explicitly,
- * searching for a matching card using the device name.
+/* Return the device family matching the name of the ALSA card iCard,
+ * or NULL if the card name cannot be read or matches no family.
  *
- * If the device name is "autodetect",
- * try all supported ADI-2 product families, in increasing iProbeOrder.
- * Otherwise, try only the family with the given device name.
+ * If pOnlyFamily is not NULL, only that family is considered;
+ * otherwise all families are tried, in increasing iProbeOrder. */
+static const RMEDeviceFamily *find_device_family_for_card(
+    int iCard,
+    const RMEDeviceFamily *pOnlyFamily
+) {
+    char *szCardName = NULL;
+    const RMEDeviceFamily *pFamily = NULL;
+    const RMEDeviceFamily *pMatch = NULL;
+
+    if (
+        ERR_ALSA_CODE_IS_ERROR(snd_card_get_name(iCard, &szCardName)) ||
+        (szCardName == NULL)
+    ) {
+        log_error("Cannot read the name of ALSA card number '%d'", iCard);
+        return NULL;
+    }
+    log_verbose("ALSA card number '%d' has name '%s'", iCard, szCardName);
+
+    for (int iProbeOrder = 0; iProbeOrder < (int)DEVICE_FAMILIES_COUNT; iProbeOrder++) {
+        pFamily = find_device_family_by_probe_order(iProbeOrder);
+        if (
+            (pFamily == NULL) ||
+            ((pOnlyFamily != NULL) && (pFamily != pOnlyFamily))
+        ) {
+            continue;
+        }
+        /* NOTE: matching the family name as substring of szCardName */
+        if (
+            safe_strnstr(
+                szCardName,
+                pFamily->szDeviceName,
+                DEVICE_NAME_MAX_LENGTH
+            ) != NULL
+        ) {
+            pMatch = pFamily;
+            break;
+        }
+    }
+
+    if (pMatch == NULL) {
+        if (pOnlyFamily != NULL) {
+            log_error(
+                "ALSA card number '%d' with name '%s' "
+                "does not match device name '%s'",
+                iCard,
+                szCardName,
+                pOnlyFamily->szDeviceName
+            );
+        } else {
+            log_error(
+                "ALSA card number '%d' with name '%s' "
+                "does not match any supported device name",
+                iCard,
+                szCardName
+            );
+        }
+    }
+
+    free(szCardName);
+    return pMatch;
+}
+
+/* Determine the device ID if the user did not specify it explicitly.
  *
+ * If the user specified the card number, derive the device ID
+ * from the name of that card: if the device name is "autodetect",
+ * try all supported ADI-2 product families, in increasing iProbeOrder;
+ * otherwise, check that the card name matches the given device name.
+ *
+ * If the user did not specify the card number,
+ * search for a matching card using the device name:
+ * if the device name is "autodetect",
+ * try all supported ADI-2 product families, in increasing iProbeOrder;
+ * otherwise, try only the family with the given device name.
  * The first matching card found (lowest card number) is set and used.
  *
  * Return true if a matching card is found; otherwise return false. */
 static int ensure_device_id_is_set(void) {
     const RMEDeviceFamily *pFamily = NULL;
+    const RMEDeviceFamily *pOnlyFamily = NULL;
 
-    if (gpConfiguration.iDeviceID >= 0) {
+    if (gpConfiguration.iDeviceID != DEVICE_ID_NOT_SET) {
         log_verbose(
             "Device ID '0x%02X' explicitly specified by the user",
             gpConfiguration.iDeviceID
+        );
+        return BOOL_TRUE;
+    }
+
+    if (gpConfiguration.iCardNumber != CARD_NUMBER_NOT_SET) {
+        /* card number explicitly specified by the user:
+         * derive the device ID from that card,
+         * instead of searching all cards */
+        log_verbose(
+            "Find device ID from ALSA card number '%d' and device name '%s'",
+            gpConfiguration.iCardNumber,
+            gpConfiguration.szDeviceName
+        );
+        if (BOOL_IS_FALSE(device_name_is_autodetect(gpConfiguration.szDeviceName))) {
+            pOnlyFamily = find_device_family_by_name(gpConfiguration.szDeviceName);
+            if (pOnlyFamily == NULL) {
+                return BOOL_FALSE;
+            }
+        }
+        pFamily = find_device_family_for_card(
+            gpConfiguration.iCardNumber,
+            pOnlyFamily
+        );
+        if (pFamily == NULL) {
+            return BOOL_FALSE;
+        }
+        gpConfiguration.iDeviceID = pFamily->chDeviceID;
+        safe_strncpy(
+            gpConfiguration.szDeviceName,
+            pFamily->szDeviceName,
+            DEVICE_NAME_MAX_LENGTH
+        );
+        log_verbose(
+            "Device ID '0x%02X' (%s) determined from ALSA card number '%d'",
+            pFamily->chDeviceID,
+            pFamily->szDeviceName,
+            gpConfiguration.iCardNumber
         );
         return BOOL_TRUE;
     }
@@ -485,7 +594,7 @@ static int ensure_device_id_is_set(void) {
 static int ensure_card_number_is_set(void) {
     const RMEDeviceFamily *pFamily = NULL;
 
-    if (gpConfiguration.iCardNumber >= 0) {
+    if (gpConfiguration.iCardNumber != CARD_NUMBER_NOT_SET) {
         log_verbose(
             "ALSA card number '%d' explicitly specified by the user "
             "or already determined",
@@ -523,10 +632,7 @@ static int ensure_device_id_and_card_number(void) {
 
     bCardFound = ensure_device_id_is_set();
     if (BOOL_IS_FALSE(bCardFound)) {
-        log_error(
-            "Cannot find an ALSA card matching device name '%s'",
-            gpConfiguration.szDeviceName
-        );
+        log_error("Cannot find an ALSA card matching the provided criteria");
         return ERR_ERROR_GENERIC;
     }
 

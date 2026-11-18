@@ -19,7 +19,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- A defect that prevented ADI-2 DAC devices to be autodetected
+- ADI-2 DAC devices were not autodetected
+- Option `--card-number` was ignored when `--device-name` was specified
+  and `--device-id` was not specified
 - Some minor issues in error and cleanup execution paths, and logging
 
 
