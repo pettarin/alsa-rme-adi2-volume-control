@@ -37,11 +37,6 @@
  * ************************************************************************* */
 
 typedef struct {
-    char szDeviceName[64];
-    unsigned char chDeviceID;
-} DeviceIDWithName;
-
-typedef struct {
     snd_ctl_elem_id_t *pVolumeID;
     snd_ctl_elem_id_t *pSwitchID;
     char szUDCEVolumeName[UDCE_NAME_MAX_LENGTH];
@@ -67,6 +62,12 @@ typedef struct {
     int bStartupSwitch;
     unsigned char chRMEOutput;
 } OutputParameters;
+
+typedef struct {
+    const char *szDeviceName;
+    unsigned char chDeviceID;
+    int iProbeOrder;
+} RMEDeviceFamily;
 
 typedef struct {
     OutputParameters stLine12;
@@ -146,6 +147,24 @@ static ServiceConfiguration gpConfiguration = {
     .bUninstallOnExit = DEFAULT_UNINSTALL_ON_EXIT,
     .bVerboseLog = DEFAULT_VERBOSE_LOG
 };
+
+/* Supported RME ADI-2 product families.
+ *
+ * The order of the entries is the lexicographic order,
+ * used by the functions that print the list of device IDs and names.
+ *
+ * The iProbeOrder field is the order in which the families are probed
+ * when the device name is DEVICE_NAME_AUTODETECT (i.e., "autodetect"),
+ * lower values first, first matching card is selected.
+ *
+ * The iProbeOrder values must be exactly 0, 1, ..., (count - 1),
+ * without gaps. */
+static const RMEDeviceFamily DEVICE_FAMILIES[] = {
+    { DEVICE_NAME_RME_ADI2_DAC,  RME_DEVICE_FAMILY_ADI2_DAC,  2 },
+    { DEVICE_NAME_RME_ADI2_PRO,  RME_DEVICE_FAMILY_ADI2_PRO,  1 },
+    { DEVICE_NAME_RME_ADI24_PRO, RME_DEVICE_FAMILY_ADI24_PRO, 0 },
+};
+#define DEVICE_FAMILIES_COUNT (sizeof(DEVICE_FAMILIES) / sizeof(DEVICE_FAMILIES[0]))
 
 
 /* *************************************************************************
@@ -249,6 +268,64 @@ static char *safe_strnstr(const char *haystack, const char *needle, size_t len) 
 
 
 /* *************************************************************************
+ * RME device family helpers
+ * ************************************************************************* */
+
+/* Return true if the given device name is "autodetect",
+ * and false otherwise. */
+static int device_name_is_autodetect(const char *szDeviceName) {
+    return (
+        strncmp(
+            szDeviceName,
+            DEVICE_NAME_AUTODETECT,
+            DEVICE_NAME_MAX_LENGTH
+        ) == 0
+    ) ? BOOL_TRUE : BOOL_FALSE;
+}
+
+/* Return the device family with the given (exact) name,
+ * or NULL if no such family exists. */
+static const RMEDeviceFamily *find_device_family_by_name(
+    const char *szDeviceName
+) {
+    for (size_t i = 0; i < DEVICE_FAMILIES_COUNT; i++) {
+        if (
+            strncmp(
+                szDeviceName,
+                DEVICE_FAMILIES[i].szDeviceName,
+                DEVICE_NAME_MAX_LENGTH
+            ) == 0
+        ) {
+            return &DEVICE_FAMILIES[i];
+        }
+    }
+    return NULL;
+}
+
+/* Return the device family with the given device ID,
+ * or NULL if no such family exists. */
+static const RMEDeviceFamily *find_device_family_by_id(int iDeviceID) {
+    for (size_t i = 0; i < DEVICE_FAMILIES_COUNT; i++) {
+        if (iDeviceID == (int)DEVICE_FAMILIES[i].chDeviceID) {
+            return &DEVICE_FAMILIES[i];
+        }
+    }
+    return NULL;
+}
+
+/* Return the device family with the given probe order,
+ * or NULL if no such family exists. */
+static const RMEDeviceFamily *find_device_family_by_probe_order(int iProbeOrder) {
+    for (size_t i = 0; i < DEVICE_FAMILIES_COUNT; i++) {
+        if (iProbeOrder == DEVICE_FAMILIES[i].iProbeOrder) {
+            return &DEVICE_FAMILIES[i];
+        }
+    }
+    return NULL;
+}
+
+
+/* *************************************************************************
  * ALSA card helpers
  * ************************************************************************* */
 
@@ -322,112 +399,45 @@ static int find_card_by_name(const char *szQuery) {
     return -1;
 }
 
-/* Find the first card corresponding to the given device name and ID:
- * return true if found, otherwise return false. */
-static int find_card_and_set_configuration(
-    const char *szDeviceName,
-    int iDeviceID
-) {
-    int iCardNumber = find_card_by_name(szDeviceName);
+/* Find the first card corresponding to the given device family
+ * (name and ID): return true if found, otherwise return false. */
+static int find_card_and_set_configuration(const RMEDeviceFamily *pFamily) {
+    int iCardNumber = find_card_by_name(pFamily->szDeviceName);
     if (iCardNumber < 0) {
         /* card not found */
         return BOOL_FALSE;
     }
 
     /* card found */
-    gpConfiguration.iDeviceID = iDeviceID;
+    gpConfiguration.iDeviceID = pFamily->chDeviceID;
     gpConfiguration.iCardNumber = iCardNumber;
     safe_strncpy(
         gpConfiguration.szDeviceName,
-        szDeviceName,
+        pFamily->szDeviceName,
         DEVICE_NAME_MAX_LENGTH
     );
     log_verbose(
         "Found ALSA card number '%d' for device ID '0x%02X' (%s)",
         iCardNumber,
-        iDeviceID,
-        szDeviceName
+        pFamily->chDeviceID,
+        pFamily->szDeviceName
     );
     return BOOL_TRUE;
-}
-
-/* Partials for the various ADI-2 product families. */
-static int find_card_and_set_configuration_rme_adi24_pro(void) {
-    return find_card_and_set_configuration(
-        DEVICE_NAME_RME_ADI24_PRO,
-        RME_DEVICE_FAMILY_ADI24_PRO
-    );
-}
-
-static int find_card_and_set_configuration_rme_adi2_pro(void) {
-    return find_card_and_set_configuration(
-        DEVICE_NAME_RME_ADI2_PRO,
-        RME_DEVICE_FAMILY_ADI2_PRO
-    );
-}
-
-static int find_card_and_set_configuration_rme_adi2_dac(void) {
-    return find_card_and_set_configuration(
-        DEVICE_NAME_RME_ADI2_DAC,
-        RME_DEVICE_FAMILY_ADI2_DAC
-    );
-}
-
-static int device_name_is_autodetect_or_rme_adi24_pro(void) {
-    return (
-        (strncmp(
-            gpConfiguration.szDeviceName,
-            DEVICE_NAME_AUTODETECT,
-            DEVICE_NAME_MAX_LENGTH
-        ) == 0) ||
-        (strncmp(
-            gpConfiguration.szDeviceName,
-            DEVICE_NAME_RME_ADI24_PRO,
-            DEVICE_NAME_MAX_LENGTH
-        ) == 0)
-    );
-}
-
-static int device_name_is_autodetect_or_rme_adi2_pro(void) {
-    return (
-        (strncmp(
-            gpConfiguration.szDeviceName,
-            DEVICE_NAME_AUTODETECT,
-            DEVICE_NAME_MAX_LENGTH
-        ) == 0) ||
-        (strncmp(
-            gpConfiguration.szDeviceName,
-            DEVICE_NAME_RME_ADI2_PRO,
-            DEVICE_NAME_MAX_LENGTH
-        ) == 0)
-    );
-}
-
-static int device_name_is_autodetect_or_rme_adi2_dac(void) {
-    return (
-        (strncmp(
-            gpConfiguration.szDeviceName,
-            DEVICE_NAME_AUTODETECT,
-            DEVICE_NAME_MAX_LENGTH
-        ) == 0) ||
-        (strncmp(
-            gpConfiguration.szDeviceName,
-            DEVICE_NAME_RME_ADI2_DAC,
-            DEVICE_NAME_MAX_LENGTH
-        ) == 0)
-    );
 }
 
 /* Determine the device ID if the user did not specify it explicitly,
  * searching for a matching card using the device name.
  *
  * If the device name is "autodetect",
- * try all supported ADI-2 product families, in the appropriate order.
+ * try all supported ADI-2 product families, in increasing iProbeOrder.
+ * Otherwise, try only the family with the given device name.
  *
  * The first matching card found (lowest card number) is set and used.
  *
  * Return true if a matching card is found; otherwise return false. */
 static int ensure_device_id_is_set(void) {
+    const RMEDeviceFamily *pFamily = NULL;
+
     if (gpConfiguration.iDeviceID >= 0) {
         log_verbose(
             "Device ID '0x%02X' explicitly specified by the user",
@@ -441,25 +451,28 @@ static int ensure_device_id_is_set(void) {
         gpConfiguration.szDeviceName
     );
 
-    if (
-        BOOL_IS_TRUE(device_name_is_autodetect_or_rme_adi24_pro()) &&
-        BOOL_IS_TRUE((find_card_and_set_configuration_rme_adi24_pro()))
-    ) {
-        return BOOL_TRUE;
+    if (BOOL_IS_FALSE(device_name_is_autodetect(gpConfiguration.szDeviceName))) {
+        /* specific device name: try only the corresponding family */
+        pFamily = find_device_family_by_name(gpConfiguration.szDeviceName);
+        if (pFamily == NULL) {
+            return BOOL_FALSE;
+        }
+        return find_card_and_set_configuration(pFamily);
     }
 
-    if (
-        BOOL_IS_TRUE(device_name_is_autodetect_or_rme_adi2_pro()) &&
-        BOOL_IS_TRUE((find_card_and_set_configuration_rme_adi2_pro()))
-    ) {
-        return BOOL_TRUE;
-    }
-
-    if (
-        BOOL_IS_TRUE(device_name_is_autodetect_or_rme_adi2_dac()) &&
-        BOOL_IS_TRUE((find_card_and_set_configuration_rme_adi2_dac()))
-    ) {
-        return BOOL_TRUE;
+    /* autodetect: try all families, in increasing iProbeOrder */
+    for (int iProbeOrder = 0; iProbeOrder < (int)DEVICE_FAMILIES_COUNT; iProbeOrder++) {
+        pFamily = find_device_family_by_probe_order(iProbeOrder);
+        if (pFamily == NULL) {
+            log_verbose(
+                "No device family with probe order '%d': skipping it",
+                iProbeOrder
+            );
+            continue;
+        }
+        if (BOOL_IS_TRUE(find_card_and_set_configuration(pFamily))) {
+            return BOOL_TRUE;
+        }
     }
 
     return BOOL_FALSE;
@@ -470,7 +483,7 @@ static int ensure_device_id_is_set(void) {
  *
  * Return true if a matching card is found; otherwise return false. */
 static int ensure_card_number_is_set(void) {
-    int bCardFound = BOOL_FALSE;
+    const RMEDeviceFamily *pFamily = NULL;
 
     if (gpConfiguration.iCardNumber >= 0) {
         log_verbose(
@@ -481,25 +494,16 @@ static int ensure_card_number_is_set(void) {
         return BOOL_TRUE;
     }
 
-    switch (gpConfiguration.iDeviceID) {
-        case RME_DEVICE_FAMILY_ADI24_PRO:
-            bCardFound = find_card_and_set_configuration_rme_adi24_pro();
-            break;
-        case RME_DEVICE_FAMILY_ADI2_PRO:
-            bCardFound = find_card_and_set_configuration_rme_adi2_pro();
-            break;
-        case RME_DEVICE_FAMILY_ADI2_DAC:
-            bCardFound = find_card_and_set_configuration_rme_adi2_dac();
-            break;
-        default:
-            log_verbose(
-                "gpConfiguration.iDeviceID has unsupported value '%d'",
-                gpConfiguration.iDeviceID
-            );
-            break;
+    pFamily = find_device_family_by_id(gpConfiguration.iDeviceID);
+    if (pFamily == NULL) {
+        log_verbose(
+            "gpConfiguration.iDeviceID has unsupported value '%d'",
+            gpConfiguration.iDeviceID
+        );
+        return BOOL_FALSE;
     }
 
-    return bCardFound;
+    return find_card_and_set_configuration(pFamily);
 }
 
 /* Determine the device ID and card number
@@ -1589,9 +1593,7 @@ static int validate_device_id(int bDeviceIDWasSet) {
     int iDeviceID = gpConfiguration.iDeviceID;
     if (BOOL_IS_TRUE(
         ((BOOL_IS_FALSE(bDeviceIDWasSet)) && (iDeviceID == DEVICE_ID_NOT_SET)) ||
-        (iDeviceID == RME_DEVICE_FAMILY_ADI2_DAC) ||
-        (iDeviceID == RME_DEVICE_FAMILY_ADI2_PRO) ||
-        (iDeviceID == RME_DEVICE_FAMILY_ADI24_PRO)
+        (find_device_family_by_id(iDeviceID) != NULL)
     )) {
         return BOOL_TRUE;
     }
@@ -1603,13 +1605,10 @@ static int validate_device_id(int bDeviceIDWasSet) {
  * (or it was not set), and false otherwise. */
 static int validate_device_name(void) {
     const char *szDeviceName = gpConfiguration.szDeviceName;
-    size_t cbDeviceName = sizeof(gpConfiguration.szDeviceName);
-    if (BOOL_IS_TRUE(
-        (strncmp(szDeviceName, DEVICE_NAME_AUTODETECT, cbDeviceName) == 0) ||
-        (strncmp(szDeviceName, DEVICE_NAME_RME_ADI2_DAC, cbDeviceName) == 0) ||
-        (strncmp(szDeviceName, DEVICE_NAME_RME_ADI2_PRO, cbDeviceName) == 0) ||
-        (strncmp(szDeviceName, DEVICE_NAME_RME_ADI24_PRO, cbDeviceName) == 0)
-    )) {
+    if (
+        (BOOL_IS_TRUE(device_name_is_autodetect(szDeviceName))) ||
+        (find_device_family_by_name(szDeviceName) != NULL)
+    ) {
         return BOOL_TRUE;
     }
     log_error("Invalid device name: '%s'", gpConfiguration.szDeviceName);
@@ -1769,39 +1768,25 @@ static int validate_min_max_db_values(void) {
 }
 
 static void print_device_names(void) {
-    const char *szDeviceNames[] = {
-        DEVICE_NAME_AUTODETECT,
-        DEVICE_NAME_RME_ADI2_DAC,
-        DEVICE_NAME_RME_ADI2_PRO,
-        DEVICE_NAME_RME_ADI24_PRO
-    };
-    size_t cCount = sizeof(szDeviceNames) / sizeof(szDeviceNames[0]);
-
     fprintf(stdout, "RME Product Family (Device Name)\n");
-    for (size_t i = 0; i < cCount; i++) {
+    fprintf(stdout, "- '%s'\n", DEVICE_NAME_AUTODETECT);
+    for (size_t i = 0; i < DEVICE_FAMILIES_COUNT; i++) {
         fprintf(
             stdout,
             "- '%s'\n",
-            szDeviceNames[i]
+            DEVICE_FAMILIES[i].szDeviceName
         );
     }
 }
 
 static void print_device_ids(void) {
-    DeviceIDWithName pszDeviceIDs[] = {
-        {DEVICE_NAME_RME_ADI2_DAC, RME_DEVICE_FAMILY_ADI2_DAC},
-        {DEVICE_NAME_RME_ADI2_PRO, RME_DEVICE_FAMILY_ADI2_PRO},
-        {DEVICE_NAME_RME_ADI24_PRO, RME_DEVICE_FAMILY_ADI24_PRO}
-    };
-    size_t cCount = sizeof(pszDeviceIDs) / sizeof(pszDeviceIDs[0]);
-
     fprintf(stdout, "ID\tRME Product Family\n");
-    for (size_t i = 0; i < cCount; i++) {
+    for (size_t i = 0; i < DEVICE_FAMILIES_COUNT; i++) {
         fprintf(
             stdout,
             "0x%02X\t%s\n",
-            pszDeviceIDs[i].chDeviceID,
-            pszDeviceIDs[i].szDeviceName
+            DEVICE_FAMILIES[i].chDeviceID,
+            DEVICE_FAMILIES[i].szDeviceName
         );
     }
 }
@@ -2038,7 +2023,7 @@ int main(int argc, char *argv[]) {
     int iExitCode = EXIT_OK;
     snd_ctl_t *ctl = NULL;
     snd_rawmidi_t *midi = NULL;
-    void (*pfLogFunction)(const char *msg, ...) = NULL;
+    __attribute__((format(printf, 1, 2))) void (*pfLogFunction)(const char *msg, ...) = NULL;
     OutputControl stLine12;
     OutputControl stPhones34;
 

@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 
 - Default value of --phones34-min-db option to `-90.0`
 - Default value of --phones34-max-db option to `-40.0`
+- Several cosmetic code improvements
 
 ### Fixed
 
