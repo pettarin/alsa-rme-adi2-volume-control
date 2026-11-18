@@ -150,10 +150,10 @@ static ServiceConfiguration gpConfiguration = {
 
 /* Supported RME ADI-2 product families.
  *
- * The order of the entries is the lexicographic order,
+ * The order of the entries in the table must be the same
  * used by the functions that print the list of device IDs and names.
  *
- * The iProbeOrder field is the order in which the families are probed
+ * The iProbeOrder is the order in which the families are probed
  * when the device name is DEVICE_NAME_AUTODETECT (i.e., "autodetect"),
  * lower values first, first matching card is selected.
  *
@@ -1010,11 +1010,11 @@ static void convert_db_value_to_sysex_bytes(
     );
 
     /* Ensure the raw value is in the allowed range */
-    if (raw < RME_VALUE_VOLUME_MIN) {
-        raw = RME_VALUE_VOLUME_MIN;
+    if (raw < RME_VALUE_RAW_VOLUME_MIN) {
+        raw = RME_VALUE_RAW_VOLUME_MIN;
     }
-    if (raw > RME_VALUE_VOLUME_MAX) {
-        raw = RME_VALUE_VOLUME_MAX;
+    if (raw > RME_VALUE_RAW_VOLUME_MAX) {
+        raw = RME_VALUE_RAW_VOLUME_MAX;
     }
 
     /* Assign to the two byte output arguments.

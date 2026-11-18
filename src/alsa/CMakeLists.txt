@@ -51,19 +51,15 @@ elseif(CMAKE_BUILD_TYPE MATCHES "dbg_ubsan")
         alsa-rme-adi2-volume-control
         PUBLIC -fsanitize=undefined
     )
-elseif(CMAKE_BUILD_TYPE MATCHES "dbg")
-    # just to prevent falling in the default case
-    set(
-        CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS}"
-    )
 elseif(CMAKE_BUILD_TYPE MATCHES "rls")
     set(
         CMAKE_C_FLAGS
         "${CMAKE_C_FLAGS} -O2"
     )
+elseif(CMAKE_BUILD_TYPE MATCHES "dbg")
+    # empty branch just to prevent falling into the default case
 else()
-    # defaults to a rls build
+    # the default case is rls, just to be safe
     set(
         CMAKE_C_FLAGS
         "${CMAKE_C_FLAGS} -O2"
