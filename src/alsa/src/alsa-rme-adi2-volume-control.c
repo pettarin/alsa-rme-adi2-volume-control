@@ -982,7 +982,7 @@ static void convert_db_value_to_sysex_bytes(
     unsigned char *pchHigh,
     unsigned char *pchLow
 ) {
-    int raw = (int)lround(dValueDB * 10) + 4096;
+    int raw = (int)lround(dValueDB * RME_VALUE_RAW_VOLUME_OFFSET) + RME_VALUE_RAW_VOLUME_OFFSET;
 
     /* Ensure the raw value is in the allowed range */
     if (raw < RME_VALUE_VOLUME_MIN) {
