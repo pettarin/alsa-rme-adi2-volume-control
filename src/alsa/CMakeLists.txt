@@ -51,6 +51,11 @@ elseif(CMAKE_BUILD_TYPE MATCHES "dbg_ubsan")
         alsa-rme-adi2-volume-control
         PUBLIC -fsanitize=undefined
     )
+elseif(CMAKE_BUILD_TYPE MATCHES "dbg")
+    set(
+        CMAKE_C_FLAGS
+        "${CMAKE_C_FLAGS} -Wextra -Wpedantic -Wmissing-format-attribute"
+    )
 elseif(CMAKE_BUILD_TYPE MATCHES "rls")
     set(
         CMAKE_C_FLAGS
