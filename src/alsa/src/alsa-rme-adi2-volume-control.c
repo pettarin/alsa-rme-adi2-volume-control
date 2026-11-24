@@ -1020,89 +1020,73 @@ static int is_valid_midi_device(const char *szMIDIDevice) {
     return BOOL_TRUE;
 }
 
-/* Probe the MIDI devices of the given iCardNumber X, in this order:
- * hw:X,i,j , hw:X,i , hw:X .
+/* Enumerate the MIDI output ports of the given iCardNumber X,
+ * as reported by ALSA, in the form hw:X,device,subdevice.
  *
- * Return true if a MIDI device is found, and false otherwise.
+ * Return true if at least one MIDI output port is found, and false otherwise.
  *
- * If bFirstOnly is true, return as soon as the first MIDI device is found;
- * if false, loop over all MIDI devices, printing (MIDI Device, Card Name)
- * for all the MIDI devices found. */
+ * If bFirstOnly is true, copy the first port found into szFoundMIDIDevice
+ * (of size cbFoundMIDIDevice bytes) and return;
+ * if false, print (MIDI Device, Card Name) for all the ports found;
+ * szFoundMIDIDevice is not used and can be NULL. */
 static int probe_midi_devices_for_card(
     int iCardNumber,
     const char *szCardName,
-    int bFirstOnly
+    int bFirstOnly,
+    char *szFoundMIDIDevice,
+    size_t cbFoundMIDIDevice
 ) {
-    /* first, try with hw:X,i,j */
-    for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
-        for (int j = MIDI_DEVICE_PROBE_MIN_INDEX; j <= MIDI_DEVICE_PROBE_MAX_INDEX; j++) {
+    char szCardHw[CARD_HW_MAX_LENGTH];
+    char szMIDIDevice[MIDI_DEVICE_MAX_LENGTH];
+    snd_ctl_t *ctl = NULL;
+    snd_rawmidi_info_t *info = NULL;
+    int iDevice = -1;
+    int bFound = BOOL_FALSE;
+
+    snprintf(szCardHw, sizeof(szCardHw), "hw:%d", iCardNumber);
+    if (ERR_ALSA_CODE_IS_ERROR(snd_ctl_open(&ctl, szCardHw, 0))) {
+        log_verbose(
+            "Cannot open ALSA card '%s' to enumerate its MIDI devices",
+            szCardHw
+        );
+        return BOOL_FALSE;
+    }
+
+    snd_rawmidi_info_alloca(&info);
+    while (
+        (snd_ctl_rawmidi_next_device(ctl, &iDevice) >= 0) && (iDevice >= 0)
+    ) {
+        /* this program only writes to the MIDI device: look at output ports */
+        snd_rawmidi_info_set_device(info, (unsigned int)iDevice);
+        snd_rawmidi_info_set_subdevice(info, 0);
+        snd_rawmidi_info_set_stream(info, SND_RAWMIDI_STREAM_OUTPUT);
+        if (ERR_ALSA_CODE_IS_ERROR(snd_ctl_rawmidi_info(ctl, info))) {
+            /* this device has no output ports */
+            continue;
+        }
+
+        unsigned int cSubdevices = snd_rawmidi_info_get_subdevices_count(info);
+        for (unsigned int j = 0; j < cSubdevices; j++) {
             snprintf(
-                gpConfiguration.szMIDIDevice,
-                MIDI_DEVICE_MAX_LENGTH,
-                "hw:%d,%d,%d",
+                szMIDIDevice,
+                sizeof(szMIDIDevice),
+                "hw:%d,%d,%u",
                 iCardNumber,
-                i,
+                iDevice,
                 j
             );
-            if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
-                if (BOOL_IS_TRUE(bFirstOnly)) {
-                    return BOOL_TRUE;
-                } else {
-                    fprintf(
-                        stdout,
-                        "%s\t%s\n",
-                        gpConfiguration.szMIDIDevice,
-                        szCardName
-                    );
-                }
-            }
-        }
-    }
-
-    /* second, try with just hw:X,i */
-    for (int i = MIDI_DEVICE_PROBE_MIN_INDEX; i <= MIDI_DEVICE_PROBE_MAX_INDEX; i++) {
-        snprintf(
-            gpConfiguration.szMIDIDevice,
-            MIDI_DEVICE_MAX_LENGTH,
-            "hw:%d,%d",
-            iCardNumber,
-            i
-        );
-        if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
+            bFound = BOOL_TRUE;
             if (BOOL_IS_TRUE(bFirstOnly)) {
-                return BOOL_TRUE;
-            } else {
-                fprintf(
-                    stdout,
-                    "%s\t%s\n",
-                    gpConfiguration.szMIDIDevice,
-                    szCardName
-                );
+                safe_strncpy(szFoundMIDIDevice, szMIDIDevice, cbFoundMIDIDevice);
+                goto cleanup;
             }
+            fprintf(stdout, "%s\t%s\n", szMIDIDevice, szCardName);
         }
     }
 
-    /* third, try with just hw:X */
-    snprintf(
-        gpConfiguration.szMIDIDevice,
-        MIDI_DEVICE_MAX_LENGTH,
-        "hw:%d",
-        iCardNumber
-    );
-    if (BOOL_IS_TRUE(is_valid_midi_device(gpConfiguration.szMIDIDevice))) {
-        if (BOOL_IS_TRUE(bFirstOnly)) {
-            return BOOL_TRUE;
-        } else {
-            fprintf(
-                stdout,
-                "%s\t%s\n",
-                gpConfiguration.szMIDIDevice,
-                szCardName
-            );
-        }
-    }
-
-    return BOOL_FALSE;
+cleanup:
+    snd_ctl_close(ctl);
+    return bFound;
 }
 
 /* Ensure that gpConfiguration.szMIDIDevice holds valid a MIDI device
@@ -1137,7 +1121,9 @@ static int ensure_midi_device(void) {
     if (BOOL_IS_TRUE(probe_midi_devices_for_card(
         gpConfiguration.iCardNumber,
         NULL,
-        BOOL_TRUE
+        BOOL_TRUE,
+        gpConfiguration.szMIDIDevice,
+        sizeof(gpConfiguration.szMIDIDevice)
     ))) {
         return ERR_OK;
     }
@@ -1160,7 +1146,7 @@ static void print_midi_devices(void) {
         if (szCardName == NULL) {
             continue;
         }
-        probe_midi_devices_for_card(iCard, szCardName, BOOL_FALSE);
+        probe_midi_devices_for_card(iCard, szCardName, BOOL_FALSE, NULL, 0);
         free(szCardName);
     }
 }
