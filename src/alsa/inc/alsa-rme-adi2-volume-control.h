@@ -16,12 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifndef ALSA_RME_ADI2_VOLUME_CONTROL_H
+#define ALSA_RME_ADI2_VOLUME_CONTROL_H
+
 #ifndef RME_ADI2_H
 #include "rme-adi2.h"
 #endif
-
-#ifndef ALSA_RME_ADI2_VOLUME_CONTROL_H
-#define ALSA_RME_ADI2_VOLUME_CONTROL_H
 
 /* Program version */
 #define PROGRAM_VERSION                             "1.0.3"
