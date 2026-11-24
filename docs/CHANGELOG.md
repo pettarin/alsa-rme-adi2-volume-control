@@ -9,10 +9,12 @@ All notable changes to this project will be documented in this file.
 > [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [1.0.3] - 2026-11-26
+## [1.0.3] - 2026-11-24
 
 ### Changed
 
+- Better probing of MIDI devices through the appropriate ALSA functions
+  `snd_ctl_rawmidi_next_device()` and `snd_rawmidi_info_get_subdevices_count()`
 - Stronger validation of command line arguments
 - Minor performance improvements
 
