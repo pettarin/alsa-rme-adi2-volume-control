@@ -2350,18 +2350,20 @@ cleanup:
     } else {
         /* Uninstall mode, or normal mode with uninstall on exit,
          * ignoring any errors */
-        uninstall_all_alsa_udce_s(ctl);
-        if (BOOL_IS_TRUE(gpConfiguration.bUninstall)) {
-            /* in uninstall mode, print a log message at INFO level */
-            pfLogFunction = log_info;
-        } else {
-            pfLogFunction = log_verbose;
+        if (ctl != NULL) {
+            uninstall_all_alsa_udce_s(ctl);
+            if (BOOL_IS_TRUE(gpConfiguration.bUninstall)) {
+                /* in uninstall mode, print a log message at INFO level */
+                pfLogFunction = log_info;
+            } else {
+                pfLogFunction = log_verbose;
 
+            }
+            pfLogFunction(
+                "ALSA card '%d' no longer has user-defined control elements",
+                gpConfiguration.iCardNumber
+            );
         }
-        pfLogFunction(
-            "ALSA card '%d' no longer has user-defined control elements",
-            gpConfiguration.iCardNumber
-        );
     }
 
     /* Close objects */
