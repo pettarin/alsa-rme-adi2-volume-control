@@ -1745,7 +1745,8 @@ static int validate_midi_device(void) {
  * and false otherwise. */
 static int validate_initial_volume_value(int iVolume, const char *szOption) {
     if (
-        (iVolume == INITIAL_VOLUME_VALUE_NOT_SET) ||
+        /* to be uncommented when read state from device is implemented */
+        /* (iVolume == INITIAL_VOLUME_VALUE_NOT_SET) || */
         ((iVolume >= VOL_MIN) && (iVolume <= VOL_MAX))
     ) {
         return BOOL_TRUE;
