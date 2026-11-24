@@ -25,7 +25,7 @@
 
 /* Program version */
 #define PROGRAM_VERSION                             "1.0.3"
-#define PROGRAM_BUILD_DATE                          "2026-11-19"
+#define PROGRAM_BUILD_DATE                          "2026-11-26"
 
 /* Boolean values */
 #define BOOL_FALSE                                  0

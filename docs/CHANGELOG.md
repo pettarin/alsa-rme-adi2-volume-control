@@ -9,15 +9,21 @@ All notable changes to this project will be documented in this file.
 > [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [1.0.3] - To Be Released
-
-### Added
+## [1.0.3] - 2026-11-26
 
 ### Changed
 
+- Stronger validation of command line arguments
+- Minor performance improvements
+
 ### Fixed
 
+- Minor logging defects
+
 ### Removed
+
+- Unused symbols `CARD_NAME_MAX_LENGTH` and `RME_SYSEX_COMMAND_GET`
+  defined in headers
 
 
 ## [1.0.2] - 2026-11-18
