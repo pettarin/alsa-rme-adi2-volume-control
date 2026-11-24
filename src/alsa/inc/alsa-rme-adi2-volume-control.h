@@ -143,6 +143,7 @@
 #define MIDI_DEVICE_AUTODETECT                      "autodetect"
 
 /* CLI/service configuration default values */
+#define DEFAULT_ADD_DB_METADATA                     BOOL_FALSE
 #define DEFAULT_CARD_HW                             CARD_HW_NOT_SET
 #define DEFAULT_CARD_NUMBER                         CARD_NUMBER_NOT_SET
 #define DEFAULT_DEVICE_ID                           DEVICE_ID_NOT_SET

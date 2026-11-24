@@ -79,6 +79,7 @@ typedef struct {
     char szDeviceName[DEVICE_NAME_MAX_LENGTH];
     int iCardNumber;
     int iDeviceID;
+    int bAddDBMetadata;
     int bListCards;
     int bListDeviceIDs;
     int bListDeviceNames;
@@ -137,6 +138,7 @@ static ServiceConfiguration gpConfiguration = {
     .szDeviceName = DEFAULT_DEVICE_NAME,
     .iCardNumber = DEFAULT_CARD_NUMBER,
     .iDeviceID = DEFAULT_DEVICE_ID,
+    .bAddDBMetadata = DEFAULT_ADD_DB_METADATA,
     .bListCards = DEFAULT_LIST_CARDS,
     .bListDeviceIDs = DEFAULT_LIST_DEVICE_IDS,
     .bListDeviceNames = DEFAULT_LIST_DEVICE_NAMES,
@@ -887,6 +889,45 @@ cleanup:
     return iRet;
 }
 
+/* Attach dB metadata to the volume control element with the given id,
+ * declaring that VOL_MIN corresponds to dMinDB and VOL_MAX to dMaxDB,
+ * with a linear mapping in between, so that mixers can display dB values.
+ *
+ * Return ERR_OK on success, or the ALSA error code otherwise. */
+static int set_volume_db_range(
+    snd_ctl_t *ctl,
+    snd_ctl_elem_id_t *id,
+    const char *szName,
+    double dMinDB,
+    double dMaxDB
+) {
+    /* TLV layout: type, length of the data in bytes, then the data;
+     * for DB_MINMAX the data is (min, max) in units of 0.01 dB */
+    unsigned int puiTLV[] = {
+        SND_CTL_TLVT_DB_MINMAX,
+        2 * sizeof(unsigned int),
+        (unsigned int)(int)lround(dMinDB * 100.0),
+        (unsigned int)(int)lround(dMaxDB * 100.0),
+    };
+
+    int iRet = snd_ctl_elem_tlv_write(ctl, id, puiTLV);
+    if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
+        log_error(
+            "Failed to set the dB range of '%s': %s",
+            szName,
+            snd_strerror(iRet)
+        );
+        return iRet;
+    }
+    log_verbose(
+        "Set the dB range of '%s' to [%0.1f, %0.1f] dB",
+        szName,
+        dMinDB,
+        dMaxDB
+    );
+    return ERR_OK;
+}
+
 /* read the value of an ALSA user-defined control element */
 static int read_alsa_udce_value(
     snd_ctl_t *ctl,
@@ -1441,6 +1482,20 @@ static int init_output_control(
         goto cleanup;
     }
 
+    /* Add the dB metadata to the volume UDCE, if requested.
+     *
+     * NOTE: a failure is logged but it is not fatal,
+     *       since the controls work without the dB metadata. */
+    if (BOOL_IS_TRUE(gpConfiguration.bAddDBMetadata)) {
+        (void)set_volume_db_range(
+            ctl,
+            pOutputControl->pVolumeID,
+            pOutputControl->szUDCEVolumeName,
+            pOutputControl->dVolumeMinDB,
+            pOutputControl->dVolumeMaxDB
+        );
+    }
+
     /* Allocate and create switch UDCE */
     iRet = snd_ctl_elem_id_malloc(&(pOutputControl->pSwitchID));
     if (ERR_ALSA_CODE_IS_ERROR(iRet)) {
@@ -1799,10 +1854,23 @@ static int validate_midi_device(void) {
     return BOOL_FALSE;
 }
 
-/* Return true if the line12/phones34 initial volume values
+/* Return true if the value of --add-db-metadata in the configuration
+ * is a valid boolean value, and false otherwise. */
+static int validate_add_db_metadata(void) {
+    if (BOOL_IS_VALID(gpConfiguration.bAddDBMetadata)) {
+        return BOOL_TRUE;
+    }
+    log_error(
+        "Invalid value for option '--add-db-metadata': '%d'",
+        gpConfiguration.bAddDBMetadata
+    );
+    return BOOL_FALSE;
+}
+
+/* Return true if the line12/phones34 initial raw volume values
  * in the configuration are supported (or they were not set),
  * and false otherwise. */
-static int validate_initial_volume_value(int iVolume, const char *szOption) {
+static int validate_initial_raw_volume_value(int iVolume, const char *szOption) {
     if (
         /* to be uncommented when read state from device is implemented */
         /* (iVolume == INITIAL_VOLUME_VALUE_NOT_SET) || */
@@ -1811,13 +1879,13 @@ static int validate_initial_volume_value(int iVolume, const char *szOption) {
         return BOOL_TRUE;
     }
     log_error(
-        "Invalid initial volume value for option '%s': '%d'",
+        "Invalid initial raw volume value for option '%s': '%d'",
         szOption,
         iVolume
     );
     return BOOL_FALSE;
 }
-static int validate_initial_volume_values(void) {
+static int validate_initial_raw_volume_values(void) {
     StringIntegerPair pstPairs[] = {
         {"--line12-volume", gpConfiguration.stLine12.iStartupVolume},
         {"--phones34-volume", gpConfiguration.stPhones34.iStartupVolume},
@@ -1826,7 +1894,7 @@ static int validate_initial_volume_values(void) {
 
     for (size_t i = 0; i < cCount; i++) {
         if (BOOL_IS_FALSE(
-            validate_initial_volume_value(
+            validate_initial_raw_volume_value(
                 pstPairs[i].iValue,
                 pstPairs[i].szOptionName
             )
@@ -1965,6 +2033,7 @@ static void print_usage(const char *sProgramName, FILE *pStream) {
     fprintf(pStream, "Creates ALSA mute and volume controls for RME ADI-2 devices.\n");
     fprintf(pStream, "\n");
     fprintf(pStream, "Options:\n"); /* keep sorted by short option, then lexicographically */
+    fprintf(pStream, "  -a, --add-db-metadata INTEGER   Add dB metadata to the volume controls, so that mixers can display dB values (%d=do not add, %d=add, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.bAddDBMetadata);
     fprintf(pStream, "  -C, --card-number INTEGER       Use the ALSA card with the given number; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones\n");
     fprintf(pStream, "  -d, --device-name STRING        RME device name (case sensitive, default: '%s'); option --list-device-names prints the supported ones\n", DEFAULT_DEVICE_NAME);
     fprintf(pStream, "  -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones\n");
@@ -1972,7 +2041,7 @@ static void print_usage(const char *sProgramName, FILE *pStream) {
     fprintf(pStream, "  -h, --help                      Print this help\n");
     fprintf(pStream, "      --license                   Print the license\n");
     fprintf(pStream, "  -k, --line12-switch INTEGER     Initial state for line output 1/2 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, DEFAULT_LINE12_STARTUP_SWITCH_VALUE);
-    fprintf(pStream, "  -K, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", DEFAULT_LINE12_STARTUP_VOLUME_VALUE);
+    fprintf(pStream, "  -K, --line12-volume INTEGER     Initial raw volume for line output 1/2 (in [0, 100], default: %d)\n", DEFAULT_LINE12_STARTUP_VOLUME_VALUE);
     fprintf(pStream, "  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, DEFAULT_LINE12_VOLUME_MIN_DB);
     fprintf(pStream, "  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, DEFAULT_LINE12_VOLUME_MAX_DB);
     fprintf(pStream, "      --list-cards                List all ALSA cards and exit\n");
@@ -1984,7 +2053,7 @@ static void print_usage(const char *sProgramName, FILE *pStream) {
     fprintf(pStream, "      --no-phones34               Do not install controls for phones output 3/4\n");
     fprintf(pStream, "      --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
     fprintf(pStream, "  -o, --phones34-switch INTEGER   Initial state for phones output 3/4 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, DEFAULT_PHONES34_STARTUP_SWITCH_VALUE);
-    fprintf(pStream, "  -O, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", DEFAULT_PHONES34_STARTUP_VOLUME_VALUE);
+    fprintf(pStream, "  -O, --phones34-volume INTEGER   Initial raw volume for phones output 3/4 (in [0, 100], default: %d)\n", DEFAULT_PHONES34_STARTUP_VOLUME_VALUE);
     fprintf(pStream, "  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, DEFAULT_PHONES34_VOLUME_MIN_DB);
     fprintf(pStream, "  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, DEFAULT_PHONES34_VOLUME_MAX_DB);
     fprintf(pStream, "      --uninstall                 Uninstall ALSA user-defined control elements and exit\n");
@@ -2088,6 +2157,7 @@ static int parse_double_option(
 static int parse_args(int argc, char *argv[]) {
     struct option long_opts[] = {
         /* keep sorted by long option name; use {0,0,0,0} sentinel to end */
+        {"add-db-metadata",      required_argument, 0, 'a'},
         {"card-number",          required_argument, 0, 'C'},
         {"device-id",            required_argument, 0, 'D'},
         {"device-name",          required_argument, 0, 'd'},
@@ -2122,12 +2192,19 @@ static int parse_args(int argc, char *argv[]) {
         (opt = getopt_long(
             argc,
             argv,
-            "C:d:D:Ehk:K:l:L:M:o:O:p:P:QRSTuUvVXYZ",
+            "a:C:d:D:Ehk:K:l:L:M:o:O:p:P:QRSTuUvVXYZ",
             long_opts,
             NULL
         )) != -1
     ) {
         switch (opt) {
+            case 'a':
+                if (BOOL_IS_FALSE(parse_integer_option(
+                    "--add-db-metadata", optarg, 10, &(gpConfiguration.bAddDBMetadata)
+                ))) {
+                    return ERR_ERROR_INVALID_ARGUMENT;
+                }
+                break;
             case 'C':
                 if (BOOL_IS_FALSE(parse_integer_option(
                     "--card-number", optarg, 10, &(gpConfiguration.iCardNumber)
@@ -2260,8 +2337,9 @@ static int parse_args(int argc, char *argv[]) {
         (BOOL_IS_FALSE(validate_device_name())) ||
         (BOOL_IS_FALSE(validate_device_id(bDeviceIDWasSet))) ||
         (BOOL_IS_FALSE(validate_midi_device())) ||
+        (BOOL_IS_FALSE(validate_add_db_metadata())) ||
         (BOOL_IS_FALSE(validate_min_max_db_values())) ||
-        (BOOL_IS_FALSE(validate_initial_volume_values())) ||
+        (BOOL_IS_FALSE(validate_initial_raw_volume_values())) ||
         (BOOL_IS_FALSE(validate_initial_switch_values()))
     ) {
         return ERR_ERROR_INVALID_ARGUMENT;

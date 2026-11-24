@@ -10,6 +10,7 @@ Usage: /alsa-rme-adi2-volume-control [options]
 Creates ALSA mute and volume controls for RME ADI-2 devices.
 
 Options:
+  -a, --add-db-metadata INTEGER   Add dB metadata to the volume controls, so that mixers can display dB values (0=do not add, 1=add, default: 0)
   -C, --card-number INTEGER       Use the ALSA card with the given number; if specified, overrides the card detected by --device-name; option --list-cards prints the detected ones
   -d, --device-name STRING        RME device name (case sensitive, default: 'autodetect'); option --list-device-names prints the supported ones
   -D, --device-id STRING          RME device ID; if specified, overrides the device ID detected by --device-name; option --list-device-ids prints the supported ones
@@ -17,7 +18,7 @@ Options:
   -h, --help                      Print this help
       --license                   Print the license
   -k, --line12-switch INTEGER     Initial state for line output 1/2 (0=muted, 1=unmuted, default: 1)
-  -K, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: 50)
+  -K, --line12-volume INTEGER     Initial raw volume for line output 1/2 (in [0, 100], default: 50)
   -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to 0% volume (in [-93.8, 6.0], default: -60.0 dB)
   -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100% volume (in [-93.8, 6.0], default: -10.0 dB)
       --list-cards                List all ALSA cards and exit
@@ -29,7 +30,7 @@ Options:
       --no-phones34               Do not install controls for phones output 3/4
       --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits
   -o, --phones34-switch INTEGER   Initial state for phones output 3/4 (0=muted, 1=unmuted, default: 1)
-  -O, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: 50)
+  -O, --phones34-volume INTEGER   Initial raw volume for phones output 3/4 (in [0, 100], default: 50)
   -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to 0% volume (in [-93.8, 6.0], default: -90.0 dB)
   -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100% volume (in [-93.8, 6.0], default: -40.0 dB)
       --uninstall                 Uninstall ALSA user-defined control elements and exit
@@ -57,7 +58,7 @@ Examples:
 
 ```bash
 alsa-rme-adi2-volume-control --version
-alsa-rme-adi2-volume-control 1.0.1 (build 2026-11-15)
+alsa-rme-adi2-volume-control 1.0.3 (build 2026-11-26)
 ```
 
 ### Print The Exit Codes
@@ -284,10 +285,10 @@ with the following options:
 Examples:
 
 ```bash
-# mute Line Output 1/2 with initial volume 30%
+# mute Line Output 1/2 with initial raw volume 30%
 alsa-rme-adi2-volume-control --line12-switch 0 --line12-volume 30
 
-# unmute Phones Output 3/4 with initial volume 70%
+# unmute Phones Output 3/4 with initial raw volume 70%
 alsa-rme-adi2-volume-control --phones34-switch 1 --phones34-volume 70
 
 # both the above
@@ -297,4 +298,20 @@ alsa-rme-adi2-volume-control --line12-switch 0 --line12-volume 30 --phones34-swi
 The service will exit immediately with an error
 if the provided values are invalid
 (e.g., out of range or not `0` or `1`).
+
+### Register Absolute Minimum And Maximum Volume Levels
+
+By default, the absolute (dB) minimum and maximum volume levels
+are not registered, so that mixers (e.g., `alsamixer`) show
+the volume value on a linear scale (e.g., a value of `50`
+corresponds to exactly the middle value, in dB, between
+the configured minimum and maximum dB levels).
+
+It is possible to change this behavior by specifying the option
+`--add-db-metadata 1` on the command line:
+
+```bash
+# alsamixer will show value 50 as 28%, but still corresponding to -40.0 dB
+alsa-rme-adi2-volume-control --add-db-metadata 1 --line12-min-db -60.0 --line-12-max-db -20.0
+```
 
