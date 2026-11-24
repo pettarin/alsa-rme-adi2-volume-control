@@ -1856,7 +1856,8 @@ static int validate_initial_volume_values(void) {
  * and false otherwise. */
 static int validate_initial_switch_value(int iValue, const char *szOption) {
     if (
-        (iValue == INITIAL_SWITCH_VALUE_NOT_SET) ||
+        /* to be uncommented when read state from device is implemented */
+        /* (iValue == INITIAL_SWITCH_VALUE_NOT_SET) || */
         (BOOL_IS_VALID(iValue))
     ) {
         return BOOL_TRUE;
@@ -1984,10 +1985,10 @@ static void print_usage(const char *sProgramName, FILE *pStream) {
     fprintf(pStream, "      --exit-codes                Print the exit codes\n");
     fprintf(pStream, "  -h, --help                      Print this help\n");
     fprintf(pStream, "      --license                   Print the license\n");
-    fprintf(pStream, "  -k, --line12-switch INTEGER     Initial state for line output 1/2 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stLine12.bStartupSwitch);
-    fprintf(pStream, "  -K, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", gpConfiguration.stLine12.iStartupVolume);
-    fprintf(pStream, "  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stLine12.dMinDB);
-    fprintf(pStream, "  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stLine12.dMaxDB);
+    fprintf(pStream, "  -k, --line12-switch INTEGER     Initial state for line output 1/2 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, DEFAULT_LINE12_STARTUP_SWITCH_VALUE);
+    fprintf(pStream, "  -K, --line12-volume INTEGER     Initial volume for line output 1/2 (in [0, 100], default: %d)\n", DEFAULT_LINE12_STARTUP_VOLUME_VALUE);
+    fprintf(pStream, "  -l, --line12-min-db DB          Minimum dB value for line output 1/2, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, DEFAULT_LINE12_VOLUME_MIN_DB);
+    fprintf(pStream, "  -L, --line12-max-db DB          Maximum dB value for line output 1/2, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, DEFAULT_LINE12_VOLUME_MAX_DB);
     fprintf(pStream, "      --list-cards                List all ALSA cards and exit\n");
     fprintf(pStream, "      --list-device-ids           List all supported device IDs\n");
     fprintf(pStream, "      --list-device-names         List all supported device names\n");
@@ -1996,10 +1997,10 @@ static void print_usage(const char *sProgramName, FILE *pStream) {
     fprintf(pStream, "      --no-line12                 Do not install controls for line output 1/2\n");
     fprintf(pStream, "      --no-phones34               Do not install controls for phones output 3/4\n");
     fprintf(pStream, "      --no-uninstall-on-exit      If specified, do not uninstall ALSA user-defined control elements when the program exits\n");
-    fprintf(pStream, "  -o, --phones34-switch INTEGER   Initial state for phones output 3/4 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, gpConfiguration.stPhones34.bStartupSwitch);
-    fprintf(pStream, "  -O, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", gpConfiguration.stPhones34.iStartupVolume);
-    fprintf(pStream, "  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stPhones34.dMinDB);
-    fprintf(pStream, "  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, gpConfiguration.stPhones34.dMaxDB);
+    fprintf(pStream, "  -o, --phones34-switch INTEGER   Initial state for phones output 3/4 (%d=muted, %d=unmuted, default: %d)\n", BOOL_FALSE, BOOL_TRUE, DEFAULT_PHONES34_STARTUP_SWITCH_VALUE);
+    fprintf(pStream, "  -O, --phones34-volume INTEGER   Initial volume for phones output 3/4 (in [0, 100], default: %d)\n", DEFAULT_PHONES34_STARTUP_VOLUME_VALUE);
+    fprintf(pStream, "  -p, --phones34-min-db DB        Minimum dB value for phones output 3/4, corresponding to 0%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, DEFAULT_PHONES34_VOLUME_MIN_DB);
+    fprintf(pStream, "  -P, --phones34-max-db DB        Maximum dB value for phones output 3/4, corresponding to 100%% volume (in [%0.1f, %0.1f], default: %.1f dB)\n", RME_VALUE_VOLUME_MIN_DB, RME_VALUE_VOLUME_MAX_DB, DEFAULT_PHONES34_VOLUME_MAX_DB);
     fprintf(pStream, "      --uninstall                 Uninstall ALSA user-defined control elements and exit\n");
     fprintf(pStream, "  -v, --verbose                   Enable verbose output\n");
     fprintf(pStream, "  -V, --version                   Print the name and version of this program and exit\n");
