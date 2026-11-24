@@ -64,7 +64,6 @@
 #define RME_SYSEX_MANUFACTURER_ID_1         0x20
 #define RME_SYSEX_MANUFACTURER_ID_2         0x0D
 #define RME_SYSEX_COMMAND_SET               0x02
-#define RME_SYSEX_COMMAND_GET               0x03
 #define RME_SYSEX_END                       0xF7
 
 /* RME volume min/max values */
