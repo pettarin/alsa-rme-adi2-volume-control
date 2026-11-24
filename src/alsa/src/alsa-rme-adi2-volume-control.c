@@ -17,7 +17,9 @@
  */
 
 #include <stdio.h>                          /* for stderr, stdout, etc. */
-#include <stdlib.h>                         /* for atof, atoi, etc. */
+#include <stdlib.h>                         /* for strtod, strtol, etc. */
+#include <limits.h>                         /* for INT_MAX, INT_MIN */
+#include <ctype.h>                          /* for isspace() */
 #include <stdarg.h>                         /* for va_list */
 #include <string.h>                         /* for str* */
 #include <signal.h>                         /* for sig* */
@@ -264,6 +266,77 @@ static char *safe_strnstr(const char *haystack, const char *needle, size_t len) 
         len--;
     }
     return NULL;
+}
+
+
+/* Parse the string szValue as an integer in the given base
+ * (as in strtol: 10 for decimal, 0 to also accept the 0x and 0 prefixes),
+ * storing it in *piResult.
+ *
+ * Return true if szValue is a valid integer that fits in an int,
+ * and false otherwise, in which case *piResult is not modified.
+ * The empty string, leading whitespace, and trailing characters
+ * after the number (e.g. "12abc") are all rejected.
+ *
+ * NOTE: szValue is not modified, so it can be optarg itself;
+ *       there is no need to copy it into a temporary buffer. */
+static int parse_integer(const char *szValue, int iBase, int *piResult) {
+    char *pEnd = NULL;
+    long lValue = 0;
+
+    if ((szValue == NULL) || (piResult == NULL)) {
+        return BOOL_FALSE;
+    }
+    /* strtol silently skips leading whitespace: reject it here */
+    if ((szValue[0] == '\0') || (isspace((unsigned char)szValue[0]))) {
+        return BOOL_FALSE;
+    }
+    errno = 0;
+    lValue = strtol(szValue, &pEnd, iBase);
+    if (
+        (pEnd == szValue) ||                        /* no digits found */
+        (*pEnd != '\0') ||                          /* trailing characters */
+        (errno == ERANGE) ||                        /* does not fit in a long */
+        (lValue < INT_MIN) || (lValue > INT_MAX)    /* does not fit in an int */
+    ) {
+        return BOOL_FALSE;
+    }
+    *piResult = (int)lValue;
+    return BOOL_TRUE;
+}
+
+/* Parse the string szValue as a finite double,
+ * storing it in *pdResult.
+ *
+ * Return true if szValue is a valid finite number,
+ * and false otherwise, in which case *pdResult is not modified.
+ * The empty string, leading whitespace, trailing characters
+ * after the number (e.g. "-50x"), "inf", "nan", and values
+ * that overflow a double are all rejected.
+ *
+ * NOTE: szValue is not modified, so it can be optarg itself;
+ *       there is no need to copy it into a temporary buffer. */
+static int parse_finite_double(const char *szValue, double *pdResult) {
+    char *pEnd = NULL;
+    double dValue = 0.0;
+
+    if ((szValue == NULL) || (pdResult == NULL)) {
+        return BOOL_FALSE;
+    }
+    /* strtod silently skips leading whitespace: reject it here */
+    if ((szValue[0] == '\0') || (isspace((unsigned char)szValue[0]))) {
+        return BOOL_FALSE;
+    }
+    dValue = strtod(szValue, &pEnd);
+    if (
+        (pEnd == szValue) ||                        /* no digits found */
+        (*pEnd != '\0') ||                          /* trailing characters */
+        (!isfinite(dValue))                         /* inf, nan, or overflow */
+    ) {
+        return BOOL_FALSE;
+    }
+    *pdResult = dValue;
+    return BOOL_TRUE;
 }
 
 
@@ -1982,6 +2055,49 @@ static void print_license(void) {
     fprintf(stdout, "along with this program.  If not, see <https://www.gnu.org/licenses/>.\n");
 }
 
+/* Parse the value szValue of the command line option szOption
+ * as an integer (see parse_integer), storing it in *piResult.
+ * Return true on success; otherwise, log an error and return false. */
+static int parse_integer_option(
+    const char *szOption,
+    const char *szValue,
+    int iBase,
+    int *piResult
+) {
+    if (
+        BOOL_IS_TRUE(parse_integer(szValue, iBase, piResult))
+    ) {
+        return BOOL_TRUE;
+    }
+    log_error(
+        "Invalid value '%s' for option '%s': it must be an integer",
+        szValue,
+        szOption
+    );
+    return BOOL_FALSE;
+}
+
+/* Parse the value szValue of the command line option szOption
+ * as a finite double (see parse_finite_double), storing it in *pdResult.
+ * Return true on success; otherwise, log an error and return false. */
+static int parse_double_option(
+    const char *szOption,
+    const char *szValue,
+    double *pdResult
+) {
+    if (
+        BOOL_IS_TRUE(parse_finite_double(szValue, pdResult))
+    ) {
+        return BOOL_TRUE;
+    }
+    log_error(
+        "Invalid value '%s' for option '%s': it must be a (finite) number",
+        szValue,
+        szOption
+    );
+    return BOOL_FALSE;
+}
+
 static int parse_args(int argc, char *argv[]) {
     struct option long_opts[] = {
         /* keep sorted by long option name; use {0,0,0,0} sentinel to end */
@@ -2026,13 +2142,21 @@ static int parse_args(int argc, char *argv[]) {
     ) {
         switch (opt) {
             case 'C':
-                gpConfiguration.iCardNumber = atoi(optarg);
+                if (BOOL_IS_FALSE(parse_integer_option(
+                    "--card-number", optarg, 10, &(gpConfiguration.iCardNumber)
+                ))) {
+                    return ERR_ERROR_INVALID_ARGUMENT;
+                }
                 break;
             case 'd':
                 safe_strncpy(gpConfiguration.szDeviceName, optarg, DEVICE_NAME_MAX_LENGTH);
                 break;
             case 'D':
-                gpConfiguration.iDeviceID = (int)strtol(optarg, NULL, 0);
+                if (BOOL_IS_FALSE(parse_integer_option(
+                    "--device-id", optarg, 0, &(gpConfiguration.iDeviceID)
+                ))) {
+                    return ERR_ERROR_INVALID_ARGUMENT;
+                }
                 bDeviceIDWasSet = BOOL_TRUE;
                 break;
             case 'E':
@@ -2042,31 +2166,63 @@ static int parse_args(int argc, char *argv[]) {
                 gpConfiguration.bPrintUsage = BOOL_TRUE;
                 break;
             case 'k':
-                gpConfiguration.stLine12.bStartupSwitch = atoi(optarg);
+                if (BOOL_IS_FALSE(parse_integer_option(
+                    "--line12-switch", optarg, 10, &(gpConfiguration.stLine12.bStartupSwitch)
+                ))) {
+                    return ERR_ERROR_INVALID_ARGUMENT;
+                }
                 break;
             case 'K':
-                gpConfiguration.stLine12.iStartupVolume = atoi(optarg);
+                if (BOOL_IS_FALSE(parse_integer_option(
+                    "--line12-volume", optarg, 10, &(gpConfiguration.stLine12.iStartupVolume)
+                ))) {
+                    return ERR_ERROR_INVALID_ARGUMENT;
+                }
                 break;
             case 'l':
-                gpConfiguration.stLine12.dMinDB = atof(optarg);
+                if (BOOL_IS_FALSE(parse_double_option(
+                    "--line12-min-db", optarg, &(gpConfiguration.stLine12.dMinDB)
+                ))) {
+                    return ERR_ERROR_INVALID_ARGUMENT;
+                }
                 break;
             case 'L':
-                gpConfiguration.stLine12.dMaxDB = atof(optarg);
+                if (BOOL_IS_FALSE(parse_double_option(
+                    "--line12-max-db", optarg, &(gpConfiguration.stLine12.dMaxDB)
+                ))) {
+                    return ERR_ERROR_INVALID_ARGUMENT;
+                }
                 break;
             case 'M':
                 safe_strncpy(gpConfiguration.szMIDIDevice, optarg, MIDI_DEVICE_MAX_LENGTH);
                 break;
             case 'o':
-                gpConfiguration.stPhones34.bStartupSwitch = atoi(optarg);
+                if (BOOL_IS_FALSE(parse_integer_option(
+                    "--phones34-switch", optarg, 10, &(gpConfiguration.stPhones34.bStartupSwitch)
+                ))) {
+                    return ERR_ERROR_INVALID_ARGUMENT;
+                }
                 break;
             case 'O':
-                gpConfiguration.stPhones34.iStartupVolume = atoi(optarg);
+                if (BOOL_IS_FALSE(parse_integer_option(
+                    "--phones34-volume", optarg, 10, &(gpConfiguration.stPhones34.iStartupVolume)
+                ))) {
+                    return ERR_ERROR_INVALID_ARGUMENT;
+                }
                 break;
             case 'p':
-                gpConfiguration.stPhones34.dMinDB = atof(optarg);
+                if (BOOL_IS_FALSE(parse_double_option(
+                    "--phones34-min-db", optarg, &(gpConfiguration.stPhones34.dMinDB)
+                ))) {
+                    return ERR_ERROR_INVALID_ARGUMENT;
+                }
                 break;
             case 'P':
-                gpConfiguration.stPhones34.dMaxDB = atof(optarg);
+                if (BOOL_IS_FALSE(parse_double_option(
+                    "--phones34-max-db", optarg, &(gpConfiguration.stPhones34.dMaxDB)
+                ))) {
+                    return ERR_ERROR_INVALID_ARGUMENT;
+                }
                 break;
             case 'Q':
                 gpConfiguration.bListMIDIDevices = BOOL_TRUE;
@@ -2105,6 +2261,12 @@ static int parse_args(int argc, char *argv[]) {
                 return ERR_ERROR_INVALID_ARGUMENT;
         } /* end switch opt */
     } /* end while opt */
+
+    /* This program takes no positional arguments */
+    if (optind < argc) {
+        log_error("Unexpected argument: '%s'", argv[optind]);
+        return ERR_ERROR_INVALID_ARGUMENT;
+    }
 
     if (
         (BOOL_IS_FALSE(validate_no_output_options())) ||
