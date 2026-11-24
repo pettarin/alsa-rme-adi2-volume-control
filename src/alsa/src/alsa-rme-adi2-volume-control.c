@@ -1625,6 +1625,7 @@ static int monitor_loop(
                     is_event_from_output_control(event, pOutputControls[i])
                 )) {
                     pEventFrom = pOutputControls[i];
+                    break;
                 }
             }
             if (pEventFrom == NULL) {
